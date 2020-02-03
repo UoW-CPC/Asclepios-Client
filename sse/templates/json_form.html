@@ -1,0 +1,304 @@
+{% extends 'base.html' %} {% load crispy_forms_tags %}
+
+<!-- <form id='json-form' enctype="application/json" method="post"> -->
+<!--     {% csrf_token %} -->
+<!--     Name:<br> -->
+<!--      <input type="text" name="firstName"> -->
+<!--     <input name='patient[name]'> -->
+<!--     <br>Email:<br> -->
+<!--      <input type="text" name="lastName"> -->
+<!--      <input name='patient[email]'> -->
+<!--     <button type="submit">Submit</button> -->
+<!-- </form> -->
+<!--   <p><a href="{% url 'home' %}">Return to home</a></p> -->
+
+{% block main %}
+
+<div class="form-check form-check-inline">
+	<input class="form-check-input" type="radio" name="inputFormat"
+		id="jsonInput" value="json_input" checked> 
+	<label class="form-check-label" for="jsonInput">Input by json file</label>
+</div>
+<div class="form-check form-check-inline">
+	<input class="form-check-input" type="radio" name="inputFormat"
+		id="formInput" value="form_input"> 
+	<label class="form-check-label" for="formInput">Input by form</label>
+</div>
+
+<form id='json-file' enctype="application/json" class='mb-2'
+	method="post" action="">
+	{% csrf_token %}
+	<div class='mb-2'>
+					<input type="file" class="form-control" id="jsonFile"
+						placeholder="Please enter URL of json file" name='jsonFile' multiple>
+	</div>
+	<button type="button" class="btn btn-primary" id="btnSubmitFile">Submit</button>
+</form>
+
+
+<form id='json-form' enctype="application/json" class='mb-2' method="post" action="" hidden>
+	{% csrf_token %}
+	<div class="form-group row">
+		<div class="form-group col">
+			<label><b>Patient information</b></label>
+			<div class="form-group row">
+				<label for="field1" class="col-sm-2 col-form-label">Name</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field1"
+						placeholder="Please enter your name" name='patient[name]'>
+				</div>
+				<!--  <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small> aria-describedby="emailHelp" -->
+			</div>
+			<div class="form-group row">
+				<label for="field2" class="col-sm-2 col-form-label">Email</label>
+				<div class="col-sm-10">
+					<input type="email" class="form-control" id="field2"
+						placeholder="Pleasen enter your email" name='patient[email]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field3" class="col-sm-2 col-form-label">Age</label>
+				<div class="col-sm-10">
+					<input type="number" class="form-control" id="field3"
+						placeholder="Pleasen enter your age" name='patient[age]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field4" class="col-sm-2 col-form-label">Gender</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field4"
+						placeholder="Pleasen enter your gender" name='patient[gender]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field5" class="col-sm-2 col-form-label">Birth</label>
+				<div class="col-sm-10">
+					<input type="number" class="form-control" id="field5"
+						placeholder="Year of birth" name='patient[birth]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field6" class="col-sm-2 col-form-label">Marital</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field6"
+						placeholder="single/ married/ divorced" name='patient[marital]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field7" class="col-sm-2 col-form-label">Addr.</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field7"
+						placeholder="Pleasen enter your address" name='patient[address]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field8" class="col-sm-2 col-form-label">Phone</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field8"
+						placeholder="Pleasen enter your phone" name='patient[phone]'>
+				</div>
+			</div>
+		</div>
+		<div class="form-group col">
+			<label><b>Allergy information</b></label>
+			<div class="form-group row">
+				<label for="field9" class="col-sm-2 col-form-label">Allergy</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field9"
+						placeholder="Please enter allergy name" name='allergy[name]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field10" class="col-sm-2 col-form-label">React.</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field10"
+						placeholder="Please enter allergy reaction"
+						name='allergy[reaction]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field11" class="col-sm-2 col-form-label">Note</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field11"
+						placeholder="Please enter allergy note" name='allergy[note]'>
+				</div>
+			</div>
+			<label><b>Family member history</b></label>
+			<div class="form-group row">
+				<label for="field12" class="col-sm-2 col-form-label">Name</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field12"
+						placeholder="Enter family member name" name='family[name]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field13" class="col-sm-2 col-form-label">Rela.</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field13"
+						placeholder="Please enter relationship"
+						name='family[relationship]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field14" class="col-sm-2 col-form-label">Gender</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field14"
+						placeholder="Please enter gender" name='family[gender]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field15" class="col-sm-2 col-form-label">Birth</label>
+				<div class="col-sm-10">
+					<input type="number" class="form-control" id="field15"
+						placeholder="Please enter the birth year" name='family[born]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field16" class="col-sm-2 col-form-label">Cond.</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field16"
+						placeholder="Please describe condition" name='family[condition]'>
+				</div>
+			</div>
+		</div>
+
+		<div class="form-group col">
+			<label><b>Medication</b></label>
+			<div class="form-group row">
+				<label for="field17" class="col-sm-2 col-form-label">Name</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field17"
+						placeholder="Medication name" name='medication[name]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field18" class="col-sm-2 col-form-label">Amount</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field18"
+						placeholder="Medication amount" name='medication[amount]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field19" class="col-sm-2 col-form-label">Dose</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field19"
+						placeholder="Please describe the dose" name='medication[dose]'>
+				</div>
+			</div>
+			<label><b>Practitioner</b></label>
+			<div class="form-group row">
+				<label for="field20" class="col-sm-2 col-form-label">Name</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field20"
+						placeholder="Please enter name" name='practitioner[name]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field21" class="col-sm-2 col-form-label">Addr.</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field21"
+						placeholder="Please enter address" name='practitioner[address]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field22" class="col-sm-2 col-form-label">Phone</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field22"
+						placeholder="Please enter phone" name='practitioner[phone]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field23" class="col-sm-2 col-form-label">Gender</label>
+				<div class="col-sm-10">
+					<input type="number" class="form-control" id="field23"
+						placeholder="Please enter gender" name='practitioner[gender]'>
+				</div>
+			</div>
+			<div class="form-group row">
+				<label for="field24" class="col-sm-2 col-form-label">Lang.</label>
+				<div class="col-sm-10">
+					<input type="text" class="form-control" id="field24"
+						placeholder="Language" name='practitioner[lang]'>
+				</div>
+			</div>
+		</div>
+	</div>
+		<button type="button" class="btn btn-primary" id="btnSubmit">Submit</button>
+</form>
+
+<div id='notify'></div>
+
+
+<form id='search-form' enctype="application/json" class='mb-2'
+	method="post" action="" hidden>
+	{% csrf_token %}
+	<!--  
+	<div class="form-check form-check-inline">
+		<input class="form-check-input" type="radio" name="searchBy"
+			id="searchPtName" value="patient[name]" checked> <label
+			class="form-check-label" for="searchPtName">By patient name</label>
+	</div>
+	<div class="form-check form-check-inline">
+		<input class="form-check-input" type="radio" name="searchBy"
+			id="searchPtEmail" value="patient[email]"> <label
+			class="form-check-label" for="searchPtEmail">By patient email</label>
+	</div>
+	<div class="form-check form-check-inline">
+		<input class="form-check-input" type="radio" name="searchBy"
+			id="searchPtAge" value="patient[age]"> <label
+			class="form-check-label" for="searchPtAge">By patient age</label>
+	</div>
+	<div class="form-check form-check-inline">
+		<input class="form-check-input" type="radio" name="searchBy"
+			id="searchPtGender" value="patient[gender]"> <label
+			class="form-check-label" for="searchPtGender">By patient gender</label>
+	</div>
+	<div class="form-check form-check-inline">
+		<input class="form-check-input" type="radio" name="searchBy"
+			id="searchPtPhone" value="patient[phone]"> <label
+			class="form-check-label" for="searchPtPhone">By patient phone</label>
+	</div>
+	<div class="form-check form-check-inline">
+		<input class="form-check-input" type="radio" name="searchBy"
+			id="searchPracName" value="practitioner[name]"> <label
+			class="form-check-label" for="searchPracName">By practitioner name</label>
+	</div>
+	<div class="form-check form-check-inline">
+		<input class="form-check-input" type="radio" name="searchBy"
+			id="searchPracPhone" value="practitioner[name]"> <label
+			class="form-check-label" for="searchPracPhone">By practitioner phone</label>
+	</div>
+	-->
+	<label><b>Search by</b></label>
+	<select id="searchBy">
+	  <option value="patient[name]" id="select1">Patient name</option>
+	  <option value="patient[email]" id="select2">Patient email </option>
+	  <option value="patient[age]" id="select3">Patient age</option>
+	  <option value="patient[gender]" id="select4">Patient gender </option>
+	  <option value="patient[birth]" id="select5">Patient birth</option>
+	  <option value="patient[marital]" id="select6">Patient marital </option>
+	  <option value="patient[address]" id="select7">Patient address</option>
+	  <option value="patient[phone]" id="select8">Patient phone </option>
+	  <option value="allergy[name]" id="select9">Allergy name</option>
+	  <option value="medication[name]" id="select17">Medication name </option>
+	  <option value="practitioner[name]" id="select20">Practitioner name</option>
+	  <option value="practitioner[phone]" id="select22">Practitioner phone </option>
+	  <option value="practitioner[lang]" id="select24">Practitioner language</option>
+	</select>
+	<div class="form-group">
+		<label for="keyword">Search keyword</label> <input type="text"
+			class="form-control" id="keyword" placeholder="Search by keyword"
+			name='keyword'>
+	</div>
+	<button type="button" class="btn btn-primary" id="btnSearch">Search</button>
+</form>
+
+<form id='search-file' class='mb-2' method="post" action="">
+	<div class='mb-2'>
+		<input type="file" class="form-control" id="jsonSearchFile" placeholder="Please enter URL of json file" name='jsonSearchFile'>
+	</div>
+	<button type="button" class="btn btn-primary" id="btnSearchFile">Search</button>
+</form>
+
+<div id='result'></div>
+{% endblock %}
