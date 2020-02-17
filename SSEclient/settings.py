@@ -130,3 +130,6 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = '/static'
+
+# Prevent creating pyc files
+PYTHONDONTWRITEBYTECODE = 1
