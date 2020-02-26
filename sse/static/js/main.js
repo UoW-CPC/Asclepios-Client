@@ -234,37 +234,14 @@ function flattenObject(obj){
 function handleFileLoad(event){
       var st_date = new Date();
       var st_time = st_date.getTime();
- 
-	  console.log(event);
-	  var jsonObj = JSON.parse(event.target.result);
-	  console.log("json object:",jsonObj);
 	  
 	  var KeyG = appConfig.KeyG;
 	  var Kenc = appConfig.key_encrypt; //Key for encrypting json object
-	  
-	  console.log("1st item in json object:", Object.keys(jsonObj)[0], Object.values(jsonObj)[0]);
-	  var first_kv = Object.keys(jsonObj)[0] + Object.values(jsonObj)[0];
-	  var json_id = hash(jsonObj[1] + Math.random().toString(36).substring(7));
-	  console.log("json id:",json_id);
-	  
-	  //loop over json object
-	  var json_keys = Object.keys(jsonObj);
-	  var json_values = Object.values(jsonObj);
-	  var length = json_keys.length;
-	  var i, w;
-	  
-	  var KeyG = appConfig.KeyG;
-	  var Kenc = appConfig.key_encrypt; //Key for encrypting json object
-	  
-	  var Lw="";
-	  for(i=0; i< length; i++){
-		  w = json_keys[i] + json_values[i]
-		  Lw = Lw + w + ",";
-	  }
-	  //remove the last comma
-	  Lw = Lw.slice(0, -1);
-	  console.log("list of keywords:",Lw);
-	  processMultiKeyword(Lw,KeyG, Kenc, json_id);
+      
+	  var file_id = hash(Math.random().toString(36).substring(7));
+	  console.log("file id:",file_id);
+      uploadFile(event.target.result,file_id,KeyG,Kenc);
+  	  console.log("event.target.result:",event.target.result);
 	  
       var end_date = new Date();
       var end_time = end_date.getTime();
@@ -273,19 +250,48 @@ function handleFileLoad(event){
       $('#exetime').html("<div class='alert-primary alert'> Exec time: " +  diff + " </div>");
 }
 
+//file_content: file content, file_id: file identifier which must be unique, K: symmetric key
+function uploadFile(file_content, file_id, KeyG, Kenc){
+	var jsonObj = JSON.parse(file_content); //parse json file content into json objects
+	console.log("json object:",jsonObj);
+	
+	console.log("1st item in json object:", Object.keys(jsonObj)[0], Object.values(jsonObj)[0]);
+	var first_kv = Object.keys(jsonObj)[0] + Object.values(jsonObj)[0];
+	
+	var json_keys = Object.keys(jsonObj); // keys of json objects
+	var json_values = Object.values(jsonObj); // values of json objects
+	var length = json_keys.length; // number of json objects
+	var i, w;
+
+	// combine multiple keywords into a list, separated by comma
+	var Lw="";
+	for(i=0; i< length; i++){
+		w = json_keys[i] + json_values[i]
+		Lw = Lw + w + ",";
+	}
+	//remove the last comma
+	Lw = Lw.slice(0, -1);
+	console.log("list of keywords:",Lw);
+	
+	processMultiKeyword(Lw,KeyG,Kenc,file_id); //Lw: list of keywords
+}
+
 function handleSearchFileLoad(event){
-	console.log(event);
-	var jsonObj = JSON.parse(event.target.result);
+	var KeyG = appConfig.KeyG;	//shared key with TA
+	var Kenc = appConfig.key_encrypt; //symmetric key which is used for decryption
+
+	searchFile(event.target.result,KeyG,Kenc);
+}
+
+//search_content: search content, K: symmetric key
+function searchFile(search_content, KeyG, Kenc){
+	var jsonObj = JSON.parse(search_content);
 	console.log("json object:",jsonObj);
 	var keyword = jsonObj['keyword'];
 	console.log("keyword: ",keyword);
-	
-	var KeyG = appConfig.KeyG;	
-	var Kenc = appConfig.key_encrypt;
-	
-	findKeyword(keyword,KeyG, Kenc);
+	findKeyword(keyword,KeyG,Kenc);
 }
-
+//function processMultiKeyword(Lw, KeyG, Kenc, json_id){
 function processMultiKeyword(Lw, KeyG, Kenc, json_id){
 	var LfileNo;
 	var LfileNoUri;
@@ -326,8 +332,6 @@ function processMultiKeyword(Lw, KeyG, Kenc, json_id){
 		var searchno;
 		if(noExisted>0 && i<noExisted){ // update fileno for existed item
 			fileno = LfileNo[i] + 1;
-			//searchno = LsearchNo[i];
-			//searchno = LsearchNo[tempListWord.index(w)]; //find search number of the keyword w
 			searchno = LsearchNo[tempListWord.indexOf(w)];
 			console.log("index of keyword in the searchno list:",tempListWord.indexOf(w));
 			console.log("search number is:",searchno);
