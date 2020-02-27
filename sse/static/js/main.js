@@ -10,7 +10,7 @@ var appConfig={
 	 'ks' : 128,
 	 'ts' : 64,
 	 'hash_length' : 256,
-	 'used_fields' : 4,
+	 'used_fields' : 2,
 	 'all_fields' : 24
 }
 /// APPLICATION CONFIGURATION - End
@@ -18,13 +18,12 @@ var appConfig={
 /// REQUESTS: Get, Post, Put
 function getRequest(api_url) {
 	var ret=null;
-	//console.log("get url:",api_url);
+
 	$.ajax({
 		url: api_url,
 		type: 'GET',
 		async: false, // disable asynchronous, to wait for the response from the server
 		success: function(data) {
-			//console.log("get request data", data);
 			ret = data;
 		},
 		error: function(erro){
@@ -35,7 +34,6 @@ function getRequest(api_url) {
 }
 
 function postRequest(api_url, jsonObj, callback, async_feat=true) {
-	//console.log("url:", api_url);
 	console.log("data:", jsonObj);
 	ret = $.ajax({
 		url: api_url,
@@ -44,10 +42,6 @@ function postRequest(api_url, jsonObj, callback, async_feat=true) {
 		data: jsonObj,
 		async: async_feat,
 		success: function(data) {
-			//console.log("post request");
-			/*if(data!=undefined){
-				console.log(data);
-			}*/
 			if(callback!=undefined){
 				callback(data);
 			}
@@ -56,7 +50,7 @@ function postRequest(api_url, jsonObj, callback, async_feat=true) {
 			console.error("Post Request Error");
 		}
 	}).responseJSON;
-	console.log("Results from postRequest with async as",async_feat,":",ret);
+//	console.log("Results from postRequest with async as",async_feat,":",ret);
 	return ret;
 }
 
@@ -68,10 +62,6 @@ function putRequest(api_url, jsonObj, callback) {
 		contentType: 'application/json',
 		data: jsonObj,
 		success: function(data) {
-			//console.log("put request data");
-			/*if(data!=undefined){
-				console.log(data);
-			}*/
 			if(callback!=undefined){
 				callback(data);
 			}
@@ -101,12 +91,16 @@ function patchRequest(api_url, jsonObj, callback) {
 /// REQUESTS - End
 
 /// BASIC FUNCTIONS
+
+// Hash SHA256
 function hash(input){
 	var bitArray = sjcl.hash.sha256.hash(input);
 	var ret = sjcl.codec.hex.fromBits(bitArray);
 	return ret;
 }
 
+// Encrypt data
+// Parameters: input - data, key - symmetric key
 function encrypt(key, input){
 	var salt = btoa(appConfig.salt);//btoa("abc123!?");
 	var iv = btoa(appConfig.iv);//btoa("abcdefg");
@@ -117,6 +111,8 @@ function encrypt(key, input){
 	return res; // return a ciphertext object
 }
 
+// Decrypt a ciphertext object
+// Parameters: key - symmetric key, cipherObj - ciphertext object
 function decrypt(key, cipherObj){
 	var res = ""
 	try{
@@ -128,6 +124,8 @@ function decrypt(key, cipherObj){
 	return res;	
 }
 
+// Retrieve file numbers of a list of keywords
+// Params: Lw - list of keywords
 function getMultiFileNo(Lw){
 	LfileNo = [];
 	LfileNoUri = [];
@@ -149,6 +147,8 @@ function getMultiFileNo(Lw){
 	return [LfileNo, LfileNoUri,listW];
 }
 
+//Retrieve search numbers of a list of keywords
+//Params: Lw - list of keywords
 function getMultiSearchNo(Lw){	
 	//var obj = getRequest(appConfig.base_url_ta + "/api/v1/searchno/?w=" + Lw);
 	var obj = getRequest(appConfig.base_url_ta + "/api/v1/searchno/?limit=0&w=" + Lw);
@@ -166,6 +166,7 @@ function getMultiSearchNo(Lw){
 	return [LsearchNo, LsearchNoUri,listW];
 }
 
+// obsolete
 function getFileNo(keyword){	
 	var fileNo = 0;
 	var fileNoUri = "";
@@ -180,6 +181,7 @@ function getFileNo(keyword){
 	return [fileNo, fileNoUri];
 }
 
+//obsolete
 function getSearchNo(keyword){	
 	var obj = getRequest(appConfig.base_url_ta + "/api/v1/searchno/?w=" + keyword);
 
@@ -191,24 +193,6 @@ function getSearchNo(keyword){
 		searchNoUri = appConfig.base_url_ta +  obj.objects[0].resource_uri;
 	}
 	return [searchNo, searchNoUri];
-}
-
-function computeKeyMap(keyG,hashVal,searchNo){
-	var ret = encrypt(keyG, hashVal+searchNo);
-	return ret;
-}
-
-function computeHashVal(keyG, keyMap){
-	var hashLength = appConfig.hash_length;
-	var hashVal;
-	var searchNo;
-	var res = decrypt(keyG, keyMap);
-	
-	// Extract hash value and search number
-	hashVal = res.substring(1, hashLength);
-	searchNo = res.substring(hashLength+1,res.length);
-	
-	return [hashVal,searchNo];
 }
 
 // Flatten json object - in progress
@@ -232,17 +216,20 @@ function flattenObject(obj){
 	return toReturn;
 }
 
+// Upload data to CSP
 function handleFileLoad(event){
-      var st_date = new Date();
-      var st_time = st_date.getTime();
-	  
 	  var KeyG = appConfig.KeyG;
 	  var Kenc = appConfig.key_encrypt; //Key for encrypting json object
       
-	  var file_id = hash(Math.random().toString(36).substring(7));
+	  var file_id = hash(Math.random().toString(36).substring(7)); // generate unique file_id
+	  
 	  console.log("file id:",file_id);
-      uploadFile(event.target.result,file_id,KeyG,Kenc);
-  	  console.log("event.target.result:",event.target.result);
+	  var jsonObj = JSON.parse(event.target.result); //parse json file content into json objects
+      
+      var st_date = new Date();
+      var st_time = st_date.getTime();
+      
+	  uploadFile(jsonObj,file_id,KeyG,Kenc); // Upload data to CSP
 	  
       var end_date = new Date();
       var end_time = end_date.getTime();
@@ -251,23 +238,23 @@ function handleFileLoad(event){
       $('#exetime').html("<div class='alert-primary alert'> Exec time: " +  diff + " </div>");
 }
 
-//file_content: file content, file_id: file identifier which must be unique, K: symmetric key
-function uploadFile(file_content, file_id, KeyG, Kenc){
-	var jsonObj = JSON.parse(file_content); //parse json file content into json objects
-	console.log("json object:",jsonObj);
+// Upload data
+// Input: data - data as json object, file_id - file identifier which must be unique, KeyG, Kenc - symmetric keys
+function uploadFile(data, file_id, KeyG, Kenc){
+	console.log("json object:",data);
 	
-	console.log("1st item in json object:", Object.keys(jsonObj)[0], Object.values(jsonObj)[0]);
-	var first_kv = Object.keys(jsonObj)[0] + Object.values(jsonObj)[0];
+	console.log("1st item in json object:", Object.keys(data)[0], Object.values(data)[0]);
+	var first_kv = Object.keys(data)[0] + "|" + Object.values(data)[0]; //separate key and value by ;
 	
-	var json_keys = Object.keys(jsonObj); // keys of json objects
-	var json_values = Object.values(jsonObj); // values of json objects
+	var json_keys = Object.keys(data); // keys of json objects
+	var json_values = Object.values(data); // values of json objects
 	var length = json_keys.length; // number of json objects
 	var i, w;
 
 	// combine multiple keywords into a list, separated by comma
 	var Lw="";
 	for(i=0; i< length; i++){
-		w = json_keys[i] + json_values[i]
+		w = json_keys[i] + "|" + json_values[i] //separate key and value by ;
 		Lw = Lw + w + ",";
 	}
 	//remove the last comma
@@ -277,24 +264,42 @@ function uploadFile(file_content, file_id, KeyG, Kenc){
 	processMultiKeyword(Lw,KeyG,Kenc,file_id); //Lw: list of keywords
 }
 
+// Search data by keyword
 function handleSearchFileLoad(event){
 	var KeyG = appConfig.KeyG;	//shared key with TA
 	var Kenc = appConfig.key_encrypt; //symmetric key which is used for decryption
 
-	var results=searchFile(event.target.result,KeyG,Kenc);
+	var jsonObj = JSON.parse(event.target.result);
+	
+	var st_date = new Date();
+    var st_time = st_date.getTime();
+   
+	var results=searchFile(jsonObj,KeyG,Kenc);
+	
+    var end_date = new Date();
+    var end_time = end_date.getTime();
+    var diff = end_time - st_time;
+    
 	console.log("Found results:",results);
+	
+	$('#result').empty();
+	$('#searchtime').empty();
+	$('#result').append("<div class='alert-primary alert'> Found " + results["count"] + " results </div>");
+	$('#searchtime').html("<div class='alert-primary alert'> Search time: " +  diff + " </div>");
 }
 
-//search_content: search content, K: symmetric key
-function searchFile(search_content, KeyG, Kenc){
-	var jsonObj = JSON.parse(search_content);
-	console.log("json object:",jsonObj);
-	var keyword = jsonObj['keyword'];
+//Search data
+// Input: data - json object of search content, K - symmetric key
+function searchFile(data, KeyG, Kenc){
+	console.log("json object:",data);
+	var keyword = data['keyword'];
 	console.log("keyword: ",keyword);
 	var results = findKeyword(keyword,KeyG,Kenc);
 	return results;
 }
-//function processMultiKeyword(Lw, KeyG, Kenc, json_id){
+
+// Send list of keywords to CSP
+// Input: Lw - list of keywords, KeyG, Kenc - symmetric keys, json_id - file identifier
 function processMultiKeyword(Lw, KeyG, Kenc, json_id){
 	var LfileNo;
 	var LfileNoUri;
@@ -380,7 +385,6 @@ function processMultiKeyword(Lw, KeyG, Kenc, json_id){
 		console.log("Address:" + addr);
 		
 		// Compute value of entry in the dictionary
-//		var val = encrypt(Kenc, json_id + fileno);
 		var val = json_id; //do not encrypt json_id anymore
 		console.log("json_id:", json_id, " - file number:", fileno, " - value of entry in the dictionary:",val);
 		Laddress += '{ "address" : "' + addr + '","value" : "' + val + '"},';
@@ -409,10 +413,11 @@ function processMultiKeyword(Lw, KeyG, Kenc, json_id){
 	patchRequest(appConfig.base_url_sse_server + "/api/v1/map/", Laddress);
 }
 
-
+// Decrypt data retrieved from CSP
+// Input: response - data retrieved from CSP, Kenc - symmeric key, keyword - the searched keyword
+// Output: json object containing count (number of data objects), and objects (list of data objects)
 function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
 	console.log("response of search:",response.Cfw)
-	// decrypt the value to json_id, which is used to request data
 	console.log("length of response:",response.Cfw.length)
 	
 	var found_ret = 0;// the number of found results
@@ -430,8 +435,9 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
 			console.log("encrypted data:",ct)
 			var ct_reformat =ct.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
 			var text = decrypt(Kenc,ct_reformat)
+			var pair = text.split("|")
 			console.log("decrypted data:",text)
-			data =  data + '"' + i + '":"' + text + '",'
+			data =  data + '"' + pair[0] + '":"' + pair[1] + '",'
 		}
 		//remove the last comma
 		data = data.slice(0, -1);
@@ -440,7 +446,12 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
 	
 	//remove the last comma
 	data = data.slice(0, -1);
-	data = '{"count":' + found_ret + ',' + data + ']}'
+	if(found_ret==0){
+		data = '{"count":' + found_ret + ',"objects":[]}'
+	}
+	else{
+		data = '{"count":' + found_ret + ',' + data + ']}'
+	}
 	console.log("Json string:",data)
 	//convert string to Json Object
 	console.log("Json object:",JSON.parse(data))
@@ -455,12 +466,11 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
 		console.log('Update the entry in searchno');
 		putRequest(searchNoUri,'{ "searchno" : ' + searchNo + '}');
 	}	
-	
-	$('#result').empty();
-	$('#result').append("<div class='alert-primary alert'> Found " + found_ret + " results </div>");
-	return data;
+	return JSON.parse(data);
 }
 
+// Search keyword function
+// Input: keyword - keyword, KeyG, Kenc - symmetric keys
 function findKeyword(keyword, KeyG, Kenc){
 	console.log("Search keyword function");
 	
@@ -503,7 +513,6 @@ function findKeyword(keyword, KeyG, Kenc){
 		"Lu":arrayAddr
 	};
 	var data = '{ "KeyW" : ' + KeyW + ',"fileno" : ' + fileNo + ',"Lu" :[' + arrayAddr + ']}';
-	//var data = JSON.stringify(jsonData);
 	console.log("Data sent to CSP:", data);
 	
 	hashChars = appConfig.hash_length/4; //number of chars of hash output: 64
@@ -511,9 +520,11 @@ function findKeyword(keyword, KeyG, Kenc){
 	result = postRequest(appConfig.base_url_sse_server + "/api/v1/search/", data,function(response){
 		return true;
 	},async_feat=false);// Send request to CSP
+	
 	console.log("Results from post request after returned:",result);
 	data = retrieveData(result,Kenc,searchNo,searchNoUri,keyword);
 	console.log("Results from retrieveData:",data);
+	
 	return data;
 }
 /// BASIC FUNCTIONS - End
@@ -538,18 +549,30 @@ $(document).ready(
 	            }
 	        });
 			
+			$("#jsonInput").click(function(){
+				$('#notify').empty();
+				$('#exetime').empty();
+				$('#result').empty();
+				$('#searchtime').empty();
+			});
+			
+			$("#formInput").click(function(){
+				$('#notify').empty();
+				$('#exetime').empty();
+				$('#result').empty();
+				$('#searchtime').empty();
+			});
 			// ADD PATIENT by submitting file
 			$("#btnSubmitFile").click(function(){
+				$('#notify').empty();
 				if ($('#jsonFile').get(0).files.length === 0) {
 				    console.log("No files selected.");
 				}
 				else{
-					//console.log("File submitted");
 					var reader = new FileReader()
 					reader.onload = handleFileLoad;
 					reader.readAsText($('#jsonFile').get(0).files[0]);
 				}
-				$('#notify').empty();
 				$('#notify').html("<div class='alert-primary alert'> Submitted </div>");
 			});
 			
@@ -575,25 +598,39 @@ $(document).ready(
 				$('#notify').empty();
 				$('#notify').html("<div class='alert-primary alert'> Submitting </div>");
 				
-				var y = $("#json-form").serializeArray();
+				var data = $("#json-form").find("input[name!=csrfmiddlewaretoken]").serializeArray();//get all data, except the hidden value: "name":"csrfmiddlewaretoken"
 				
 				var KeyG = appConfig.KeyG;
 				var Kenc = appConfig.key_encrypt; //Key for encrypting json object
 
-				console.log("Number of input fields: ", y.length);
-							
-				// Generate json_id
-				var json_id = hash($("#field1").val() + Math.random().toString(36).substring(7)); //hash($("#patientEmail").val()+ Math.random().toString(36).substring(7));
+				console.log("Number of input fields: ", data.length);
+				console.log("Serialized data:",data[0]);
+				
+				var no_data = data.length;
+				var jsonObj = '{';
+				for(var i=0; i< no_data; i++){
+					jsonObj = jsonObj + '"' + data[i]["name"] + '":"' + data[i]["value"] + '",' 
+				}
+				jsonObj = jsonObj.slice(0, -1); // remove the last comma
+				jsonObj = jsonObj + '}';
+				jsonObj = JSON.parse(jsonObj);
+				console.log("Json data:",jsonObj);
+			    
+				var file_id = hash(Math.random().toString(36).substring(7));
+				
+				var st_date = new Date();
+			    var st_time = st_date.getTime();
+				uploadFile(jsonObj,file_id,KeyG,Kenc); // Upload data to CSP
+				  
+			    var end_date = new Date();
+			    var end_time = end_date.getTime();
+			    var diff = end_time - st_time;
+	
+			    console.log("Submit process completed. Exec time: ", diff);
+				$('#notify').empty();
+				$('#notify').html("<div class='alert-primary alert'> Submitted </div>");
+			    $('#exetime').html("<div class='alert-primary alert'> Exec time: " +  diff + " </div>");
 
-				for(var i=1; i< noFields; i++){ //when i=0, the field is 'csrf_token'
-					var field = y[i];
-					console.log("Input field ordering, and value:",i,field);
-
-					var w = (field.name).concat(field.value);
-					console.log("Keyword:",w);
-					
-					processKeyword(w, KeyG, Kenc, json_id);
-				}//end for
 			});//end btnSubmit
 			
 			/// SEARCH FOR PATIENT by form
@@ -603,13 +640,27 @@ $(document).ready(
 				
 				// Get value of keyword from the search box and the radio box
 				var selectVal = $("#searchBy  option:selected").val();
-				var keyword = selectVal + $("#keyword").val();
+				var keyword = selectVal + "|" +  $("#keyword").val();
 				
 				var KeyG = appConfig.KeyG;	
 				var Kenc = appConfig.key_encrypt;
 				
 				console.log("keyword for search", keyword);
-				findKeyword(keyword,KeyG,Kenc);	
+				
+				var st_date = new Date();
+			    var st_time = st_date.getTime();
+				data = findKeyword(keyword,KeyG,Kenc);	
+				
+			    var end_date = new Date();
+			    var end_time = end_date.getTime();
+			    var diff = end_time - st_time;
+	
+			    console.log("Search process completed. Exec time: ", diff);
+			    console.log("Retrieved data:",data);
+				$('#result').empty();
+				$('#result').append("<div class='alert-primary alert'> Found " + data["count"] + " results </div>");
+
+			    $('#searchtime').html("<div class='alert-primary alert'> Search time: " +  diff + " </div>");
 			});//end btnSearch
 			
 			/// SEARCH FOR PATIENT by submitting json file
@@ -621,22 +672,10 @@ $(document).ready(
 					console.log("No files selected.");
 				}
 				else{
-					//console.log("File submitted");
 					var reader = new FileReader()
 					reader.onload = handleSearchFileLoad;
 					reader.readAsText($('#jsonSearchFile').get(0).files[0]);
 				}
 				
 			});//end btnSearchFile
-			
-			// in progress
-			$('#btnTest').click(function(){
-				console.log("testing");
-				$('#result').empty();
-				$('#result').html("<div class='alert-primary alert'> Testing </div>");
-				var Lw = "an,binh,quy";
-				var KeyG = appConfig.KeyG;
-				var Kenc = appConfig.key_encrypt; //Key for encrypting json object
-				processMultiKeyword(Lw, KeyG, Kenc, "1234");
-			});
 		});
