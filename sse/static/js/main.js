@@ -34,14 +34,15 @@ function getRequest(api_url) {
 	return ret;
 }
 
-function postRequest(api_url, jsonObj, callback) {
+function postRequest(api_url, jsonObj, callback, async_feat=true) {
 	//console.log("url:", api_url);
 	console.log("data:", jsonObj);
-	$.ajax({
+	ret = $.ajax({
 		url: api_url,
 		type: 'POST',
 		contentType: 'application/json',
 		data: jsonObj,
+		async: async_feat,
 		success: function(data) {
 			//console.log("post request");
 			/*if(data!=undefined){
@@ -54,7 +55,9 @@ function postRequest(api_url, jsonObj, callback) {
 		error: function(erro){
 			console.error("Post Request Error");
 		}
-	})
+	}).responseJSON;
+	console.log("Results from postRequest with async as",async_feat,":",ret);
+	return ret;
 }
 
 
@@ -79,7 +82,6 @@ function putRequest(api_url, jsonObj, callback) {
 	})
 }
 
-//in progress
 function patchRequest(api_url, jsonObj, callback) {
 	$.ajax({
 		url: api_url,
@@ -126,7 +128,6 @@ function decrypt(key, cipherObj){
 	return res;	
 }
 
-//in progress
 function getMultiFileNo(Lw){
 	LfileNo = [];
 	LfileNoUri = [];
@@ -203,14 +204,14 @@ function computeHashVal(keyG, keyMap){
 	var searchNo;
 	var res = decrypt(keyG, keyMap);
 	
-	// Extracth hash value and search number
+	// Extract hash value and search number
 	hashVal = res.substring(1, hashLength);
 	searchNo = res.substring(hashLength+1,res.length);
 	
 	return [hashVal,searchNo];
 }
 
-// Flatten json object
+// Flatten json object - in progress
 function flattenObject(obj){
 	var toReturn = {};
 	
@@ -289,7 +290,9 @@ function searchFile(search_content, KeyG, Kenc){
 	console.log("json object:",jsonObj);
 	var keyword = jsonObj['keyword'];
 	console.log("keyword: ",keyword);
-	findKeyword(keyword,KeyG,Kenc);
+	var results = findKeyword(keyword,KeyG,Kenc);
+	console.log("Found results:",results);
+	return results;
 }
 //function processMultiKeyword(Lw, KeyG, Kenc, json_id){
 function processMultiKeyword(Lw, KeyG, Kenc, json_id){
@@ -377,9 +380,10 @@ function processMultiKeyword(Lw, KeyG, Kenc, json_id){
 		console.log("Address:" + addr);
 		
 		// Compute value of entry in the dictionary
-		var val = encrypt(Kenc, json_id + fileno);
+//		var val = encrypt(Kenc, json_id + fileno);
+		var val = json_id; //do not encrypt json_id anymore
 		console.log("json_id:", json_id, " - file number:", fileno, " - value of entry in the dictionary:",val);
-		Laddress += '{ "address" : "' + addr + '","location" : ' + val + '},';
+		Laddress += '{ "address" : "' + addr + '","value" : "' + val + '"},';
 		
 	}
 	// remove the last comma (,) from objects
@@ -403,6 +407,63 @@ function processMultiKeyword(Lw, KeyG, Kenc, json_id){
 	
 	// Send new address, and value to CSP
 	patchRequest(appConfig.base_url_sse_server + "/api/v1/map/", Laddress);
+}
+
+
+function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
+	console.log("response of search:",response.Cfw)
+	// decrypt the value to json_id, which is used to request data
+	console.log("length of response:",response.Cfw.length)
+	
+	var found_ret = 0;// the number of found results
+	
+	for(var j=0; j<response.Cfw.length; j++){
+//		var ct = response.Cfw[j]
+//		
+//		json_id_found = ct;// do not decrypt json_id anymore
+//		
+//		found_ret = found_ret + 1; // count the number of found results
+//
+//		// get data by json_id
+//		var getresponse = getRequest(appConfig.base_url_sse_server + "/api/v1/ciphertext/?jsonId=" + json_id_found);
+//		var objs_data = getresponse["objects"];
+//		//console.log("get response:",objs_data)
+//		var length = objs_data.length;
+//		for (var i = 0; i < length; i++) {
+//			console.log("object:",objs_data[i].data);
+//			var obj_data_reformat =objs_data[i].data.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
+//			
+//			var text = decrypt(Kenc,obj_data_reformat)
+//			console.log("decrypted data:",text)
+//			//$('#result').append("<div class='alert-primary alert'>" + text + "</div>");
+//		}
+		var objs_data = response.Cfw[j]
+		var length = objs_data.length;
+
+		found_ret = found_ret + 1; // count the number of found results
+		for (var i = 0; i < length; i++) {
+			var ct = objs_data[i].data
+			console.log("encrypted data:",ct)
+			var ct_reformat =ct.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
+			var text = decrypt(Kenc,ct_reformat)
+			console.log("decrypted data:",text)
+		}
+	}
+	
+	// Update search number to TA
+	if(searchNo==1){ // If the keyword is new, create searchNo in TA
+		var jsonData = '{ "w" : "' + keyword + '","searchno" : ' + searchNo + '}';
+		console.log('Create new entry in searchNo: ',jsonData);
+		postRequest(appConfig.base_url_ta + "/api/v1/searchno/", jsonData);					
+	}
+	else{ // If the keyword is existed, update searchNo in TA
+		console.log('Update the entry in searchno');
+		putRequest(searchNoUri,'{ "searchno" : ' + searchNo + '}');
+	}	
+	
+	$('#result').empty();
+	$('#result').append("<div class='alert-primary alert'> Found " + found_ret + " results </div>");
+	return found_ret;
 }
 
 function findKeyword(keyword, KeyG, Kenc){
@@ -452,58 +513,13 @@ function findKeyword(keyword, KeyG, Kenc){
 	
 	hashChars = appConfig.hash_length/4; //number of chars of hash output: 64
 	
-	postRequest(appConfig.base_url_sse_server + "/api/v1/search/", data, function(response){
-		console.log("response of search:",response.Cfw)
-		// decrypt the location to json_id, which is used to request data
-		console.log("length of response:",response.Cfw.length)
-		
-		var found_ret=0; // the number of found results
-		
-		for(var j=0; j<response.Cfw.length; j++){
-			var ct = response.Cfw[j]
-			var ct_reformat = ct.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
-			console.log("ct_reformat:",ct_reformat)
-			console.log("j:",j)
-			console.log("item j in response:",ct)
-			console.log("decrypting")
-			console.log("type of response:", typeof ct)
-			var json_id_fileno = decrypt(Kenc,ct_reformat) // Decrypt to retrieve json_id
-			console.log("found json_id_fileno:",json_id_fileno)
-			json_id_found = json_id_fileno.substring(0,hashChars)
-			console.log("found json:",json_id_found)
-			
-			found_ret = found_ret + 1; // count the number of found results
-
-			// get data by json_id
-			var getresponse = getRequest(appConfig.base_url_sse_server + "/api/v1/ciphertext/?jsonId=" + json_id_found);
-			var objs_data = getresponse["objects"];
-			//console.log("get response:",objs_data)
-			var length = objs_data.length;
-			for (var i = 0; i < length; i++) {
-				console.log("object:",objs_data[i].data);
-				var obj_data_reformat =objs_data[i].data.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
-				
-				var text = decrypt(Kenc,obj_data_reformat)
-				console.log("decrypted data:",text)
-				//$('#result').append("<div class='alert-primary alert'>" + text + "</div>");
-			}
-			
-		}
-		
-		// Update search number to TA
-		if(searchNo==1){ // If the keyword is new, create searchNo in TA
-			var jsonData = '{ "w" : "' + keyword + '","searchno" : ' + searchNo + '}';
-			console.log('Create new entry in searchNo: ',jsonData);
-			postRequest(appConfig.base_url_ta + "/api/v1/searchno/", jsonData);					
-		}
-		else{ // If the keyword is existed, update searchNo in TA
-			console.log('Update the entry in searchno');
-			putRequest(searchNoUri,'{ "searchno" : ' + searchNo + '}');
-		}	
-		
-		$('#result').empty();
-		$('#result').append("<div class='alert-primary alert'> Found " + found_ret + " results </div>");
-	}); // Send request to CSP
+	result = postRequest(appConfig.base_url_sse_server + "/api/v1/search/", data,function(response){
+		return true;
+	},async_feat=false);// Send request to CSP
+	console.log("Results from post request after returned:",result);
+	no_found = retrieveData(result,Kenc,searchNo,searchNoUri,keyword);
+	console.log("Results from retrieveData:",no_found);
+	return result;
 }
 /// BASIC FUNCTIONS - End
 
