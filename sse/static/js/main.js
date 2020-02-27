@@ -281,7 +281,8 @@ function handleSearchFileLoad(event){
 	var KeyG = appConfig.KeyG;	//shared key with TA
 	var Kenc = appConfig.key_encrypt; //symmetric key which is used for decryption
 
-	searchFile(event.target.result,KeyG,Kenc);
+	var results=searchFile(event.target.result,KeyG,Kenc);
+	console.log("Found results:",results);
 }
 
 //search_content: search content, K: symmetric key
@@ -291,7 +292,6 @@ function searchFile(search_content, KeyG, Kenc){
 	var keyword = jsonObj['keyword'];
 	console.log("keyword: ",keyword);
 	var results = findKeyword(keyword,KeyG,Kenc);
-	console.log("Found results:",results);
 	return results;
 }
 //function processMultiKeyword(Lw, KeyG, Kenc, json_id){
@@ -417,39 +417,34 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
 	
 	var found_ret = 0;// the number of found results
 	
+	var data = '"objects":' + '[';
+	
 	for(var j=0; j<response.Cfw.length; j++){
-//		var ct = response.Cfw[j]
-//		
-//		json_id_found = ct;// do not decrypt json_id anymore
-//		
-//		found_ret = found_ret + 1; // count the number of found results
-//
-//		// get data by json_id
-//		var getresponse = getRequest(appConfig.base_url_sse_server + "/api/v1/ciphertext/?jsonId=" + json_id_found);
-//		var objs_data = getresponse["objects"];
-//		//console.log("get response:",objs_data)
-//		var length = objs_data.length;
-//		for (var i = 0; i < length; i++) {
-//			console.log("object:",objs_data[i].data);
-//			var obj_data_reformat =objs_data[i].data.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
-//			
-//			var text = decrypt(Kenc,obj_data_reformat)
-//			console.log("decrypted data:",text)
-//			//$('#result').append("<div class='alert-primary alert'>" + text + "</div>");
-//		}
 		var objs_data = response.Cfw[j]
 		var length = objs_data.length;
 
 		found_ret = found_ret + 1; // count the number of found results
+		data = data + '{'
 		for (var i = 0; i < length; i++) {
 			var ct = objs_data[i].data
 			console.log("encrypted data:",ct)
 			var ct_reformat =ct.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
 			var text = decrypt(Kenc,ct_reformat)
 			console.log("decrypted data:",text)
+			data =  data + '"' + i + '":"' + text + '",'
 		}
+		//remove the last comma
+		data = data.slice(0, -1);
+		data = data + '},'
 	}
 	
+	//remove the last comma
+	data = data.slice(0, -1);
+	data = '{"count":' + found_ret + ',' + data + ']}'
+	console.log("Json string:",data)
+	//convert string to Json Object
+	console.log("Json object:",JSON.parse(data))
+
 	// Update search number to TA
 	if(searchNo==1){ // If the keyword is new, create searchNo in TA
 		var jsonData = '{ "w" : "' + keyword + '","searchno" : ' + searchNo + '}';
@@ -463,7 +458,7 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
 	
 	$('#result').empty();
 	$('#result').append("<div class='alert-primary alert'> Found " + found_ret + " results </div>");
-	return found_ret;
+	return data;
 }
 
 function findKeyword(keyword, KeyG, Kenc){
@@ -517,9 +512,9 @@ function findKeyword(keyword, KeyG, Kenc){
 		return true;
 	},async_feat=false);// Send request to CSP
 	console.log("Results from post request after returned:",result);
-	no_found = retrieveData(result,Kenc,searchNo,searchNoUri,keyword);
-	console.log("Results from retrieveData:",no_found);
-	return result;
+	data = retrieveData(result,Kenc,searchNo,searchNoUri,keyword);
+	console.log("Results from retrieveData:",data);
+	return data;
 }
 /// BASIC FUNCTIONS - End
 
@@ -614,7 +609,7 @@ $(document).ready(
 				var Kenc = appConfig.key_encrypt;
 				
 				console.log("keyword for search", keyword);
-				findKeyword(keyword,KeyG,Kenc);		
+				findKeyword(keyword,KeyG,Kenc);	
 			});//end btnSearch
 			
 			/// SEARCH FOR PATIENT by submitting json file
