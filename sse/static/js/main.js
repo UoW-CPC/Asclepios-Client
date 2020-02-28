@@ -253,18 +253,137 @@ function uploadFile(data, file_id, KeyG, Kenc){
 	var length = json_keys.length; // number of json objects
 	var i, w;
 
-	// combine multiple keywords into a list, separated by comma
-	var Lw="";
+	// combine multiple hashed keywords into a list, separated by comma
+	var Lw=""; //list of hashed keywords
+	var L=""; //list of keywords
 	for(i=0; i< length; i++){
 		w = json_keys[i] + "|" + json_values[i] //separate key and value by ;
-//		Lw = Lw + w + ",";
-		Lw = Lw + hash(w) + ",";
+		L = L + w + ","; // list of keyword
+		Lw = Lw + hash(w) + ","; // list of hashed keyword
 	}
 	//remove the last comma
 	Lw = Lw.slice(0, -1);
-	console.log("list of uploaded keywords:",Lw);
+	L = L.slice(0, -1);
+	console.log("list of uploaded keywords:",L);
+	console.log("list of hashed keywords:",Lw);
 	
-	processMultiKeyword(Lw,KeyG,Kenc,file_id); //Lw: list of keywords
+//	processMultiKeyword(Lw,KeyG,Kenc,file_id); //Lw: list of keywords
+
+	var LfileNo;
+	var LfileNoUri;
+	var listW;
+	
+	// Retrieve list of file number
+	[LfileNo, LfileNoUri,listW] = getMultiFileNo(Lw); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+	console.log("keyword string input:",Lw);
+	console.log("List of file numbers: ", LfileNo);
+	console.log("List of Url:", LfileNoUri);
+	console.log("List of retrieved keywords:",listW);
+	
+	// Compare listW and Lw
+	arrLw = Lw.split(",");
+	var diff = $(arrLw).not(listW).get();
+	console.log("Difference between 2 list of words:",diff);
+	listW = listW.concat(diff); //full list of keywords, including existed ones and non-existed ones
+	console.log("full list of words:",listW);
+
+	var LsearchNo; // list of search numbers
+	var LsearchNoUri; // list of URL to retrieve search numbers
+	var tempListWord;
+	// Retrieve search number
+	[LsearchNo, LsearchNoUri,tempListWord] = getMultiSearchNo(Lw); //"tempListWord" can be empty if all keywords has been never searched
+	console.log("Search numbers: ", LsearchNo);
+	console.log("Urls: ", LsearchNoUri);
+	console.log("list of words in searchno:",tempListWord);
+	
+	
+	objects = '{"objects": ['; //list of objects in PATCH request
+	Lcipher = '{"objects": ['; //list of cipher objects in PATCH request
+	Laddress='{"objects": [';  //list of address objects in PATCH request
+
+	var l = listW.length; //LfileNo.length can be less than listW.length
+	var noExisted = LfileNo.length; // number of existed items
+	
+	arrW = L.split(",");
+	for(i=0; i<l; i++){
+		w = listW[i]; // hashed of keyword
+		var searchno;
+		if(noExisted>0 && i<noExisted){ // update fileno for existed item
+			fileno = LfileNo[i] + 1;
+			searchno = LsearchNo[tempListWord.indexOf(w)];
+			console.log("index of keyword in the searchno list:",tempListWord.indexOf(w));
+			console.log("search number is:",searchno);
+			if(searchno === undefined){
+				searchno = 0;
+			}
+		}
+		else
+		{
+			fileno=1;//initialize fileno for new item. File number is counted from 1
+			searchno=0;
+		}
+
+		
+		if(fileno==1){ // If the keyword is new, create fileNo in TA
+			console.log('Create new entry in fileNo:',w);
+//			objects += '{ "w" : "' + w + '","fileno" : ' + fileno + '},';	
+			objects += '{ "w" : "' + w + '","fileno" : ' + fileno + '},';		
+		}	
+		else{ // If the keyword is existed, update fileNo in TA
+			console.log('Update the entry in fileNo:',w);
+//			objects += '{ "w" : "' + w + '","fileno" : ' + fileno + ',"resource_uri" : "' + LfileNoUri[i] + '"},';	
+			objects += '{ "w" : "' + w + '","fileno" : ' + fileno + ',"resource_uri" : "' + LfileNoUri[i] + '"},';	
+		}
+		
+		// Compute the new key
+//		var hashVal = hash(w);
+		KeyW = encrypt(KeyG,w + searchno);	
+		console.log("Keyword:",w," - Hash of keyword:",w," -Search number:",searchno)
+		console.log("ciphertext:",KeyW);
+		
+		// Retrieve ciphertext value from the ciphertext object KeyW
+		KeyW_ciphertext = JSON.parse(KeyW).ct;
+		console.log("KeyW_ciphertext:",KeyW_ciphertext);
+		
+		//Encrypt keyword
+		kw = arrW[arrLw.indexOf(w)]
+		var c = encrypt(Kenc, kw);
+		Lcipher += '{ "jsonId" : "' + file_id + '","data" : ' + c + '},';
+		
+		// Compute the address in the dictionary
+		var addr = hash(KeyW_ciphertext + fileno + "0"); 
+		//console.log("type of address:", typeof addr)
+		var input = KeyW_ciphertext + fileno + "0";
+		console.log("hash input to compute address:",input);
+		console.log("Address:" + addr);
+		
+		// Compute value of entry in the dictionary
+		var val = file_id; //do not encrypt json_id anymore
+		console.log("json_id:", val, " - file number:", fileno, " - value of entry in the dictionary:",val);
+		Laddress += '{ "address" : "' + addr + '","value" : "' + val + '"},';
+		
+	}
+	// remove the last comma (,) from objects
+	objects = objects.slice(0, -1);
+	objects +="]}"
+	console.log("objects:", objects)
+	
+	Lcipher = Lcipher.slice(0,-1);
+	Lcipher +="]}"
+	console.log("Lcipher:", Lcipher)	
+	
+	Laddress = Laddress.slice(0,-1);
+	Laddress +="]}"
+	console.log("Laddress:", Laddress)
+	
+	// PATCH request (if a keyword is new, create fileNo in TA) and PUT request (if a keyword is existed, update fileNo in TA)
+	patchRequest(appConfig.base_url_ta + "/api/v1/fileno/", objects);
+	
+	// Send ciphertext to CSP 
+	patchRequest(appConfig.base_url_sse_server + "/api/v1/ciphertext/", Lcipher);
+	
+	// Send new address, and value to CSP
+	patchRequest(appConfig.base_url_sse_server + "/api/v1/map/", Laddress);
 }
 
 // Search data by keyword
@@ -431,6 +550,7 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
 	else{ // found >= 1 results
 		found = response.Cfw.length
 		console.log("length of response:",found)
+		console.log("content of response:",response.Cfw)
 	
 		//	var found_ret = 0;// the number of found results
 	
