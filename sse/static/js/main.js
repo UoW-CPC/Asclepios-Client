@@ -163,6 +163,8 @@ function getMultiSearchNo(Lw){
 		LsearchNoUri.push(appConfig.base_url_ta +  obj.objects[i].resource_uri);
 		listW.push(obj.objects[i].w);
 	}
+	
+	console.log('List of search no:',LsearchNo)
 	return [LsearchNo, LsearchNoUri,listW];
 }
 
@@ -195,26 +197,26 @@ function getSearchNo(keyword){
 	return [searchNo, searchNoUri];
 }
 
-// Flatten json object - in progress
-function flattenObject(obj){
-	var toReturn = {};
-	
-	for (var i in obj) {
-		if (!obj.hasOwnProperty(i)) continue;
-		
-		if ((typeof obj[i]) == 'object') {
-			var flatObject = flattenObject(ob[i]);
-			for (var x in flatObject) {
-				if (!flatObject.hasOwnProperty(x)) continue;
-				
-				toReturn[i + '.' + x] = flatObject[x];
-			}
-		} else {
-			toReturn[i] = obj[i];
-		}
-	}
-	return toReturn;
-}
+//// Flatten json object - in progress
+//function flattenObject(obj){
+//	var toReturn = {};
+//	
+//	for (var i in obj) {
+//		if (!obj.hasOwnProperty(i)) continue;
+//		
+//		if ((typeof obj[i]) == 'object') {
+//			var flatObject = flattenObject(ob[i]);
+//			for (var x in flatObject) {
+//				if (!flatObject.hasOwnProperty(x)) continue;
+//				
+//				toReturn[i + '.' + x] = flatObject[x];
+//			}
+//		} else {
+//			toReturn[i] = obj[i];
+//		}
+//	}
+//	return toReturn;
+//}
 
 // Upload data to CSP
 function handleFileLoad(event){
@@ -244,7 +246,7 @@ function uploadFile(data, file_id, KeyG, Kenc){
 	console.log("json object:",data);
 	
 	console.log("1st item in json object:", Object.keys(data)[0], Object.values(data)[0]);
-	var first_kv = Object.keys(data)[0] + "|" + Object.values(data)[0]; //separate key and value by ;
+	//var first_kv = Object.keys(data)[0] + "|" + Object.values(data)[0]; //separate key and value by ;
 	
 	var json_keys = Object.keys(data); // keys of json objects
 	var json_values = Object.values(data); // values of json objects
@@ -255,11 +257,12 @@ function uploadFile(data, file_id, KeyG, Kenc){
 	var Lw="";
 	for(i=0; i< length; i++){
 		w = json_keys[i] + "|" + json_values[i] //separate key and value by ;
-		Lw = Lw + w + ",";
+//		Lw = Lw + w + ",";
+		Lw = Lw + hash(w) + ",";
 	}
 	//remove the last comma
 	Lw = Lw.slice(0, -1);
-	console.log("list of keywords:",Lw);
+	console.log("list of uploaded keywords:",Lw);
 	
 	processMultiKeyword(Lw,KeyG,Kenc,file_id); //Lw: list of keywords
 }
@@ -299,7 +302,7 @@ function searchFile(data, KeyG, Kenc){
 }
 
 // Send list of keywords to CSP
-// Input: Lw - list of keywords, KeyG, Kenc - symmetric keys, json_id - file identifier
+// Input: Lw - list of hashed keywords, KeyG, Kenc - symmetric keys, json_id - file identifier
 function processMultiKeyword(Lw, KeyG, Kenc, json_id){
 	var LfileNo;
 	var LfileNoUri;
@@ -310,7 +313,7 @@ function processMultiKeyword(Lw, KeyG, Kenc, json_id){
 	console.log("keyword string input:",Lw);
 	console.log("List of file numbers: ", LfileNo);
 	console.log("List of Url:", LfileNoUri);
-	console.log("List of keywords:",listW);
+	console.log("List of retrieved keywords:",listW);
 	
 	// Compare listW and Lw
 	arrLw = Lw.split(",");
@@ -355,18 +358,20 @@ function processMultiKeyword(Lw, KeyG, Kenc, json_id){
 
 		
 		if(fileno==1){ // If the keyword is new, create fileNo in TA
-			console.log('Create new entry in fileNo');
+			console.log('Create new entry in fileNo:',w);
+//			objects += '{ "w" : "' + w + '","fileno" : ' + fileno + '},';	
 			objects += '{ "w" : "' + w + '","fileno" : ' + fileno + '},';		
 		}	
 		else{ // If the keyword is existed, update fileNo in TA
-			console.log('Update the entry in fileNo');
+			console.log('Update the entry in fileNo:',w);
+//			objects += '{ "w" : "' + w + '","fileno" : ' + fileno + ',"resource_uri" : "' + LfileNoUri[i] + '"},';	
 			objects += '{ "w" : "' + w + '","fileno" : ' + fileno + ',"resource_uri" : "' + LfileNoUri[i] + '"},';	
 		}
 		
 		// Compute the new key
-		var hashVal = hash(w);
-		KeyW = encrypt(KeyG,hash(w) + searchno);	
-		console.log("Keyword:",w," - Hash of keyword:",hashVal," -Search number:",searchno)
+//		var hashVal = hash(w);
+		KeyW = encrypt(KeyG,w + searchno);	
+		console.log("Keyword:",w," - Hash of keyword:",w," -Search number:",searchno)
 		console.log("ciphertext:",KeyW);
 		
 		// Retrieve ciphertext value from the ciphertext object KeyW
@@ -417,48 +422,56 @@ function processMultiKeyword(Lw, KeyG, Kenc, json_id){
 // Input: response - data retrieved from CSP, Kenc - symmeric key, keyword - the searched keyword
 // Output: json object containing count (number of data objects), and objects (list of data objects)
 function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
-	console.log("response of search:",response.Cfw)
-	console.log("length of response:",response.Cfw.length)
+	console.log("response of search:",response)
+	var data;
+	if(response == undefined || response.Cfw.length==0 ){ //found 0 results
+		found = 0
+		data = '{"count":' + found + ',"objects":[]}'
+	}
+	else{ // found >= 1 results
+		found = response.Cfw.length
+		console.log("length of response:",found)
 	
-	var found_ret = 0;// the number of found results
+		//	var found_ret = 0;// the number of found results
 	
-	var data = '"objects":' + '[';
+		data = '"objects":' + '[';
 	
-	for(var j=0; j<response.Cfw.length; j++){
-		var objs_data = response.Cfw[j]
-		var length = objs_data.length;
-
-		found_ret = found_ret + 1; // count the number of found results
-		data = data + '{'
-		for (var i = 0; i < length; i++) {
-			var ct = objs_data[i].data
-			console.log("encrypted data:",ct)
-			var ct_reformat =ct.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
-			var text = decrypt(Kenc,ct_reformat)
-			var pair = text.split("|")
-			console.log("decrypted data:",text)
-			data =  data + '"' + pair[0] + '":"' + pair[1] + '",'
+		for(var j=0; j<found; j++){
+			var objs_data = response.Cfw[j]
+			var length = objs_data.length;
+	
+	//		found_ret = found_ret + 1; // count the number of found results
+			data = data + '{'
+			for (var i = 0; i < length; i++) {
+				var ct = objs_data[i].data
+				console.log("encrypted data:",ct)
+				var ct_reformat =ct.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
+				var text = decrypt(Kenc,ct_reformat)
+				var pair = text.split("|")
+				console.log("decrypted data:",text)
+				data =  data + '"' + pair[0] + '":"' + pair[1] + '",'
+			}
+			//remove the last comma
+			data = data.slice(0, -1);
+			data = data + '},'
 		}
+		
 		//remove the last comma
 		data = data.slice(0, -1);
-		data = data + '},'
+//		if(found==0){
+//			data = '{"count":' + found + ',"objects":[]}'
+//		}
+//		else{
+		data = '{"count":' + found + ',' + data + ']}'
+//		}
+		console.log("Json string:",data)
+		//convert string to Json Object
+//		console.log("Json object:",JSON.parse(data))
 	}
-	
-	//remove the last comma
-	data = data.slice(0, -1);
-	if(found_ret==0){
-		data = '{"count":' + found_ret + ',"objects":[]}'
-	}
-	else{
-		data = '{"count":' + found_ret + ',' + data + ']}'
-	}
-	console.log("Json string:",data)
-	//convert string to Json Object
-	console.log("Json object:",JSON.parse(data))
 
 	// Update search number to TA
 	if(searchNo==1){ // If the keyword is new, create searchNo in TA
-		var jsonData = '{ "w" : "' + keyword + '","searchno" : ' + searchNo + '}';
+		var jsonData = '{ "w" : "' + hash(keyword) + '","searchno" : ' + searchNo + '}';
 		console.log('Create new entry in searchNo: ',jsonData);
 		postRequest(appConfig.base_url_ta + "/api/v1/searchno/", jsonData);					
 	}
@@ -477,11 +490,34 @@ function findKeyword(keyword, KeyG, Kenc){
 	var fileNo, fileNoUri;
 	
 	// Get file number
-	[fileNo, fileNoUri] = getFileNo(keyword);
+//	[fileNo, fileNoUri] = getFileNo(keyword);
+	[LfileNo, LfileNoUri,listW] = getMultiFileNo([hash(keyword)]); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+	console.log("Lfileno:",LfileNo)
+	if(LfileNo.length>0){
+		fileNo = LfileNo[0]
+		fileNoUri = LfileNoUri[0]
+	}
+	else{
+		fileNo = 0
+		fileNoUri = ""
+	}
+	
+	console.log("file number:",fileNo,", fileNoUri:",fileNoUri)
 	
 	// Get search number
 	var searchNo, searchNoUri;
-	[searchNo, searchNoUri] = getSearchNo(keyword);
+//	[searchNo, searchNoUri] = getSearchNo(keyword);
+	[LsearchNo, LsearchNoUri,tempListWord] = getMultiSearchNo([hash(keyword)]); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+	console.log("List of search number:",LsearchNo)
+	if(LsearchNo.length>0){
+		searchNo = LsearchNo[0]
+		searchNoUri = LsearchNoUri[0]
+	}
+	else{
+		searchNo = 0
+		searchNoUri = ""
+	}
+
 	console.log(" - searchNo: ",searchNo, " - searh number url: ", searchNoUri);
 	
 	// Compute KeyW
@@ -490,7 +526,7 @@ function findKeyword(keyword, KeyG, Kenc){
 	console.log("Search number: ",searchNo," - KeyW: ",KeyW);
 	
 	// Increase search number:
-	searchNo = searchNo + 1;
+	searchNo = searchNo + 1; //new
 	
 	// Compute new KeyW with the increased search number
 	var newKeyW = encrypt(KeyG,hash(keyword)+searchNo);
