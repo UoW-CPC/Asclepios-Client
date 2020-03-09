@@ -14,21 +14,17 @@ RUN mkdir /SSEClient
 ENV CONTAINER_HOME=/SSEClient
 #ENV CONTAINER_PROJECT=$CONTAINER_HOME/$PROJECT
 
-# Set the working directory to /sse_server
+# Set the working directory to /SSEclient
 WORKDIR $CONTAINER_HOME
 #RUN mkdir lodgs
 
-# Copy the current directory contents into the container at /music_service
+# Copy the current directory contents into the container at /SSEclient
 ADD . $CONTAINER_HOME
 
 COPY entrypoint.sh /entrypoint.sh
+COPY deploy.env /deploy.env
 
 # Install any needed packages specified in requirements.txt
 RUN pip install -r requirements.txt
 
-# Load environmental variables
-#RUN sed -i -e 's/url_ta_ip/http:\/\/127.0.0.1:8080/' sse/static/js/sse.js
-
-#ENTRYPOINT ["./entrypoint.sh"]
-#ENTRYPOINT [ "python3" ]
 CMD ["./entrypoint.sh"]
