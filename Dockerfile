@@ -26,6 +26,9 @@ COPY entrypoint.sh /entrypoint.sh
 # Install any needed packages specified in requirements.txt
 RUN pip install -r requirements.txt
 
+# Load environmental variables
+#RUN sed -i -e 's/url_ta_ip/http:\/\/127.0.0.1:8080/' sse/static/js/sse.js
+
 #ENTRYPOINT ["./entrypoint.sh"]
 #ENTRYPOINT [ "python3" ]
 CMD ["./entrypoint.sh"]
