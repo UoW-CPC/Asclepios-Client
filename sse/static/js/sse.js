@@ -429,9 +429,9 @@ function findKeyword(keyword, KeyG, Kenc){
 	var data = '{ "KeyW" : ' + KeyW + ',"fileno" : ' + fileNo + ',"Lu" :[' + arrayAddr + ']}';
 	console.log("Data sent to CSP:", data);
 	
-	hashChars = appConfig.hash_length/4; //number of chars of hash output: 64
+	hashChars = sseConfig.hash_length/4; //number of chars of hash output: 64
 	
-	result = postRequest(appConfig.base_url_sse_server + "/api/v1/search/", data,function(response){
+	result = postRequest(sseConfig.base_url_sse_server + "/api/v1/search/", data,function(response){
 		return true;
 	},async_feat=false);// Send request to CSP
 	
