@@ -1,5 +1,6 @@
 /// APPLICATION CONFIGURATION
 var appConfig={
+<<<<<<< HEAD
 	 'base_url_ta' : 'http://127.0.0.1:8000',
 	 'base_url_sse_server' : 'http://127.0.0.1:8081',
 	 'KeyG' : '123',
@@ -181,9 +182,24 @@ function handleFileLoad(event){
 	  var jsonObj = JSON.parse(event.target.result);
 	  console.log("json object:",jsonObj);
 	  
+=======
+	 'KeyG' : '123', //Key shared with TA
+	 'key_encrypt': 'key encrypt',  //Key for encrypting/ decrypting json object
+	 'used_fields' : 2, // number of active fields in json_form.html
+	 'all_fields' : 24 // total number of fields in json_form.html
+}
+/// APPLICATION CONFIGURATION - End
+
+/// HANDLERS
+// Handle event of data upload data
+function handleFileLoad(event){
+>>>>>>> develop
 	  var KeyG = appConfig.KeyG;
 	  var Kenc = appConfig.key_encrypt; //Key for encrypting json object
+      
+	  var file_id = hash(Math.random().toString(36).substring(7)); // generate unique file_id. This should be changed in production
 	  
+<<<<<<< HEAD
 	  console.log("1st item in json object:", Object.keys(jsonObj)[0], Object.values(jsonObj)[0]);
 	  var first_kv = Object.keys(jsonObj)[0] + Object.values(jsonObj)[0];
 	  var json_id = hash(jsonObj[1] + Math.random().toString(36).substring(7));
@@ -203,21 +219,29 @@ function handleFileLoad(event){
 		  //console.log(w);
 		  processKeyword(w, KeyG, Kenc, json_id);
 	  }
+=======
+	  console.log("file id:",file_id);
+	  var jsonObj = JSON.parse(event.target.result); //parse json file content into json objects
+      
+      var st_date = new Date();
+      var st_time = st_date.getTime();
+      
+	  uploadData(jsonObj,file_id,KeyG,Kenc); // Upload data to CSP
+	  
+      var end_date = new Date();
+      var end_time = end_date.getTime();
+      var diff = end_time - st_time;
+      console.log("Submit process completed. Exec time: ", diff);
+      $('#exetime').html("<div class='alert-primary alert'> Exec time: " +  diff + " </div>");
+>>>>>>> develop
 }
 
+// Handle search data event
 function handleSearchFileLoad(event){
-	console.log(event);
-	var jsonObj = JSON.parse(event.target.result);
-	console.log("json object:",jsonObj);
-	var keyword = jsonObj['keyword'];
-	console.log("keyword: ",keyword);
-	
-	var KeyG = appConfig.KeyG;	
-	var Kenc = appConfig.key_encrypt;
-	
-	findKeyword(keyword,KeyG, Kenc);
-}
+	var KeyG = appConfig.KeyG;	//shared key with TA
+	var Kenc = appConfig.key_encrypt; //symmetric key which is used for decryption
 
+<<<<<<< HEAD
 function processKeyword(w, KeyG, Kenc, json_id){
 	var fileNo; // file number
 	var fileNoUri; // URL to retrieve file number
@@ -392,8 +416,34 @@ function findKeyword(keyword, KeyG, Kenc){
 		
 		$('#result').append("<div class='alert-primary alert'> Found " + found_ret + " results </div>");
 	}); // Send request to CSP
+=======
+	var jsonObj = JSON.parse(event.target.result);
+	
+	var st_date = new Date();
+    var st_time = st_date.getTime();
+   
+	var results=search(jsonObj,KeyG,Kenc);
+	
+    var end_date = new Date();
+    var end_time = end_date.getTime();
+    var diff = end_time - st_time;
+    
+	console.log("Found results:",results);
+	
+	$('#result').empty();
+	$('#searchtime').empty();
+	$('#result').append("<div class='alert-primary alert'> Found " + results["count"] + " results </div>");
+	$('#searchtime').html("<div class='alert-primary alert'> Search time: " +  diff + " </div>");
 }
-/// BASIC FUNCTIONS - End
+
+// Include sse.js
+function dynamicallyLoadScript(url) {
+    var script = document.createElement("script"); //Make a script DOM node
+    script.src = url; //Set it's src to the provided URL
+    document.head.appendChild(script); //Add it to the end of the head section of the page (could change 'head' to 'body' to add it to the end of the body section instead)
+>>>>>>> develop
+}
+/// HANDLERS - END
 
 $(document).ready(
 		function() {
@@ -415,17 +465,36 @@ $(document).ready(
 	            }
 	        });
 			
+			$("#jsonInput").click(function(){
+				$('#notify').empty();
+				$('#exetime').empty();
+				$('#result').empty();
+				$('#searchtime').empty();
+			});
+			
+			$("#formInput").click(function(){
+				$('#notify').empty();
+				$('#exetime').empty();
+				$('#result').empty();
+				$('#searchtime').empty();
+			});
+			
+			dynamicallyLoadScript('static/js/sse.js')
 			// ADD PATIENT by submitting file
 			$("#btnSubmitFile").click(function(){
+				$('#notify').empty();
 				if ($('#jsonFile').get(0).files.length === 0) {
 				    console.log("No files selected.");
 				}
 				else{
-					//console.log("File submitted");
 					var reader = new FileReader()
 					reader.onload = handleFileLoad;
 					reader.readAsText($('#jsonFile').get(0).files[0]);
 				}
+<<<<<<< HEAD
+=======
+				$('#notify').html("<div class='alert-primary alert'> Submitted </div>");
+>>>>>>> develop
 			});
 			
 			console.log("Symmetric Searchable Encryption Scheme");
@@ -447,20 +516,47 @@ $(document).ready(
 			
 			/// ADD PATIENT by form
 			$('#btnSubmit').click(function(){
+<<<<<<< HEAD
 				var y = $("#json-form").serializeArray();
+=======
+				$('#notify').empty();
+				$('#notify').html("<div class='alert-primary alert'> Submitting </div>");
+				
+				var data = $("#json-form").find("input[name!=csrfmiddlewaretoken]").serializeArray();//get all data, except the hidden value: "name":"csrfmiddlewaretoken"
+>>>>>>> develop
 				
 				var KeyG = appConfig.KeyG;
 				var Kenc = appConfig.key_encrypt; //Key for encrypting json object
 
-				console.log("Number of input fields: ", y.length);
-							
-				// Generate json_id
-				var json_id = hash($("#field1").val() + Math.random().toString(36).substring(7)); //hash($("#patientEmail").val()+ Math.random().toString(36).substring(7));
+				console.log("Number of input fields: ", data.length);
+				console.log("Serialized data:",data[0]);
+				
+				var no_data = data.length;
+				var jsonObj = '{';
+				for(var i=0; i< no_data; i++){
+					jsonObj = jsonObj + '"' + data[i]["name"] + '":"' + data[i]["value"] + '",' 
+				}
+				jsonObj = jsonObj.slice(0, -1); // remove the last comma
+				jsonObj = jsonObj + '}';
+				jsonObj = JSON.parse(jsonObj);
+				console.log("Json data:",jsonObj);
+			    
+				var file_id = hash(Math.random().toString(36).substring(7));
+				
+				var st_date = new Date();
+			    var st_time = st_date.getTime();
+				uploadData(jsonObj,file_id,KeyG,Kenc); // Upload data to CSP
+				  
+			    var end_date = new Date();
+			    var end_time = end_date.getTime();
+			    var diff = end_time - st_time;
+	
+			    console.log("Submit process completed. Exec time: ", diff);
+				$('#notify').empty();
+				$('#notify').html("<div class='alert-primary alert'> Submitted </div>");
+			    $('#exetime').html("<div class='alert-primary alert'> Exec time: " +  diff + " </div>");
 
-				for(var i=1; i< noFields; i++){ //when i=0, the field is 'csrf_token'
-					var field = y[i];
-					console.log("Input field ordering, and value:",i,field);
-
+<<<<<<< HEAD
 					var w = (field.name).concat(field.value);
 					console.log("Keyword:",w);
 					
@@ -541,6 +637,8 @@ $(document).ready(
 				//$("#json-form").reset();
 				//$("#patientName").val('');
 				//$("#patientEmail").val('');
+=======
+>>>>>>> develop
 			});//end btnSubmit
 			
 			/// SEARCH FOR PATIENT by form
@@ -548,7 +646,7 @@ $(document).ready(
 				// Get value of keyword from the search box and the radio box
 				//var radioVal = $("input[name='searchBy']:checked").val();
 				var selectVal = $("#searchBy  option:selected").val();
-				var keyword = selectVal + $("#keyword").val();
+				var keyword = selectVal + "|" +  $("#keyword").val();
 				
 				var KeyG = appConfig.KeyG;	
 				var Kenc = appConfig.key_encrypt;
@@ -556,6 +654,7 @@ $(document).ready(
 				//console.log("selected radio:", selectVal);
 				//console.log("start search");
 				console.log("keyword for search", keyword);
+<<<<<<< HEAD
 				findKeyword(keyword,KeyG,Kenc);		
 				//console.log("start search");
 				//findKeyword(keyword,KeyG,Kenc);
@@ -651,6 +750,23 @@ $(document).ready(
 						putRequest(searchNoUri,'{ "searchno" : ' + searchNo + '}');
 					}
 				}); // Send request to CSP*/
+=======
+				
+				var st_date = new Date();
+			    var st_time = st_date.getTime();
+				data = findKeyword(keyword,KeyG,Kenc);	
+				
+			    var end_date = new Date();
+			    var end_time = end_date.getTime();
+			    var diff = end_time - st_time;
+	
+			    console.log("Search process completed. Exec time: ", diff);
+			    console.log("Retrieved data:",data);
+				$('#result').empty();
+				$('#result').append("<div class='alert-primary alert'> Found " + data["count"] + " results </div>");
+
+			    $('#searchtime').html("<div class='alert-primary alert'> Search time: " +  diff + " </div>");
+>>>>>>> develop
 			});//end btnSearch
 			
 			/// SEARCH FOR PATIENT by submitting json file
@@ -659,7 +775,6 @@ $(document).ready(
 					console.log("No files selected.");
 				}
 				else{
-					//console.log("File submitted");
 					var reader = new FileReader()
 					reader.onload = handleSearchFileLoad;
 					reader.readAsText($('#jsonSearchFile').get(0).files[0]);
