@@ -60,6 +60,35 @@ function dynamicallyLoadScript(url) {
     script.src = url; //Set it's src to the provided URL
     document.head.appendChild(script); //Add it to the end of the head section of the page (could change 'head' to 'body' to add it to the end of the body section instead)
 }
+
+//Handle update data event
+function handleUpdateFileLoad(event){
+	var KeyG = appConfig.KeyG;	//shared key with TA
+	var Kenc = appConfig.key_encrypt; //symmetric key which is used for decryption
+
+	var jsonObj = JSON.parse(event.target.result);
+	
+	var st_date = new Date();
+    var st_time = st_date.getTime();
+    var file_id = "7f10e2a17b749047dfedfc07a8ce948415393026dbe54306067f246411188fe4";
+	var result=update(jsonObj,file_id,KeyG,Kenc);
+	console.log("Update result:",result)
+	if(result==true){
+		message = "Updated"
+	}
+	else
+		message = "At least one update field/ value does not exist. Halt update."
+	
+    var end_date = new Date();
+    var end_time = end_date.getTime();
+    var diff = end_time - st_time;
+	
+	$('#update').empty();
+	$('#updatetime').empty();
+	$('#update').append("<div class='alert-primary alert'>" + message+ "</div>");
+	$('#updatetime').html("<div class='alert-primary alert'> Update time: " +  diff + " </div>");
+	
+}
 /// HANDLERS - END
 
 $(document).ready(
@@ -213,4 +242,19 @@ $(document).ready(
 				}
 				
 			});//end btnSearchFile
+			
+			/// UPDATE by submitting json file
+			$('#btnUpdateFile').click(function(){
+				$('#resultUpdate').empty();
+				$('#resultUpdate').html("<div class='alert-primary alert'> Updating </div>");
+				
+				if ($('#jsonUpdateFile').get(0).files.length === 0) {
+					console.log("No files selected.");
+				}
+				else{
+					var reader = new FileReader()
+					reader.onload = handleUpdateFileLoad;
+					reader.readAsText($('#jsonUpdateFile').get(0).files[0]);
+				}
+			});
 		});
