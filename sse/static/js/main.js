@@ -70,7 +70,7 @@ function handleUpdateFileLoad(event){
 	
 	var st_date = new Date();
     var st_time = st_date.getTime();
-    var file_id = "7f10e2a17b749047dfedfc07a8ce948415393026dbe54306067f246411188fe4";
+    var file_id = "95f31560dc64eb14571d3d7bf98df9e0e84f15e38151b1aa34bf65363647b1c2";
 	var result=update(jsonObj,file_id,KeyG,Kenc);
 	console.log("Update result:",result)
 	if(result==true){
