@@ -13,21 +13,32 @@ function handleFileLoad(event){
 	  var KeyG = appConfig.KeyG;
 	  var Kenc = appConfig.key_encrypt; //Key for encrypting json object
       
-	  var file_id = hash(Math.random().toString(36).substring(7)); // generate unique file_id. This should be changed in production
-	  
+	  var file_id = $("#fileid1").val()
+	  if(file_id==""){
+		  file_id=hash(Math.random().toString(36).substring(7)); // generate unique file_id. This should be changed in production
+	  }
 	  console.log("file id:",file_id);
 	  var jsonObj = JSON.parse(event.target.result); //parse json file content into json objects
       
       var st_date = new Date();
       var st_time = st_date.getTime();
       
-	  uploadData(jsonObj,file_id,KeyG,Kenc); // Upload data to CSP
+	  var ret = uploadData(jsonObj,file_id,KeyG,Kenc); // Upload data to CSP
 	  
       var end_date = new Date();
       var end_time = end_date.getTime();
       var diff = end_time - st_time;
-      console.log("Submit process completed. Exec time: ", diff);
-      $('#exetime').html("<div class='alert-primary alert'> Exec time: " +  diff + " </div>");
+      
+	  if(ret==false){
+		  message = "Existed file id. Please enter a unique file id"
+	  }
+	  else{
+		  message = "Submit process completed."
+	  }
+	
+      console.log(message);
+      $('#notify').html("<div class='alert-primary alert'>" + message + "</div>");
+      $('#exetime').html("<div class='alert-primary alert'> Exec time:" +  diff + " </div>");
 }
 
 // Handle search data event
@@ -42,6 +53,12 @@ function handleSearchFileLoad(event){
    
 	var results=search(jsonObj,KeyG,Kenc);
 	
+	if(results==null){
+		message = "Invalid input file"
+	}
+	else
+		message = results["count"]
+	
     var end_date = new Date();
     var end_time = end_date.getTime();
     var diff = end_time - st_time;
@@ -50,7 +67,7 @@ function handleSearchFileLoad(event){
 	
 	$('#result').empty();
 	$('#searchtime').empty();
-	$('#result').append("<div class='alert-primary alert'> Found " + results["count"] + " results </div>");
+	$('#result').append("<div class='alert-primary alert'> Found " + message + " results </div>");
 	$('#searchtime').html("<div class='alert-primary alert'> Search time: " +  diff + " </div>");
 }
 
@@ -70,15 +87,20 @@ function handleUpdateFileLoad(event){
 	
 	var st_date = new Date();
     var st_time = st_date.getTime();
-    var file_id = "7f10e2a17b749047dfedfc07a8ce948415393026dbe54306067f246411188fe4";
-	var result=update(jsonObj,file_id,KeyG,Kenc);
-	console.log("Update result:",result)
-	if(result==true){
-		message = "Updated"
+    var file_id = $("#fileid2").val() 
+    if(file_id==""){
+    	message = "Please provide file id"
+    	//file_id=hash(Math.random().toString(36).substring(7)); // generate unique file_id. This should be changed in production
 	}
-	else
-		message = "At least one update field/ value does not exist. Halt update."
-	
+    else{
+    	var result=update(jsonObj,file_id,KeyG,Kenc);
+    	console.log("Update result:",result)
+    	if(result==true){
+    		message = "Updated"
+    	}
+    	else
+    		message = "At least one update field/ value does not exist. Halt update."
+    }
     var end_date = new Date();
     var end_time = end_date.getTime();
     var diff = end_time - st_time;
@@ -126,6 +148,7 @@ $(document).ready(
 			});
 			
 			dynamicallyLoadScript('static/js/sse.js')
+			
 			// ADD PATIENT by submitting file
 			$("#btnSubmitFile").click(function(){
 				$('#notify').empty();
