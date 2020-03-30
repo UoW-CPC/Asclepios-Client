@@ -13,21 +13,32 @@ function handleFileLoad(event){
 	  var KeyG = appConfig.KeyG;
 	  var Kenc = appConfig.key_encrypt; //Key for encrypting json object
       
-	  var file_id = hash(Math.random().toString(36).substring(7)); // generate unique file_id. This should be changed in production
-	  
+	  var file_id = $("#fileid1").val()
+	  if(file_id==""){
+		  file_id=hash(Math.random().toString(36).substring(7)); // generate unique file_id. This should be changed in production
+	  }
 	  console.log("file id:",file_id);
 	  var jsonObj = JSON.parse(event.target.result); //parse json file content into json objects
       
       var st_date = new Date();
       var st_time = st_date.getTime();
       
-	  uploadData(jsonObj,file_id,KeyG,Kenc); // Upload data to CSP
+	  var ret = uploadData(jsonObj,file_id,KeyG,Kenc); // Upload data to CSP
 	  
       var end_date = new Date();
       var end_time = end_date.getTime();
       var diff = end_time - st_time;
-      console.log("Submit process completed. Exec time: ", diff);
-      $('#exetime').html("<div class='alert-primary alert'> Exec time: " +  diff + " </div>");
+      
+	  if(ret==false){
+		  message = "Existed file id. Please enter a unique file id"
+	  }
+	  else{
+		  message = "Submit process completed."
+	  }
+	
+      console.log(message);
+      $('#notify').html("<div class='alert-primary alert'>" + message + "</div>");
+      $('#exetime').html("<div class='alert-primary alert'> Exec time:" +  diff + " </div>");
 }
 
 // Handle search data event
@@ -76,15 +87,20 @@ function handleUpdateFileLoad(event){
 	
 	var st_date = new Date();
     var st_time = st_date.getTime();
-    var file_id = "62bb9407a22e91ba7f24f37410153f965df51475c1a838daa181f1a95163d8b3";
-	var result=update(jsonObj,file_id,KeyG,Kenc);
-	console.log("Update result:",result)
-	if(result==true){
-		message = "Updated"
+    var file_id = $("#fileid2").val() 
+    if(file_id==""){
+    	message = "Please provide file id"
+    	//file_id=hash(Math.random().toString(36).substring(7)); // generate unique file_id. This should be changed in production
 	}
-	else
-		message = "At least one update field/ value does not exist. Halt update."
-	
+    else{
+    	var result=update(jsonObj,file_id,KeyG,Kenc);
+    	console.log("Update result:",result)
+    	if(result==true){
+    		message = "Updated"
+    	}
+    	else
+    		message = "At least one update field/ value does not exist. Halt update."
+    }
     var end_date = new Date();
     var end_time = end_date.getTime();
     var diff = end_time - st_time;
@@ -132,6 +148,7 @@ $(document).ready(
 			});
 			
 			dynamicallyLoadScript('static/js/sse.js')
+			
 			// ADD PATIENT by submitting file
 			$("#btnSubmitFile").click(function(){
 				$('#notify').empty();
