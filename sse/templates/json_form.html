@@ -31,6 +31,13 @@
 	<div class='mb-2'>
 					<input type="file" class="form-control" id="jsonFile"
 						placeholder="Please enter URL of json file" name='jsonFile' multiple>
+					<div class="form-group row">
+						<label for="fileid1" class="col-sm-10 col-form-label">Unique file id</label>
+						<div class="col-sm-12">
+						<input type="text" class="form-control" id="fileid1"
+						placeholder="Please enter file id or it will be generated" name='file_id'>
+						</div>
+					</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnSubmitFile">Submit</button>
 </form>
@@ -306,6 +313,13 @@
 <form id='update-file' class='mb-2' method="post" action="">
 	<div class='mb-2'>
 		<input type="file" class="form-control" id="jsonUpdateFile" placeholder="Please enter URL of json file" name='jsonUpdateFile'>
+		<div class="form-group row">
+			<label for="fileid2" class="col-sm-10 col-form-label">Unique file id</label>
+			<div class="col-sm-12">
+			<input type="text" class="form-control" id="fileid2"
+				placeholder="Please enter file id" name='file_id'>
+			</div>
+		</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnUpdateFile">Update</button>
 </form>
