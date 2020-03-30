@@ -42,6 +42,12 @@ function handleSearchFileLoad(event){
    
 	var results=search(jsonObj,KeyG,Kenc);
 	
+	if(results==null){
+		message = "Invalid input file"
+	}
+	else
+		message = results["count"]
+	
     var end_date = new Date();
     var end_time = end_date.getTime();
     var diff = end_time - st_time;
@@ -50,7 +56,7 @@ function handleSearchFileLoad(event){
 	
 	$('#result').empty();
 	$('#searchtime').empty();
-	$('#result').append("<div class='alert-primary alert'> Found " + results["count"] + " results </div>");
+	$('#result').append("<div class='alert-primary alert'> Found " + message + " results </div>");
 	$('#searchtime').html("<div class='alert-primary alert'> Search time: " +  diff + " </div>");
 }
 
@@ -70,7 +76,7 @@ function handleUpdateFileLoad(event){
 	
 	var st_date = new Date();
     var st_time = st_date.getTime();
-    var file_id = "95f31560dc64eb14571d3d7bf98df9e0e84f15e38151b1aa34bf65363647b1c2";
+    var file_id = "62bb9407a22e91ba7f24f37410153f965df51475c1a838daa181f1a95163d8b3";
 	var result=update(jsonObj,file_id,KeyG,Kenc);
 	console.log("Update result:",result)
 	if(result==true){
