@@ -1,6 +1,10 @@
 /// SSE CONFIGURATION
 HTTP_CODE_CREATED = 201
 
+//var script = document.createElement("script"); //Make a script DOM node
+//script.src = 'static/js/sjcl.js'; //Set it's src to the provided URL
+//document.head.appendChild(script); //Add it to the end of the head section of the page (could change 'head' to 'body' to add it to the end of the body section instead)
+
 var sseConfig={
 	 'base_url_ta' : 'http://127.0.0.1:8000', //This will be replaced with correct value at runtime at the web server
 	 'base_url_sse_server' : 'http://127.0.0.1:8080',//This will be replaced with correct value at runtime at the web server
@@ -176,6 +180,14 @@ function getMultiSearchNo(Lw){
 //Upload data (json object)
 //Input: data - data as json object, file_id - file identifier which must be unique, KeyG, Kenc - symmetric keys
 function uploadData(data, file_id, KeyG, Kenc){
+	// verify if file_id existed
+	var ret = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?limit=1&jsonId="+file_id);
+	if (ret.meta['total_count']>0){
+		console.log("Existed file id")
+		return false;
+	}
+
+	console.log("New file id")
 	console.log("URL TA:",sseConfig.base_url_ta)
 	
 	console.log("json object:",data);
@@ -315,6 +327,8 @@ function uploadData(data, file_id, KeyG, Kenc){
 	
 	// Send new address, and value to CSP
 	patchRequest(sseConfig.base_url_sse_server + "/api/v1/map/", Laddress);
+	
+	return true;
 }
 
 //Decrypt data retrieved from CSP
@@ -630,7 +644,6 @@ function createFullList(Lhash,Lexisted_hash,Lfound){
 // Data = { att1:[old_value,new_value], att2:[old_value,new_value] }
 function update(data, file_id, KeyG, Kenc){
 	// Based on {att:old_value}, request for No.Files1, No.Search1
-	// For i = 1 to NoFiles, compute current_addresses
 	var keys =Object.keys(data)
 	console.log("key:",keys)
 	var length = keys.length; // number of update fields
@@ -653,10 +666,7 @@ function update(data, file_id, KeyG, Kenc){
 	
 	console.log("List of current values:",Lcurrent_value);
 	console.log("List of hashes:",Lcurrent_hash)
-		
-//	Lold_addr = computeAddr(Lold_hash,KeyG); // compute current addresses
-//	console.log("List of current address lists:",Lold_addr);
-	
+
 	// Get search number
 	Lcurrent_found_searchNo=[]; // list of search numbers
 	Lcurrent_searchNoUri=[]; // list of URL to retrieve search numbers
@@ -680,11 +690,7 @@ function update(data, file_id, KeyG, Kenc){
 		console.log("At least one of update field does not exist in database")
 		return false;
 	}
-//	for(i=0; i<length;i++){//for each keyword
-//		if(Lcurrent_fileNo[i]==undefined){ //if not found
-//			Lcurrent_fileNo[i]=0
-//		}
-//	}
+
 	console.log("Lfileno of current keywords:",Lcurrent_fileNo)
 	
 	Ltemp_addr = computeAddr(Lcurrent_hash,Ltemp_keyW,Lcurrent_fileNo); // compute temp addresses
@@ -701,11 +707,7 @@ function update(data, file_id, KeyG, Kenc){
 		Lnew_fileNoUri = [];
 		new_listW = [];
 		[Lnew_found_fileNo, Lnew_fileNoUri,new_listW] = getMultiFileNo(Lnew_hash); 
-//		for(i=0; i<length;i++){//for each keyword
-//			if(Lnew_fileNo[i]==undefined){ //if not found
-//				Lnew_fileNo[i]=0
-//			}
-//		}
+
 		// Build full list of No.File of every keyword
 		Lnew_fileNo = createFullList(Lnew_hash,new_listW,Lnew_found_fileNo)
 		console.log("Lfileno of current keywords:",Lnew_fileNo)
@@ -765,7 +767,7 @@ function update(data, file_id, KeyG, Kenc){
 					objects += ",";
 				objects += new_objects;
 			objects += ']';
-			//objects = '"objects":[' + current_objects + "," + new_objects + ']';
+		
 			if(current_del == true) //if needs to delete
 				data = '{' + objects + ',"deleted_objects":' + current_deleted_objects + '}'		
 			else // add and update only 
@@ -773,17 +775,7 @@ function update(data, file_id, KeyG, Kenc){
 				
 			console.log("data sent to update fileno:", data)
 			patchRequest(sseConfig.base_url_ta + "/api/v1/fileno/", data);
-		
-//			// delete No.Search
-//			if(current_del == true){ //if needs to delete{
-//				if(delete_current_searchno!='[]')
-//					data = '{"objects":[],"deleted_objects":' + delete_current_searchno + '}';
-//					console.log("data sent to delete searchno:", data)
-//					patchRequest(sseConfig.base_url_ta + "/api/v1/searchno/", data);
-//			}
 		}
-		// No.Files1--. Update at TA
-		// No.files2++. Update at TA
 		return true;
 	}
 }
