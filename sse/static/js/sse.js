@@ -462,6 +462,10 @@ function findKeyword(keyword, KeyG, Kenc){
 function search(data, KeyG, Kenc){
 	console.log("json object:",data);
 	var keyword = data['keyword'];
+	if(keyword==undefined){
+		console.log("Invalid input file")
+		return null;
+	}
 	console.log("keyword: ",keyword);
 	var results = findKeyword(keyword,KeyG,Kenc);
 	return results;
@@ -753,7 +757,15 @@ function update(data, file_id, KeyG, Kenc){
 			[new_del,new_objects,new_deleted_objects,delete_new_searchno]=updateFileNo(Lnew_hash,Lnew_fileNoUri,Lnew_fileNo,1);
 			
 			// update No.Files
-			objects = '"objects":[' + current_objects + new_objects + ']';
+			objects = '"objects":[';
+			if(current_objects!=[])
+				objects += current_objects;
+			if(new_objects!=[])
+				if(current_objects!=[])
+					objects += ",";
+				objects += new_objects;
+			objects += ']';
+			//objects = '"objects":[' + current_objects + "," + new_objects + ']';
 			if(current_del == true) //if needs to delete
 				data = '{' + objects + ',"deleted_objects":' + current_deleted_objects + '}'		
 			else // add and update only 
