@@ -642,7 +642,7 @@ function createFullList(Lhash,Lexisted_hash,Lfound){
 
 //Update data:
 // Data = { att1:[old_value,new_value], att2:[old_value,new_value] }
-function update(data, file_id, KeyG, Kenc){
+function updateData(data, file_id, KeyG, Kenc){
 	// Based on {att:old_value}, request for No.Files1, No.Search1
 	var keys =Object.keys(data)
 	console.log("key:",keys)

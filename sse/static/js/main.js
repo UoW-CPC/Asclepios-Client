@@ -93,7 +93,7 @@ function handleUpdateFileLoad(event){
     	//file_id=hash(Math.random().toString(36).substring(7)); // generate unique file_id. This should be changed in production
 	}
     else{
-    	var result=update(jsonObj,file_id,KeyG,Kenc);
+    	var result=updateData(jsonObj,file_id,KeyG,Kenc);
     	console.log("Update result:",result)
     	if(result==true){
     		message = "Updated"
