@@ -1,3 +1,6 @@
+//const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
+//const sjcl = require('./sjcl.js') // for jest automatic testing
+
 /// SSE CONFIGURATION
 HTTP_CODE_CREATED = 201
 
@@ -35,7 +38,7 @@ function getRequest(api_url) {
 }
 
 // async_feat: asynchronous (if true) or not (if false)
-function postRequest(api_url, jsonObj, callback, async_feat=true) {
+function postRequest(api_url, jsonObj, callback=undefined, async_feat=true) {
 	console.log("data:", jsonObj);
 	result = $.ajax({
 		url: api_url,
@@ -57,13 +60,14 @@ function postRequest(api_url, jsonObj, callback, async_feat=true) {
 	return result;
 }
 
-
-function putRequest(api_url, jsonObj, callback) {
+//async_feat: asynchronous (if true) or not (if false)
+function putRequest(api_url, jsonObj, callback, async_feat=true) {
 	$.ajax({
 		url: api_url,
 		type: 'PUT',
 		contentType: 'application/json',
 		data: jsonObj,
+		async: async_feat,
 		success: function(data) {
 			if(callback!=undefined){
 				callback(data);
@@ -76,14 +80,17 @@ function putRequest(api_url, jsonObj, callback) {
 }
 
 function patchRequest(api_url, jsonObj, callback) {
+	console.log("Run patch request")
 	$.ajax({
 		url: api_url,
 		type: 'PATCH',
 		contentType: 'application/json',
 		data: jsonObj,
 		success: function(data) {
+			//console.log("success patch request")
 			if(callback!=undefined){
-				callback(data);
+				//callback(data);
+				callback(true); //this serves automatic tests with jest 
 			}
 		},
 		error: function(erro){
@@ -179,7 +186,7 @@ function getMultiSearchNo(Lw){
 
 //Upload data (json object)
 //Input: data - data as json object, file_id - file identifier which must be unique, KeyG, Kenc - symmetric keys
-function uploadData(data, file_id, KeyG, Kenc){
+function uploadData(data, file_id, KeyG, Kenc,callback){
 	// verify if file_id existed
 	var ret = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?limit=1&jsonId="+file_id);
 	if (ret.meta['total_count']>0){
@@ -254,21 +261,17 @@ function uploadData(data, file_id, KeyG, Kenc){
 	for(i=0; i<l; i++){
 		w = listW[i]; // hashed of keyword
 		var searchno;
-		if(noExisted>0 && i<noExisted){ // update fileno for existed item
+		if(noExisted>0 && i<noExisted) // update fileno for existed item
 			fileno = LfileNo[i] + 1;
-			searchno = LsearchNo[tempListWord.indexOf(w)];
-			console.log("index of keyword in the searchno list:",tempListWord.indexOf(w));
-			console.log("search number is:",searchno);
-			if(searchno === undefined){ //if not found
-				searchno = 0;
-			}
-		}
 		else
-		{
 			fileno=1;//initialize fileno for new item. File number is counted from 1
-			searchno=0;
-		}
 
+		searchno = LsearchNo[tempListWord.indexOf(w)];
+		console.log("index of keyword in the searchno list:",tempListWord.indexOf(w));
+		console.log("search number is:",searchno);
+		if(searchno === undefined){ //if not found
+			searchno = 0;
+		}
 		
 		if(fileno==1){ // If the keyword is new, create fileNo in TA
 			console.log('Create new entry in fileNo:',w);
@@ -320,13 +323,13 @@ function uploadData(data, file_id, KeyG, Kenc){
 	console.log("Laddress:", Laddress)
 	
 	// PATCH request (if a keyword is new, create fileNo in TA) and PUT request (if a keyword is existed, update fileNo in TA)
-	patchRequest(sseConfig.base_url_ta + "/api/v1/fileno/", objects);
-	
+	patchRequest(sseConfig.base_url_ta + "/api/v1/fileno/", objects,callback);
+	console.log("send patch request to TA:",sseConfig.base_url_ta + "/api/v1/fileno/",objects)
 	// Send ciphertext to CSP 
-	patchRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/", Lcipher);
+	patchRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/", Lcipher,callback);
 	
 	// Send new address, and value to CSP
-	patchRequest(sseConfig.base_url_sse_server + "/api/v1/map/", Laddress);
+	patchRequest(sseConfig.base_url_sse_server + "/api/v1/map/", Laddress,callback);
 	
 	return true;
 }
@@ -377,11 +380,11 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
 	if(searchNo==1){ // If the keyword is new, create searchNo in TA
 		var jsonData = '{ "w" : "' + hash(keyword) + '","searchno" : ' + searchNo + '}';
 		console.log('Create new entry in searchNo: ',jsonData);
-		postRequest(sseConfig.base_url_ta + "/api/v1/searchno/", jsonData);					
+		postRequest(sseConfig.base_url_ta + "/api/v1/searchno/", jsonData, undefined, async_feat = false);	//async_feat=true to searve jest automatic testing				
 	}
 	else{ // If the keyword is existed, update searchNo in TA
 		console.log('Update the entry in searchno');
-		putRequest(searchNoUri,'{ "searchno" : ' + searchNo + '}');
+		putRequest(searchNoUri,'{ "searchno" : ' + searchNo + '}', undefined, async_feat = false); //async_feat=true to searve jest automatic testing	
 	}	
 	return JSON.parse(data);
 }
@@ -779,3 +782,6 @@ function updateData(data, file_id, KeyG, Kenc){
 		return true;
 	}
 }
+
+//module.exports = [uploadData,search,updateData]; // for jest automatic testing
+
