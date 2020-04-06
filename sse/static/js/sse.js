@@ -1,5 +1,5 @@
-//const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
-//const sjcl = require('./sjcl.js') // for jest automatic testing
+const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
+const sjcl = require('./sjcl.js') // for jest automatic testing
 
 /// SSE CONFIGURATION
 HTTP_CODE_CREATED = 201
@@ -783,5 +783,5 @@ function updateData(data, file_id, KeyG, Kenc){
 	}
 }
 
-//module.exports = [uploadData,search,updateData]; // for jest automatic testing
+module.exports = [uploadData,search,updateData]; // for jest automatic testing
 
