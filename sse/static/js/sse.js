@@ -621,16 +621,10 @@ function createFullList(Lhash,Lexisted_hash,Lfound){
 }
 
 //Update data:
-<<<<<<< HEAD
-// Data = { att1:[old_value,new_value], att2:[old_value,new_value] }
-function updateData(data, file_id, KeyG, Kenc){
-	// Based on {att:old_value}, request for No.Files1, No.Search1
-=======
 // Data = { att1:[current_value,new_value], att2:[current_value,new_value] }
 function updateData(data, file_id, KeyG, Kenc, callback){
 	// Based on {att:current_value}, request for No.Files, No.Search
 	console.log("Updating data")
->>>>>>> develop
 	var keys =Object.keys(data)
 	console.log("key:",keys)
 	var length = keys.length; // number of update fields
