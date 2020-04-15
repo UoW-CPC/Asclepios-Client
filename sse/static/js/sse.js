@@ -1,20 +1,16 @@
-const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
-const sjcl = require('./sjcl.js') // for jest automatic testing
+//const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
+//const sjcl = require('./sjcl.js') // for jest automatic testing
 
-module.exports = [uploadData,search,updateData]; // for jest automatic testing
+//module.exports = [uploadData,search,updateData]; // for jest automatic testing
 
 /// SSE CONFIGURATION
 HTTP_CODE_CREATED = 201
 
-//var script = document.createElement("script"); //Make a script DOM node
-//script.src = 'static/js/sjcl.js'; //Set it's src to the provided URL
-//document.head.appendChild(script); //Add it to the end of the head section of the page (could change 'head' to 'body' to add it to the end of the body section instead)
-
 var sseConfig={
-	 'base_url_ta' : 'http://127.0.0.1:8000', //This will be replaced with correct value at runtime at the web server
-	 'base_url_sse_server' : 'http://127.0.0.1:8080',//This will be replaced with correct value at runtime at the web server
-	 'salt' : 'abc123!?', // salt value for encryption. This will be replaced with correct value at runtime at the web server
-	 'iv' : 'abcdefg', // iv for encryption. This will be replaced with correct value at runtime at the web server 
+	 'base_url_ta' : 'ta_url', //This will be replaced with correct value at runtime at the web server
+	 'base_url_sse_server' : 'sse_url',//This will be replaced with correct value at runtime at the web server
+	 'salt' : 'salt_value', // salt value for encryption. This will be replaced with correct value at runtime at the web server
+	 'iv' : 'iv_value', // iv for encryption. This will be replaced with correct value at runtime at the web server 
 	 'iter' : 10000,
 	 'ks' : 128,
 	 'ts' : 64,
@@ -58,7 +54,6 @@ function postRequest(api_url, jsonObj, callback=undefined, async_feat=true) {
 		}
 	});
 	console.log("response of post request:",result);
-	//ret=result.responseJSON;
 	return result;
 }
 
@@ -142,9 +137,9 @@ function getMultiFileNo(Lw){
 	LfileNoUri = [];
 	listW = [];
 	
-	//var obj = getRequest(appConfig.base_url_ta + "/api/v1/fileno/?w=" + Lw);
-	var obj = getRequest(sseConfig.base_url_ta + "/api/v1/fileno/?limit=0&w=" + Lw);//limit=0 allows to get all items
-	console.log("request for fileno:",sseConfig.base_url_ta + "/api/v1/fileno/?w=" + Lw);
+	var obj = getRequest(sseConfig.base_url_ta + "/api/v1/fileno/?w=" + Lw);
+	//var obj = getRequest(sseConfig.base_url_ta + "/api/v1/fileno/?limit=0&w=" + Lw);//limit=0 allows to get all items
+	//console.log("request for fileno:",sseConfig.base_url_ta + "/api/v1/fileno/?w=" + Lw);
 	console.log("response:",obj);
 	var count = obj.meta.total_count;
 	
@@ -162,8 +157,8 @@ function getMultiFileNo(Lw){
 //Retrieve search numbers of a list of keywords
 //Params: Lw - list of keywords
 function getMultiSearchNo(Lw){	
-	//var obj = getRequest(sseConfig.base_url_ta + "/api/v1/searchno/?w=" + Lw);
-	var obj = getRequest(sseConfig.base_url_ta + "/api/v1/searchno/?limit=0&w=" + Lw);
+	var obj = getRequest(sseConfig.base_url_ta + "/api/v1/searchno/?w=" + Lw);
+	//var obj = getRequest(sseConfig.base_url_ta + "/api/v1/searchno/?limit=0&w=" + Lw);
 
 	LsearchNo = [];
 	LsearchNoUri = [];
@@ -198,7 +193,6 @@ function uploadData(data, file_id, KeyG, Kenc,callback){
 	console.log("json object:",data);
 	
 	console.log("1st item in json object:", Object.keys(data)[0], Object.values(data)[0]);
-	//var first_kv = Object.keys(data)[0] + "|" + Object.values(data)[0]; //separate key and value by ;
 	
 	var json_keys = Object.keys(data); // keys of json objects
 	var json_values = Object.values(data); // values of json objects
@@ -428,9 +422,7 @@ function findKeyword(keyword, KeyG, Kenc){
 	
 	// Compute KeyW
 	var KeyW = encrypt(KeyG,hash(keyword)+searchNo); 
-	//var pt = decrypt(KeyG,KeyW)
 	console.log("Search number: ",searchNo," - KeyW: ",KeyW);
-	//console.log("plaintext:",pt)
 	
 	// Increase search number:
 	searchNo = searchNo + 1; //new
@@ -450,11 +442,6 @@ function findKeyword(keyword, KeyG, Kenc){
 		arrayAddr.push(newAddr);
 	} //end for
 	
-//	var jsonData = {
-//		"KeyW": KeyW,
-//		"fileno": fileNo,
-//		"Lu":arrayAddr
-//	};
 	var data = '{ "KeyW" : ' + KeyW + ',"fileno" : ' + fileNo + ',"Lu" :[' + arrayAddr + ']}';
 	console.log("Data sent to CSP:", data);
 	
@@ -514,8 +501,6 @@ function computeAddr(Lhash,LkeyW,LfileNo,offset=0){
 	var Laddr=[], L;
 	var length = Lhash.length;
 	
-	//var LkeyW = computeListKeyW(Lhash,KeyG);
-	
 	for(i=0; i<length;i++){//for each keyword
 		// Retrieve ciphertext value from the ciphertext object KeyW
 		KeyW_ciphertext = JSON.parse(LkeyW[i]).ct;
@@ -539,7 +524,6 @@ function computeAddr(Lhash,LkeyW,LfileNo,offset=0){
 		for(j=start; j<=fileno;j++){ // for each index from start to fileno. The loop works  in case offset=1, and does not work in case offset=0
 			input = KeyW_ciphertext + j + "0";
 			addr = hash(input); 
-			//console.log("type of address:", typeof addr)
 			console.log("hash input to compute address:",input);
 			console.log("Address:" + addr);
 			L.push('"' + addr + '"');
