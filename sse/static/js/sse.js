@@ -1,15 +1,16 @@
+//const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
+//const sjcl = require('./sjcl.js') // for jest automatic testing
+
+//module.exports = [uploadData,search,updateData]; // for jest automatic testing
+
 /// SSE CONFIGURATION
 HTTP_CODE_CREATED = 201
 
-//var script = document.createElement("script"); //Make a script DOM node
-//script.src = 'static/js/sjcl.js'; //Set it's src to the provided URL
-//document.head.appendChild(script); //Add it to the end of the head section of the page (could change 'head' to 'body' to add it to the end of the body section instead)
-
 var sseConfig={
-	 'base_url_ta' : 'http://127.0.0.1:8000', //This will be replaced with correct value at runtime at the web server
-	 'base_url_sse_server' : 'http://127.0.0.1:8080',//This will be replaced with correct value at runtime at the web server
-	 'salt' : 'abc123!?', // salt value for encryption. This will be replaced with correct value at runtime at the web server
-	 'iv' : 'abcdefg', // iv for encryption. This will be replaced with correct value at runtime at the web server 
+	 'base_url_ta' : 'ta_url', //This will be replaced with correct value at runtime at the web server
+	 'base_url_sse_server' : 'sse_url',//This will be replaced with correct value at runtime at the web server
+	 'salt' : 'salt_value', // salt value for encryption. This will be replaced with correct value at runtime at the web server
+	 'iv' : 'iv_value', // iv for encryption. This will be replaced with correct value at runtime at the web server 
 	 'iter' : 10000,
 	 'ks' : 128,
 	 'ts' : 64,
@@ -35,7 +36,7 @@ function getRequest(api_url) {
 }
 
 // async_feat: asynchronous (if true) or not (if false)
-function postRequest(api_url, jsonObj, callback, async_feat=true) {
+function postRequest(api_url, jsonObj, callback=undefined, async_feat=true) {
 	console.log("data:", jsonObj);
 	result = $.ajax({
 		url: api_url,
@@ -53,17 +54,17 @@ function postRequest(api_url, jsonObj, callback, async_feat=true) {
 		}
 	});
 	console.log("response of post request:",result);
-	//ret=result.responseJSON;
 	return result;
 }
 
-
-function putRequest(api_url, jsonObj, callback) {
+//async_feat: asynchronous (if true) or not (if false)
+function putRequest(api_url, jsonObj, callback, async_feat=true) {
 	$.ajax({
 		url: api_url,
 		type: 'PUT',
 		contentType: 'application/json',
 		data: jsonObj,
+		async: async_feat,
 		success: function(data) {
 			if(callback!=undefined){
 				callback(data);
@@ -76,14 +77,17 @@ function putRequest(api_url, jsonObj, callback) {
 }
 
 function patchRequest(api_url, jsonObj, callback) {
+	console.log("Run patch request")
 	$.ajax({
 		url: api_url,
 		type: 'PATCH',
 		contentType: 'application/json',
 		data: jsonObj,
 		success: function(data) {
+			//console.log("success patch request")
 			if(callback!=undefined){
-				callback(data);
+				//callback(data);
+				callback(true); //this serves automatic tests with jest 
 			}
 		},
 		error: function(erro){
@@ -133,9 +137,9 @@ function getMultiFileNo(Lw){
 	LfileNoUri = [];
 	listW = [];
 	
-	//var obj = getRequest(appConfig.base_url_ta + "/api/v1/fileno/?w=" + Lw);
-	var obj = getRequest(sseConfig.base_url_ta + "/api/v1/fileno/?limit=0&w=" + Lw);//limit=0 allows to get all items
-	console.log("request for fileno:",sseConfig.base_url_ta + "/api/v1/fileno/?w=" + Lw);
+	var obj = getRequest(sseConfig.base_url_ta + "/api/v1/fileno/?w=" + Lw);
+	//var obj = getRequest(sseConfig.base_url_ta + "/api/v1/fileno/?limit=0&w=" + Lw);//limit=0 allows to get all items
+	//console.log("request for fileno:",sseConfig.base_url_ta + "/api/v1/fileno/?w=" + Lw);
 	console.log("response:",obj);
 	var count = obj.meta.total_count;
 	
@@ -153,8 +157,8 @@ function getMultiFileNo(Lw){
 //Retrieve search numbers of a list of keywords
 //Params: Lw - list of keywords
 function getMultiSearchNo(Lw){	
-	//var obj = getRequest(sseConfig.base_url_ta + "/api/v1/searchno/?w=" + Lw);
-	var obj = getRequest(sseConfig.base_url_ta + "/api/v1/searchno/?limit=0&w=" + Lw);
+	var obj = getRequest(sseConfig.base_url_ta + "/api/v1/searchno/?w=" + Lw);
+	//var obj = getRequest(sseConfig.base_url_ta + "/api/v1/searchno/?limit=0&w=" + Lw);
 
 	LsearchNo = [];
 	LsearchNoUri = [];
@@ -162,11 +166,7 @@ function getMultiSearchNo(Lw){
 	
 	var count = obj.meta.total_count;
 	for(i=0; i<count;i++){
-		//searchno = obj.objects[i].searchno;
-		//if(searchno==undefined)
-		//	searchno = 0
 		LsearchNo.push(obj.objects[i].searchno);
-		//LsearchNo.push(searchno);
 		LsearchNoUri.push(sseConfig.base_url_ta +  obj.objects[i].resource_uri);
 		listW.push(obj.objects[i].w); //list of keyword, which No.Search exists
 	}
@@ -179,7 +179,7 @@ function getMultiSearchNo(Lw){
 
 //Upload data (json object)
 //Input: data - data as json object, file_id - file identifier which must be unique, KeyG, Kenc - symmetric keys
-function uploadData(data, file_id, KeyG, Kenc){
+function uploadData(data, file_id, KeyG, Kenc,callback){
 	// verify if file_id existed
 	var ret = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?limit=1&jsonId="+file_id);
 	if (ret.meta['total_count']>0){
@@ -193,7 +193,6 @@ function uploadData(data, file_id, KeyG, Kenc){
 	console.log("json object:",data);
 	
 	console.log("1st item in json object:", Object.keys(data)[0], Object.values(data)[0]);
-	//var first_kv = Object.keys(data)[0] + "|" + Object.values(data)[0]; //separate key and value by ;
 	
 	var json_keys = Object.keys(data); // keys of json objects
 	var json_values = Object.values(data); // values of json objects
@@ -254,21 +253,17 @@ function uploadData(data, file_id, KeyG, Kenc){
 	for(i=0; i<l; i++){
 		w = listW[i]; // hashed of keyword
 		var searchno;
-		if(noExisted>0 && i<noExisted){ // update fileno for existed item
+		if(noExisted>0 && i<noExisted) // update fileno for existed item
 			fileno = LfileNo[i] + 1;
-			searchno = LsearchNo[tempListWord.indexOf(w)];
-			console.log("index of keyword in the searchno list:",tempListWord.indexOf(w));
-			console.log("search number is:",searchno);
-			if(searchno === undefined){ //if not found
-				searchno = 0;
-			}
-		}
 		else
-		{
 			fileno=1;//initialize fileno for new item. File number is counted from 1
-			searchno=0;
-		}
 
+		searchno = LsearchNo[tempListWord.indexOf(w)];
+		console.log("index of keyword in the searchno list:",tempListWord.indexOf(w));
+		console.log("search number is:",searchno);
+		if(searchno === undefined){ //if not found
+			searchno = 0;
+		}
 		
 		if(fileno==1){ // If the keyword is new, create fileNo in TA
 			console.log('Create new entry in fileNo:',w);
@@ -320,13 +315,13 @@ function uploadData(data, file_id, KeyG, Kenc){
 	console.log("Laddress:", Laddress)
 	
 	// PATCH request (if a keyword is new, create fileNo in TA) and PUT request (if a keyword is existed, update fileNo in TA)
-	patchRequest(sseConfig.base_url_ta + "/api/v1/fileno/", objects);
-	
+	patchRequest(sseConfig.base_url_ta + "/api/v1/fileno/", objects,callback);
+	console.log("send patch request to TA:",sseConfig.base_url_ta + "/api/v1/fileno/",objects)
 	// Send ciphertext to CSP 
-	patchRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/", Lcipher);
+	patchRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/", Lcipher,callback);
 	
 	// Send new address, and value to CSP
-	patchRequest(sseConfig.base_url_sse_server + "/api/v1/map/", Laddress);
+	patchRequest(sseConfig.base_url_sse_server + "/api/v1/map/", Laddress,callback);
 	
 	return true;
 }
@@ -377,11 +372,11 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
 	if(searchNo==1){ // If the keyword is new, create searchNo in TA
 		var jsonData = '{ "w" : "' + hash(keyword) + '","searchno" : ' + searchNo + '}';
 		console.log('Create new entry in searchNo: ',jsonData);
-		postRequest(sseConfig.base_url_ta + "/api/v1/searchno/", jsonData);					
+		postRequest(sseConfig.base_url_ta + "/api/v1/searchno/", jsonData, undefined, async_feat = false);	//async_feat=true to searve jest automatic testing				
 	}
 	else{ // If the keyword is existed, update searchNo in TA
 		console.log('Update the entry in searchno');
-		putRequest(searchNoUri,'{ "searchno" : ' + searchNo + '}');
+		putRequest(searchNoUri,'{ "searchno" : ' + searchNo + '}', undefined, async_feat = false); //async_feat=true to searve jest automatic testing	
 	}	
 	return JSON.parse(data);
 }
@@ -427,9 +422,7 @@ function findKeyword(keyword, KeyG, Kenc){
 	
 	// Compute KeyW
 	var KeyW = encrypt(KeyG,hash(keyword)+searchNo); 
-	//var pt = decrypt(KeyG,KeyW)
 	console.log("Search number: ",searchNo," - KeyW: ",KeyW);
-	//console.log("plaintext:",pt)
 	
 	// Increase search number:
 	searchNo = searchNo + 1; //new
@@ -449,11 +442,6 @@ function findKeyword(keyword, KeyG, Kenc){
 		arrayAddr.push(newAddr);
 	} //end for
 	
-//	var jsonData = {
-//		"KeyW": KeyW,
-//		"fileno": fileNo,
-//		"Lu":arrayAddr
-//	};
 	var data = '{ "KeyW" : ' + KeyW + ',"fileno" : ' + fileNo + ',"Lu" :[' + arrayAddr + ']}';
 	console.log("Data sent to CSP:", data);
 	
@@ -490,7 +478,7 @@ function computeListKeyW(Lhash,KeyG,LsearchNo,offset=0){
 	//Compute list of KeyW
 	var input, addr;
 	var LkeyW=[];
-	length = Lhash.length;
+	var length = Lhash.length;
 	for(i=0; i<length;i++){//for each keyword
 		// Compute the key
 		w = Lhash[i];
@@ -511,9 +499,7 @@ function computeListKeyW(Lhash,KeyG,LsearchNo,offset=0){
 function computeAddr(Lhash,LkeyW,LfileNo,offset=0){
 	var input, addr;
 	var Laddr=[], L;
-	length = Lhash.length;
-	
-	//var LkeyW = computeListKeyW(Lhash,KeyG);
+	var length = Lhash.length;
 	
 	for(i=0; i<length;i++){//for each keyword
 		// Retrieve ciphertext value from the ciphertext object KeyW
@@ -535,10 +521,9 @@ function computeAddr(Lhash,LkeyW,LfileNo,offset=0){
 		console.log("New No.Files:",fileno)
 		
 		L = [];
-		for(j=start; j<=fileno;j++){ // for each index from start to fileno
+		for(j=start; j<=fileno;j++){ // for each index from start to fileno. The loop works  in case offset=1, and does not work in case offset=0
 			input = KeyW_ciphertext + j + "0";
 			addr = hash(input); 
-			//console.log("type of address:", typeof addr)
 			console.log("hash input to compute address:",input);
 			console.log("Address:" + addr);
 			L.push('"' + addr + '"');
@@ -552,9 +537,9 @@ function computeAddr(Lhash,LkeyW,LfileNo,offset=0){
 }
 
 function encryptList(Lkeyword,Kenc){
-	length = Lkeyword.length;
+	var length = Lkeyword.length;
 	
-	Lcipher = []
+	var Lcipher = []
 	for(i=0; i<length;i++){//for each keyword
 		c = encrypt(Kenc, Lkeyword[i]);
 		Lcipher.push(c);
@@ -565,16 +550,18 @@ function encryptList(Lkeyword,Kenc){
 
 //offset: the amount of addition or subtraction from the current fileno
 function updateFileNo(Lhash,LfileNoUri,LfileNo,offset){
-	objects = '';
-	length = Lhash.length
+	var objects = '';
+	var length = Lhash.length;
 	
-	del=false // if delete fileno or not
+	var del=false // if delete fileno or not
 	if(offset<0){
 		deleted_objects = '[';
 		delete_searchno = '[';
 	}
 	
-	update = false //if update an existed entry, or add new entry
+	var update = false //if update an existed entry, or add new entry
+	var new_fileno,w, fileno;
+	
 	for(i=0;i<length;i++){ //loop over keywords
 		fileno= LfileNo[i]
 		new_fileno = fileno + offset
@@ -583,9 +570,6 @@ function updateFileNo(Lhash,LfileNoUri,LfileNo,offset){
 			console.log('Delete an entry in fileNo:',w);
 			del=true
 			deleted_objects +='"' + LfileNoUri[i] + '",';
-//			delete_searchno_uri = LsearchNoUri[LsearchNoW.indexOf(w)]
-//			if(delete_searchno_uri!=undefined) //if found
-//				delete_searchno += '"' + delete_searchno_uri + '",';
 		}	
 		else if(fileno==0){ //&& fileno+offset>0, Addition: if after update, there exists file conatining the keyword
 			update = true
@@ -606,30 +590,26 @@ function updateFileNo(Lhash,LfileNoUri,LfileNo,offset){
 	
 	if(del==true){ // delete only, or both update and delete
 		deleted_objects = deleted_objects.slice(0, -1)+']';
-//		if (delete_searchno == '[') // if not delete any searchno
-//			delete_searchno='[]'
-//		else
-//			delete_searchno = delete_searchno.slice(0, -1)+']';
-
 		console.log("deleted_objects in fileno:", deleted_objects)
-//		console.log("deleted entries in searchno:", delete_searchno)
 	}
-//	else{ //only update
-//		deletedSearchno = ''
-//	}
-	
+
 	return [del,objects,deleted_objects]
 }
 
 // Lexisted is equal or subset of Lhash
 function createFullList(Lhash,Lexisted_hash,Lfound){
-	length = Lhash.length
+	console.log("createFullList function")
+	console.log("Lhash:",Lhash)
+	console.log("Lhash.length:",Lhash.length)
+	
+	var length = Lhash.length;
 	
 	// build list of every keyword
 	Lfull=[]
 	for(i=0; i<length;i++){//for each keyword
-		found = Lfound[Lexisted_hash.indexOf(Lhash[i])]; // find search no
-		console.log("index of keyword in the found list:",Lexisted_hash.indexOf(Lhash[i]));
+		idx = Lexisted_hash.indexOf(Lhash[i]); //find if Lhash[i] exists in Lexisted_hash
+		found = Lfound[idx]; // retrieve search no of Lhash[i] (if existed)
+		console.log("index of keyword in the found list:",idx);
 		if(found==undefined){ //if not found
 			found=0
 		}
@@ -641,9 +621,16 @@ function createFullList(Lhash,Lexisted_hash,Lfound){
 }
 
 //Update data:
+<<<<<<< HEAD
 // Data = { att1:[old_value,new_value], att2:[old_value,new_value] }
 function updateData(data, file_id, KeyG, Kenc){
 	// Based on {att:old_value}, request for No.Files1, No.Search1
+=======
+// Data = { att1:[current_value,new_value], att2:[current_value,new_value] }
+function updateData(data, file_id, KeyG, Kenc, callback){
+	// Based on {att:current_value}, request for No.Files, No.Search
+	console.log("Updating data")
+>>>>>>> develop
 	var keys =Object.keys(data)
 	console.log("key:",keys)
 	var length = keys.length; // number of update fields
@@ -665,20 +652,10 @@ function updateData(data, file_id, KeyG, Kenc){
 	}
 	
 	console.log("List of current values:",Lcurrent_value);
-	console.log("List of hashes:",Lcurrent_hash)
-
-	// Get search number
-	Lcurrent_found_searchNo=[]; // list of search numbers
-	Lcurrent_searchNoUri=[]; // list of URL to retrieve search numbers
-	current_tempListWord=[];
-	// Retrieve search number
-	[Lcurrent_found_searchNo, Lcurrent_searchNoUri,current_tempListWord] = getMultiSearchNo(Lcurrent_hash);
+	console.log("List of hashes:",Lcurrent_hash);
 	
-	Lcurrent_searchNo = createFullList(Lcurrent_hash,current_tempListWord,Lcurrent_found_searchNo);
-	Lcurrent_keyW = computeListKeyW(Lcurrent_hash,KeyG,Lcurrent_searchNo); // compute current list of KeyW
-	Ltemp_keyW = computeListKeyW(Lcurrent_hash,KeyG,Lcurrent_searchNo,1); // compute list of KeyW with searchno = searchno + 1
-	console.log("List of current KeyW lists:",Lcurrent_keyW);
-	console.log("List of temp KeyW lists:",Ltemp_keyW);
+	console.log("List of new values:",Lnew_value);
+	console.log("List of new hashes:",Lnew_hash);
 	
 	// Get file number
 	Lcurrent_fileNo = [];
@@ -692,90 +669,92 @@ function updateData(data, file_id, KeyG, Kenc){
 	}
 
 	console.log("Lfileno of current keywords:",Lcurrent_fileNo)
+
+	// Get search number	
+	Lall_found_searchNo = [];
+	Lall_searchNoUri = [];
+	all_tempListWord = [];
+	Lall_hash = Lcurrent_hash.concat(Lnew_hash); //combine Lcurrent_hash and Lnew_hash
+	[Lall_found_searchNo,Lall_searchNoUri,all_tempListWord]=getMultiSearchNo(Lall_hash);
+	console.log("Lall_found_searchNo:",Lall_found_searchNo);
+	console.log("all_tempListWord:",all_tempListWord);
+	console.log("Lcurrent_hash:",Lcurrent_hash);
+	
+	// get the full list of search no of current keywords, which invole keywords with no search = 0
+	Lcurrent_searchNo = createFullList(Lcurrent_hash,all_tempListWord,Lall_found_searchNo);
+	console.log("Lcurrent_searchNo:",Lcurrent_searchNo);
+	
+	Lcurrent_keyW = computeListKeyW(Lcurrent_hash,KeyG,Lcurrent_searchNo); // compute current list of KeyW
+	Ltemp_keyW = computeListKeyW(Lcurrent_hash,KeyG,Lcurrent_searchNo,1); // compute list of KeyW with searchno = searchno + 1
+	console.log("List of current KeyW lists:",Lcurrent_keyW);
+	console.log("List of temp KeyW lists:",Ltemp_keyW);
 	
 	Ltemp_addr = computeAddr(Lcurrent_hash,Ltemp_keyW,Lcurrent_fileNo); // compute temp addresses
 	console.log("List of temp address:",Ltemp_addr);
 	console.log("temp length, key length:",Ltemp_addr.length,length)
 	
-	if(Ltemp_addr.length<length) // at least one of update field (of the same file_id) does not exist in database
-	{
-		console.log("At least one of update field (of the same file_id) does not exist in database")
-		return false;
-	}
-	else{		
-		Lnew_fileNo = [];
-		Lnew_fileNoUri = [];
-		new_listW = [];
-		[Lnew_found_fileNo, Lnew_fileNoUri,new_listW] = getMultiFileNo(Lnew_hash); 
+	// Get file no of the new keywords	
+	Lnew_fileNo = [];
+	Lnew_fileNoUri = [];
+	new_listW = [];
+	[Lnew_found_fileNo, Lnew_fileNoUri,new_listW] = getMultiFileNo(Lnew_hash); 
 
-		// Build full list of No.File of every keyword
-		Lnew_fileNo = createFullList(Lnew_hash,new_listW,Lnew_found_fileNo)
-		console.log("Lfileno of current keywords:",Lnew_fileNo)
-		
-		// Based on {att:new_value}, request for No.Files2, No.Search2
-		// Compute new address from att, new_value, No.Files2, No.Search2	
-		console.log("List of new values:",Lnew_value);
-		console.log("List of hashes:",Lnew_hash)
-		
-		// Get search number
-		Lnew_found_searchNo=[]; // list of search numbers
-		Lnew_searchNoUri=[]; // list of URL to retrieve search numbers
-		new_tempListWord=[];
-		// Retrieve search number (if existed)
-		[Lnew_found_searchNo, Lnew_searchNoUri,new_tempListWord] = getMultiSearchNo(Lnew_hash);
+	// Build full list of No.File of every keyword
+	Lnew_fileNo = createFullList(Lnew_hash,new_listW,Lnew_found_fileNo)
+	console.log("Lfileno of current keywords:",Lnew_fileNo)
 
-		// build list of search no of every keywords
-		Lnew_searchNo=createFullList(Lnew_hash,new_tempListWord,Lnew_found_searchNo)
-		
-		Lnew_keyW = computeListKeyW(Lnew_hash,KeyG,Lnew_searchNo); // compute new list of KeyW
-		Lnew_addr = computeAddr(Lnew_hash,Lnew_keyW,Lnew_fileNo,1); // compute new addresses with No.Files = No.Files + 1
-		console.log("List of new KeyW:",Lnew_keyW);
-		console.log("List of new address lists:",Lnew_addr);
-		
-		// Encrypt new values
-		Lcurrent_cipher = encryptList(Lcurrent_value,Kenc);
-		Lnew_cipher = encryptList(Lnew_value,Kenc);
-		
-		var data = '{"file_id":"' + file_id + '","LkeyW" :[' + Lcurrent_keyW + '],"Lfileno" :[' + Lcurrent_fileNo + '],"Ltemp" :[' + Ltemp_addr + '],"Lnew" :[' + Lnew_addr + '],"Lcurrentcipher" :['+ Lcurrent_cipher + '],"Lnewcipher" :['+ Lnew_cipher +']}';
-		console.log("Data sent to CSP:", data);
-		
-		console.log("Sent update request:",sseConfig.base_url_sse_server + "/api/v1/update/")
-		result = postRequest(sseConfig.base_url_sse_server + "/api/v1/update/", data,function(response){
-			return true;
-		},async_feat=false);// Send request to CSP
-		
-		console.log("Response of update:",result.status)
-		
-		if(result.status==HTTP_CODE_CREATED){
-			//Update No.Files at TA
-			// PATCH request (if a keyword is new, create fileNo in TA) and PUT request (if a keyword is existed, update fileNo in TA)
-			//patchRequest(sseConfig.base_url_ta + "/api/v1/fileno/", objects);
-			console.log("Decrease current No.Files at TA")
-			var current_del,current_objects,current_deleted_objects,delete_current_searchno;
-			[current_del,current_objects,current_deleted_objects,delete_current_searchno]=updateFileNo(Lcurrent_hash,Lcurrent_fileNoUri,Lcurrent_fileNo,-1);
-			
-			console.log("Increase new No.Files at TA")
-			var new_del,new_objects,new_deleted_objects,delete_new_searchno;
-			[new_del,new_objects,new_deleted_objects,delete_new_searchno]=updateFileNo(Lnew_hash,Lnew_fileNoUri,Lnew_fileNo,1);
-			
-			// update No.Files
-			objects = '"objects":[';
-			if(current_objects!=[])
-				objects += current_objects;
-			if(new_objects!=[])
-				if(current_objects!=[])
-					objects += ",";
-				objects += new_objects;
-			objects += ']';
-		
-			if(current_del == true) //if needs to delete
-				data = '{' + objects + ',"deleted_objects":' + current_deleted_objects + '}'		
-			else // add and update only 
-				data = '{' + objects + '}'
-				
-			console.log("data sent to update fileno:", data)
-			patchRequest(sseConfig.base_url_ta + "/api/v1/fileno/", data);
-		}
+	// get the full list of search no of new keywords, which invole keywords with no search = 0
+	Lnew_searchNo=createFullList(Lnew_hash,all_tempListWord,Lall_found_searchNo)
+
+	Lnew_keyW = computeListKeyW(Lnew_hash,KeyG,Lnew_searchNo); // compute new list of KeyW
+	Lnew_addr = computeAddr(Lnew_hash,Lnew_keyW,Lnew_fileNo,1); // compute new addresses with No.Files = No.Files + 1
+	console.log("List of new KeyW:",Lnew_keyW);
+	console.log("List of new address lists:",Lnew_addr);
+
+	// Encrypt new values
+	Lcurrent_cipher = encryptList(Lcurrent_value,Kenc);
+	Lnew_cipher = encryptList(Lnew_value,Kenc);
+
+	var data = '{"file_id":"' + file_id + '","LkeyW" :[' + Lcurrent_keyW + '],"Lfileno" :[' + Lcurrent_fileNo + '],"Ltemp" :[' + Ltemp_addr + '],"Lnew" :[' + Lnew_addr + '],"Lcurrentcipher" :['+ Lcurrent_cipher + '],"Lnewcipher" :['+ Lnew_cipher +']}';
+	console.log("Data sent to CSP:", data);
+
+	console.log("Sent update request:",sseConfig.base_url_sse_server + "/api/v1/update/")
+	result = postRequest(sseConfig.base_url_sse_server + "/api/v1/update/", data,function(response){
 		return true;
+	},async_feat=false);// Send request to CSP
+
+	console.log("Response of update:",result.status)
+
+	if(result.status==HTTP_CODE_CREATED){
+		//Update No.Files at TA
+		// PATCH request (if a keyword is new, create fileNo in TA) and PUT request (if a keyword is existed, update fileNo in TA)
+		console.log("Decrease current No.Files at TA")
+		var current_del,current_objects,current_deleted_objects,delete_current_searchno;
+		[current_del,current_objects,current_deleted_objects,delete_current_searchno]=updateFileNo(Lcurrent_hash,Lcurrent_fileNoUri,Lcurrent_fileNo,-1);
+
+		console.log("Increase new No.Files at TA")
+		var new_del,new_objects,new_deleted_objects,delete_new_searchno;
+		[new_del,new_objects,new_deleted_objects,delete_new_searchno]=updateFileNo(Lnew_hash,Lnew_fileNoUri,Lnew_fileNo,1);
+
+		// update No.Files
+		objects = '"objects":[';
+		if(current_objects!=[])
+			objects += current_objects;
+		if(new_objects!=[])
+			if(current_objects!=[])
+				objects += ",";
+		objects += new_objects;
+		objects += ']';
+
+		if(current_del == true) //if needs to delete
+			data = '{' + objects + ',"deleted_objects":' + current_deleted_objects + '}'		
+		else // add and update only 
+			data = '{' + objects + '}'
+
+		console.log("data sent to update fileno:", data)
+		patchRequest(sseConfig.base_url_ta + "/api/v1/fileno/", data, callback);
 	}
+	return true;
 }
+
+
