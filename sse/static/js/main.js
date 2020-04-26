@@ -111,6 +111,38 @@ function handleUpdateFileLoad(event){
 	$('#updatetime').html("<div class='alert-primary alert'> Update time: " +  diff + " </div>");
 	
 }
+
+//Handle update data event
+function handleDeleteFile(){
+	var KeyG = appConfig.KeyG;	//shared key with TA
+	var Kenc = appConfig.key_encrypt; //symmetric key which is used for decryption
+
+	var st_date = new Date();
+    var st_time = st_date.getTime();
+    var file_id = $("#fileid3").val() 
+    if(file_id==""){
+    	message = "Please provide file id"
+    	//file_id=hash(Math.random().toString(36).substring(7)); // generate unique file_id. This should be changed in production
+	}
+    else{
+    	console.log("Delete data")
+    	var result=deleteData(file_id,KeyG,Kenc);
+    	console.log("Delete result:",result)
+    	if(result==true){
+    		message = "Deleted"
+    	}
+    	else
+    		message = "There is some error."
+    }
+    var end_date = new Date();
+    var end_time = end_date.getTime();
+    var diff = end_time - st_time;
+	
+	$('#delete').empty();
+	$('#deletetime').empty();
+	$('#delete').append("<div class='alert-primary alert'>" + message+ "</div>");
+	$('#deletetime').html("<div class='alert-primary alert'> Delete time: " +  diff + " </div>");
+}
 /// HANDLERS - END
 
 $(document).ready(
@@ -279,5 +311,13 @@ $(document).ready(
 					reader.onload = handleUpdateFileLoad;
 					reader.readAsText($('#jsonUpdateFile').get(0).files[0]);
 				}
+			});
+			
+			/// DELETE by submitting json file
+			$('#btnDeleteFile').click(function(){
+				$('#resultDelete').empty();
+				$('#resultDelete').html("<div class='alert-primary alert'> Deleting </div>");
+				
+				handleDeleteFile();
 			});
 		});

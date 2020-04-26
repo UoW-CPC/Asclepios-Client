@@ -326,4 +326,20 @@
 
 <div id='update'></div>
 <div id='updatetime'></div>
+
+<form id='delete-file' class='mb-2' method="post" action="">
+	<div class='mb-2'>
+		<div class="form-group row">
+			<label for="fileid3" class="col-sm-10 col-form-label">Unique file id</label>
+			<div class="col-sm-12">
+			<input type="text" class="form-control" id="fileid3"
+				placeholder="Please enter file id" name='file_id'>
+			</div>
+		</div>
+	</div>
+	<button type="button" class="btn btn-primary" id="btnDeleteFile">Delete</button>
+</form>
+
+<div id='delete'></div>
+<div id='deletetime'></div>
 {% endblock %}

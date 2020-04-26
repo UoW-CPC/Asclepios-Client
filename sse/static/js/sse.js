@@ -1,7 +1,7 @@
 //const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
 //const sjcl = require('./sjcl.js') // for jest automatic testing
-
-//module.exports = [uploadData,search,updateData]; // for jest automatic testing
+//
+//module.exports = [uploadData,search,updateData,deleteData]; // for jest automatic testing
 
 /// SSE CONFIGURATION
 HTTP_CODE_CREATED = 201
@@ -381,6 +381,26 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
 	return JSON.parse(data);
 }
 
+// Decrypt data
+function decryptData(cipherList, Kenc){
+	var found = cipherList.length;
+	console.log("length of list:",found)
+	console.log("ciphertext list:",cipherList)
+	
+	var data=[];
+	
+	for(var j=0; j<found; j++){
+		var ct = cipherList[j].data
+		console.log("encrypted data:",ct)
+		var ct_reformat =ct.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
+		var text = decrypt(Kenc,ct_reformat)
+		console.log("decrypted data:",text)
+		data.push(text);
+	}
+
+	console.log("List of plaintexts:",data)
+	return data;
+}
 
 //Search keyword function
 //Input: keyword (string) - keyword, KeyG, Kenc - symmetric keys
@@ -495,7 +515,7 @@ function computeListKeyW(Lhash,KeyG,LsearchNo,offset=0){
 	return LkeyW;
 }
 
-// offset = 0 if computeAddr without chaning No.File, offset = 1 if computeAddr with No.File = No.File + 1
+// offset = 0 if computeAddr without changing No.File, offset = 1 if computeAddr with No.File = No.File + 1
 function computeAddr(Lhash,LkeyW,LfileNo,offset=0){
 	var input, addr;
 	var Laddr=[], L;
@@ -507,7 +527,7 @@ function computeAddr(Lhash,LkeyW,LfileNo,offset=0){
 		console.log("KeyW_ciphertext:",KeyW_ciphertext);
 		
 		fileno = LfileNo[i]
-		if(fileno==undefined){ //if not found, i.e. completely new keyword
+		if(fileno==undefined){ //if not found, i.e. completely new keyword --> (not yet) check if this step is necessary
 			fileno=0
 		}
 	
@@ -592,6 +612,8 @@ function updateFileNo(Lhash,LfileNoUri,LfileNo,offset){
 		deleted_objects = deleted_objects.slice(0, -1)+']';
 		console.log("deleted_objects in fileno:", deleted_objects)
 	}
+	else
+		deleted_objects = deleted_objects + ']';
 
 	return [del,objects,deleted_objects]
 }
@@ -608,7 +630,7 @@ function createFullList(Lhash,Lexisted_hash,Lfound){
 	Lfull=[]
 	for(i=0; i<length;i++){//for each keyword
 		idx = Lexisted_hash.indexOf(Lhash[i]); //find if Lhash[i] exists in Lexisted_hash
-		found = Lfound[idx]; // retrieve search no of Lhash[i] (if existed)
+		found = Lfound[idx]; // retrieve search no/ fileno of Lhash[i] (if existed)
 		console.log("index of keyword in the found list:",idx);
 		if(found==undefined){ //if not found
 			found=0
@@ -675,6 +697,7 @@ function updateData(data, file_id, KeyG, Kenc, callback){
 	console.log("Lcurrent_hash:",Lcurrent_hash);
 	
 	// get the full list of search no of current keywords, which invole keywords with no search = 0
+	// (not yet) to be improved: compare length of 2 list before calling function
 	Lcurrent_searchNo = createFullList(Lcurrent_hash,all_tempListWord,Lall_found_searchNo);
 	console.log("Lcurrent_searchNo:",Lcurrent_searchNo);
 	
@@ -724,10 +747,13 @@ function updateData(data, file_id, KeyG, Kenc, callback){
 		// PATCH request (if a keyword is new, create fileNo in TA) and PUT request (if a keyword is existed, update fileNo in TA)
 		console.log("Decrease current No.Files at TA")
 		var current_del,current_objects,current_deleted_objects,delete_current_searchno;
+		
+		// not yet: check if remove delete_current_searchno is fine or not
 		[current_del,current_objects,current_deleted_objects,delete_current_searchno]=updateFileNo(Lcurrent_hash,Lcurrent_fileNoUri,Lcurrent_fileNo,-1);
 
 		console.log("Increase new No.Files at TA")
 		var new_del,new_objects,new_deleted_objects,delete_new_searchno;
+		// not yet: check if remove delete_new_searchno is fine or not
 		[new_del,new_objects,new_deleted_objects,delete_new_searchno]=updateFileNo(Lnew_hash,Lnew_fileNoUri,Lnew_fileNo,1);
 
 		// update No.Files
@@ -751,4 +777,105 @@ function updateData(data, file_id, KeyG, Kenc, callback){
 	return true;
 }
 
+//Update data
+function deleteData(file_id, KeyG, Kenc, callback){
+	// Send GET request to CSP to retrieve ciphertext of data belonging to file_id
+	var obj = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?jsonId=" + file_id);
+	console.log("response:",obj);
+	var length = obj.meta.total_count;
+	if(length==0){
+		console.log("File_id does not exist");
+		return false;
+	}
+	else{
+		console.log("File_id exists");
+		// Decrypt data
+		var pt = decryptData(obj.objects,Kenc);
+		// Send GET request to TA to retrieve fileno
+		// combine multiple hashed keywords into a list, separated by comma
+		var Lw=[]; //list of hashed keywords
+		var listMapUrl=[], listCipherUrl=[];
+		
+		// retrieve data from Map table by file_id
+		var objMap = getRequest(sseConfig.base_url_sse_server + "/api/v1/map/?value=" + file_id);
+		console.log("objects in map table:",objMap);
+		for(i=0; i< length; i++){
+			w = pt[i];
+			//Lw = Lw + hash(w) + ","; // list of hashed keyword
+			Lw.push(hash(w));
+			listCipherUrl.push('"'+ obj.objects[i].resource_uri + '"');
+			listMapUrl.push('"'+ objMap.objects[i].resource_uri + '"');
+		}
+
+		console.log("list of hashed keywords:",Lw);
+		
+		// Retrieve list of file number
+		[LfileNo, LfileNoUri,listW] = getMultiFileNo(Lw); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+		console.log("keyword string input:",Lw);
+		console.log("List of file numbers: ", LfileNo);
+		console.log("List of Url:", LfileNoUri);
+		console.log("List of retrieved keywords:",listW);
+		
+		//var arrLw = Lw.split(",");
+		var listFileNo;
+		if(Lw.length > listW.length)
+			listFileNo=createFullList(Lw,listW,LfileNo);
+		else
+			listFileNo=LfileNo;
+
+		console.log("full list of file no of keywords:",listFileNo);
+		// Retrieve search number
+		
+		[LsearchNo, LsearchNoUri,tempListWord] = getMultiSearchNo(Lw); //"tempListWord" can be empty if all keywords has been never searched
+		console.log("Search numbers: ", LsearchNo);
+		console.log("Urls: ", LsearchNoUri);
+		console.log("list of words in searchno:",tempListWord);
+
+		var listSearchNo;
+		if(Lw.length > tempListWord.length)
+			listSearchNo=createFullList(Lw,tempListWord,LsearchNo);
+		else
+			listSearchNo=LsearchNo;
+		console.log("full list of search no of keywords:",listSearchNo);
+
+		var LkeyW = computeListKeyW(Lw,KeyG,listSearchNo); // compute current list of KeyW
+		console.log("List of keyW:",LkeyW)
+
+		// Send PATCH request to CSP to delete entries in Map table and Ciphertext table
+		console.log("List of urls to be deleted from ciphertext table at CSP:",listCipherUrl)
+		var data = '{"objects":[],"deleted_objects":[' + listCipherUrl + ']}';
+		console.log("request to CSP to delete ciphertext entries:",data);
+		patchRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/", data, callback);
+		
+		// compute addresses in Map table
+		var listAddr = computeAddr(Lw,LkeyW,listFileNo);	
+		console.log("List of addresses:",listAddr);
+		
+		console.log("List of urls to be deleted from Map table at CSP:",listMapUrl)
+		data = '{"objects":[],"deleted_objects":[' + listMapUrl + ']}';
+		console.log("request to CSP to delete Map entries:",data);
+		patchRequest(sseConfig.base_url_sse_server + "/api/v1/map/", data, callback);
+
+		// Send PATCH request to TA to update/delete entries in fileno table
+		var current_del,current_objects,current_deleted_objects;
+		[current_del,current_objects,current_deleted_objects]=updateFileNo(Lw,LfileNoUri,LfileNo,-1);
+
+		console.log("deleted objects in fileno table:",current_deleted_objects);
+		// update No.Files
+		var objects = '"objects":[';
+		if(current_objects!=[])
+			objects += current_objects;
+		objects += ']';
+
+		if(current_deleted_objects != []) //if needs to delete
+			data = '{' + objects + ',"deleted_objects":' + current_deleted_objects + '}'		
+		else // add and update only 
+			data = '{' + objects + '}'
+
+		console.log("data sent to update fileno:", data)
+		patchRequest(sseConfig.base_url_ta + "/api/v1/fileno/", data, callback);
+
+	}
+	return true;
+}
 
