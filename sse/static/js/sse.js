@@ -1,6 +1,5 @@
 //const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
 //const sjcl = require('./sjcl.js') // for jest automatic testing
-//
 //module.exports = [uploadData,search,updateData,deleteData]; // for jest automatic testing
 
 /// SSE CONFIGURATION
@@ -794,17 +793,15 @@ function deleteData(file_id, KeyG, Kenc, callback){
 		// Send GET request to TA to retrieve fileno
 		// combine multiple hashed keywords into a list, separated by comma
 		var Lw=[]; //list of hashed keywords
-		var listMapUrl=[], listCipherUrl=[];
+		var Lcipher=[];
 		
 		// retrieve data from Map table by file_id
 		var objMap = getRequest(sseConfig.base_url_sse_server + "/api/v1/map/?value=" + file_id);
 		console.log("objects in map table:",objMap);
 		for(i=0; i< length; i++){
 			w = pt[i];
-			//Lw = Lw + hash(w) + ","; // list of hashed keyword
 			Lw.push(hash(w));
-			listCipherUrl.push('"'+ obj.objects[i].resource_uri + '"');
-			listMapUrl.push('"'+ objMap.objects[i].resource_uri + '"');
+			Lcipher.push('"'+obj.objects[i].data+'"');
 		}
 
 		console.log("list of hashed keywords:",Lw);
@@ -837,25 +834,23 @@ function deleteData(file_id, KeyG, Kenc, callback){
 		else
 			listSearchNo=LsearchNo;
 		console.log("full list of search no of keywords:",listSearchNo);
-
-		var LkeyW = computeListKeyW(Lw,KeyG,listSearchNo); // compute current list of KeyW
-		console.log("List of keyW:",LkeyW)
-
-		// Send PATCH request to CSP to delete entries in Map table and Ciphertext table
-		console.log("List of urls to be deleted from ciphertext table at CSP:",listCipherUrl)
-		var data = '{"objects":[],"deleted_objects":[' + listCipherUrl + ']}';
-		console.log("request to CSP to delete ciphertext entries:",data);
-		patchRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/", data, callback);
 		
-		// compute addresses in Map table
-		var listAddr = computeAddr(Lw,LkeyW,listFileNo);	
-		console.log("List of addresses:",listAddr);
+		LkeyW = computeListKeyW(Lw,KeyG,listSearchNo); // compute list of KeyW with searchno = searchno + 1
+		Ltemp_keyW = computeListKeyW(Lw,KeyG,listSearchNo,1); // compute list of KeyW with searchno = searchno + 1
 		
-		console.log("List of urls to be deleted from Map table at CSP:",listMapUrl)
-		data = '{"objects":[],"deleted_objects":[' + listMapUrl + ']}';
-		console.log("request to CSP to delete Map entries:",data);
-		patchRequest(sseConfig.base_url_sse_server + "/api/v1/map/", data, callback);
+		console.log("List of KeyW lists:",LkeyW);
+		
+		Laddr = computeAddr(Lw,Ltemp_keyW,listFileNo); // compute addresses
+		console.log("List of address:",Laddr);
+		
+		var data = '{"file_id":"' + file_id + '","LkeyW" :[' + LkeyW + '],"Lfileno" :[' + LfileNo + '],"Ltemp" :['+ Laddr +'],"Lcipher" :['+ Lcipher +']}';
+		console.log("Data sent to CSP:", data);
 
+		console.log("Sent delete request:",sseConfig.base_url_sse_server + "/api/v1/delete/")
+		result = postRequest(sseConfig.base_url_sse_server + "/api/v1/delete/", data,function(response){
+			return true;
+		},async_feat=false);// Send request to CSP
+		
 		// Send PATCH request to TA to update/delete entries in fileno table
 		var current_del,current_objects,current_deleted_objects;
 		[current_del,current_objects,current_deleted_objects]=updateFileNo(Lw,LfileNoUri,LfileNo,-1);
