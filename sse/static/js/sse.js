@@ -1,6 +1,6 @@
 //const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
 //const sjcl = require('./sjcl.js') // for jest automatic testing
-//module.exports = [uploadData,search,updateData,deleteData]; // for jest automatic testing
+//module.exports = [uploadData,search,updateData,deleteData,uploadKeyG]; // for jest automatic testing
 
 /// SSE CONFIGURATION
 HTTP_CODE_CREATED = 201
@@ -178,13 +178,18 @@ function getMultiSearchNo(Lw){
 
 //Upload data (json object)
 //Input: data - data as json object, file_id - file identifier which must be unique, KeyG, Kenc - symmetric keys
-function uploadData(data, file_id, KeyG, Kenc,callback){
+function uploadData(data, file_id, sharedKey, Kenc,callback){
 	// verify if file_id existed
 	var ret = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?limit=1&jsonId="+file_id);
 	if (ret.meta['total_count']>0){
 		console.log("Existed file id")
 		return false;
 	}
+
+	var KeyG = computeKeyG(sharedKey);
+	//console.log("shared key to compute KeyG:",sharedKey);
+	console.log("KeyG in upload:",KeyG);
+	var key = hash(Kenc); //generate encryption key from inputted passphrase Kenc
 
 	console.log("New file id")
 	console.log("URL TA:",sseConfig.base_url_ta)
@@ -284,7 +289,8 @@ function uploadData(data, file_id, KeyG, Kenc,callback){
 		
 		//Encrypt keyword
 		kw = arrW[arrLw.indexOf(w)]
-		var c = encrypt(Kenc, kw);
+		//var c = encrypt(Kenc, kw);
+		var c = encrypt(key, kw);
 		Lcipher += '{ "jsonId" : "' + file_id + '","data" : ' + c + '},';
 		
 		// Compute the address in the dictionary
@@ -331,7 +337,13 @@ function uploadData(data, file_id, KeyG, Kenc,callback){
 function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
 	console.log("response of search:",response)
 	var data;
-	if(response == undefined || response.Cfw.length==0 ){ //found 0 results
+	var msg = "";
+	if(response == undefined ){//|| response.Cfw.length==0 ){ //found 0 results
+		found = 0
+		data = '{"count":' + found + ',"objects":[]}'
+	}
+	else if(response.Cfw.length==0){ // found 0 due to wrong key
+		msg = response.KeyW;
 		found = 0
 		data = '{"count":' + found + ',"objects":[]}'
 	}
@@ -341,7 +353,8 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
 		console.log("content of response:",response.Cfw)
 	
 		data = '"objects":' + '[';
-	
+
+		//var key = hash(Kenc); // generate key from inputted passphrase Kenc;
 		for(var j=0; j<found; j++){
 			var objs_data = response.Cfw[j]
 			var length = objs_data.length;
@@ -352,6 +365,7 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
 				console.log("encrypted data:",ct)
 				var ct_reformat =ct.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
 				var text = decrypt(Kenc,ct_reformat)
+				//var text = decrypt(key,ct_reformat)
 				var pair = text.split("|")
 				console.log("decrypted data:",text)
 				data =  data + '"' + pair[0] + '":"' + pair[1] + '",'
@@ -366,17 +380,20 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
 		data = '{"count":' + found + ',' + data + ']}'
 		console.log("Json string:",data)
 	}
-
-	// Update search number to TA in both cases: found, and not found
-	if(searchNo==1){ // If the keyword is new, create searchNo in TA
-		var jsonData = '{ "w" : "' + hash(keyword) + '","searchno" : ' + searchNo + '}';
-		console.log('Create new entry in searchNo: ',jsonData);
-		postRequest(sseConfig.base_url_ta + "/api/v1/searchno/", jsonData, undefined, async_feat = false);	//async_feat=true to searve jest automatic testing				
+	
+	console.log("message from search:",msg);
+	if(msg!="error"){ // if found 0 is not due to wrong key
+		// Update search number to TA in both cases: found, and not found
+		if(searchNo==1){ // If the keyword is new, create searchNo in TA
+			var jsonData = '{ "w" : "' + hash(keyword) + '","searchno" : ' + searchNo + '}';
+			console.log('Create new entry in searchNo: ',jsonData);
+			postRequest(sseConfig.base_url_ta + "/api/v1/searchno/", jsonData, undefined, async_feat = false);	//async_feat=true to searve jest automatic testing				
+		}
+		else{ // If the keyword is existed, update searchNo in TA
+			console.log('Update the entry in searchno');
+			putRequest(searchNoUri,'{ "searchno" : ' + searchNo + '}', undefined, async_feat = false); //async_feat=true to searve jest automatic testing	
+		}	
 	}
-	else{ // If the keyword is existed, update searchNo in TA
-		console.log('Update the entry in searchno');
-		putRequest(searchNoUri,'{ "searchno" : ' + searchNo + '}', undefined, async_feat = false); //async_feat=true to searve jest automatic testing	
-	}	
 	return JSON.parse(data);
 }
 
@@ -388,11 +405,13 @@ function decryptData(cipherList, Kenc){
 	
 	var data=[];
 	
+	//var key = hash(Kenc); //generate key from passphrase
 	for(var j=0; j<found; j++){
 		var ct = cipherList[j].data
 		console.log("encrypted data:",ct)
 		var ct_reformat =ct.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
 		var text = decrypt(Kenc,ct_reformat)
+		//var text = decrypt(key,ct_reformat)
 		console.log("decrypted data:",text)
 		data.push(text);
 	}
@@ -403,8 +422,11 @@ function decryptData(cipherList, Kenc){
 
 //Search keyword function
 //Input: keyword (string) - keyword, KeyG, Kenc - symmetric keys
-function findKeyword(keyword, KeyG, Kenc){
+function findKeyword(keyword, sharedKey, Kenc){
 	console.log("Search keyword function");
+	
+	var KeyG = computeKeyG(sharedKey);
+	var key = hash(Kenc);
 	
 	var fileNo, fileNoUri;
 	
@@ -472,7 +494,8 @@ function findKeyword(keyword, KeyG, Kenc){
 	},async_feat=false);// Send request to CSP
 	
 	console.log("Results from post request after returned:",result.responseJSON);
-	data = retrieveData(result.responseJSON,Kenc,searchNo,searchNoUri,keyword);
+	
+	data = retrieveData(result.responseJSON,key,searchNo,searchNoUri,keyword);
 	console.log("Results from retrieveData:",data);
 	
 	return data;
@@ -643,7 +666,7 @@ function createFullList(Lhash,Lexisted_hash,Lfound){
 
 //Update data:
 // Data = { att1:[current_value,new_value], att2:[current_value,new_value] }
-function updateData(data, file_id, KeyG, Kenc, callback){
+function updateData(data, file_id, sharedKey, Kenc, callback){
 	// Based on {att:current_value}, request for No.Files, No.Search
 	console.log("Updating data")
 	var keys =Object.keys(data)
@@ -656,6 +679,10 @@ function updateData(data, file_id, KeyG, Kenc, callback){
 	Lnew_value=[];
 	Lcurrent_hash = [];
 	Lnew_hash=[];
+	
+	var KeyG = computeKeyG(sharedKey);
+	var key = hash(Kenc);
+	
 	for(i=0; i<length;i++){
 		current_value = keys[i] + '|' + values[i][0];
 		new_value = keys[i] + '|' + values[i][1];
@@ -728,8 +755,10 @@ function updateData(data, file_id, KeyG, Kenc, callback){
 	console.log("List of new address lists:",Lnew_addr);
 
 	// Encrypt new values
-	Lcurrent_cipher = encryptList(Lcurrent_value,Kenc);
-	Lnew_cipher = encryptList(Lnew_value,Kenc);
+	//Lcurrent_cipher = encryptList(Lcurrent_value,Kenc);
+	//Lnew_cipher = encryptList(Lnew_value,Kenc);
+	Lcurrent_cipher = encryptList(Lcurrent_value,key);
+	Lnew_cipher = encryptList(Lnew_value,key);
 
 	var data = '{"file_id":"' + file_id + '","LkeyW" :[' + Lcurrent_keyW + '],"Lfileno" :[' + Lcurrent_fileNo + '],"Ltemp" :[' + Ltemp_addr + '],"Lnew" :[' + Lnew_addr + '],"Lcurrentcipher" :['+ Lcurrent_cipher + '],"Lnewcipher" :['+ Lnew_cipher +']}';
 	console.log("Data sent to CSP:", data);
@@ -777,7 +806,7 @@ function updateData(data, file_id, KeyG, Kenc, callback){
 }
 
 //Update data
-function deleteData(file_id, KeyG, Kenc, callback){
+function deleteData(file_id, sharedKey, Kenc, callback){
 	// Send GET request to CSP to retrieve ciphertext of data belonging to file_id
 	var obj = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?jsonId=" + file_id);
 	console.log("response:",obj);
@@ -788,8 +817,14 @@ function deleteData(file_id, KeyG, Kenc, callback){
 	}
 	else{
 		console.log("File_id exists");
+		var KeyG = computeKeyG(sharedKey);
+		console.log("KeyG:",KeyG);
+		var key = hash(Kenc);
+		
 		// Decrypt data
-		var pt = decryptData(obj.objects,Kenc);
+		//var pt = decryptData(obj.objects,Kenc);
+		var pt = decryptData(obj.objects,key);
+		
 		// Send GET request to TA to retrieve fileno
 		// combine multiple hashed keywords into a list, separated by comma
 		var Lw=[]; //list of hashed keywords
@@ -874,3 +909,17 @@ function deleteData(file_id, KeyG, Kenc, callback){
 	return true;
 }
 
+// Compute KeyG from passphrase
+function computeKeyG(pwdphrase){
+	return hash(pwdphrase + "keyg");
+}
+// Upload hash of key
+function uploadKeyG(pwdphrase){
+	// hash
+	console.log("passphrase to compute keyg:",pwdphrase);
+	var keyg = computeKeyG(pwdphrase);
+	var jsonData = '{ "key" : "' + keyg + '"}';
+	console.log("uploaded KeyG:",keyg)
+	postRequest(sseConfig.base_url_ta + "/api/v1/key/", jsonData, undefined, async_feat = false);
+	return true;
+}
