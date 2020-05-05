@@ -24,20 +24,44 @@
 		id="formInput" value="form_input"> 
 	<label class="form-check-label" for="formInput">Input by form</label>
 </div>
+</br>
 
+<label for="upload-keyg"><b>SEND HASHED KEY</b></label>
+<form id='upload-keyg' class='mb-2' method="post" action="">
+	<div class='mb-2'>
+		<div class="form-group row">
+			<label for="passphrase" class="col-sm-10 col-form-label">Passphrase (it will be hashed prior to sending to Trusted Authority)</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase"
+					placeholder="Please enter passphrase" name='passphrase'>
+			</div>
+		</div>
+	</div>
+	<button type="button" class="btn btn-primary" id="btnSendHashKey">Send</button>
+</form>
+<div id='uploadkeyg'></div>
+
+
+<label for="json-file"><b>UPLOAD DATA</b></label>
 <form id='json-file' enctype="application/json" class='mb-2'
 	method="post" action="">
 	{% csrf_token %}
 	<div class='mb-2'>
-					<input type="file" class="form-control" id="jsonFile"
-						placeholder="Please enter URL of json file" name='jsonFile' multiple>
-					<div class="form-group row">
-						<label for="fileid1" class="col-sm-10 col-form-label">Unique file id</label>
-						<div class="col-sm-12">
-						<input type="text" class="form-control" id="fileid1"
-						placeholder="Please enter file id or it will be generated" name='file_id'>
-						</div>
-					</div>
+		<input type="file" class="form-control" id="jsonFile"
+			placeholder="Please enter URL of json file" name='jsonFile' multiple>
+		<div class="form-group row">
+			<label for="fileid1" class="col-sm-10 col-form-label">Unique file id</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="fileid1"
+					placeholder="Please enter file id or it will be generated"
+					name='file_id'>
+			</div>
+			<label for="passphrase1" class="col-sm-10 col-form-label">Passphrase</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase1"
+					placeholder="Please enter passphrase" name='passphrase1'>
+			</div>
+		</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnSubmitFile">Submit</button>
 </form>
@@ -300,9 +324,17 @@
 	<button type="button" class="btn btn-primary" id="btnSearch">Search</button>
 </form>
 
+<label for="search-file"><b>SEARCH</b></label>
 <form id='search-file' class='mb-2' method="post" action="">
 	<div class='mb-2'>
 		<input type="file" class="form-control" id="jsonSearchFile" placeholder="Please enter URL of json file" name='jsonSearchFile'>
+		<div class="form-group row">
+			<label for="passphrase2" class="col-sm-10 col-form-label">Passphrase</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase2"
+					placeholder="Please enter passphrase" name='passphrase2'>
+			</div>
+		</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnSearchFile">Search</button>
 </form>
@@ -310,6 +342,7 @@
 <div id='result'></div>
 <div id='searchtime'></div>
 
+<label for="update-file"><b>UPDATE DATA</b></label>
 <form id='update-file' class='mb-2' method="post" action="">
 	<div class='mb-2'>
 		<input type="file" class="form-control" id="jsonUpdateFile" placeholder="Please enter URL of json file" name='jsonUpdateFile'>
@@ -319,6 +352,11 @@
 			<input type="text" class="form-control" id="fileid2"
 				placeholder="Please enter file id" name='file_id'>
 			</div>
+			<label for="passphrase3" class="col-sm-10 col-form-label">Passphrase</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase3"
+					placeholder="Please enter passphrase" name='passphrase3'>
+			</div>
 		</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnUpdateFile">Update</button>
@@ -327,13 +365,20 @@
 <div id='update'></div>
 <div id='updatetime'></div>
 
+<label for="delete-file"><b>DELETE DATA</b></label>
 <form id='delete-file' class='mb-2' method="post" action="">
 	<div class='mb-2'>
 		<div class="form-group row">
-			<label for="fileid3" class="col-sm-10 col-form-label">Unique file id</label>
+			<label for="fileid3" class="col-sm-10 col-form-label">Unique
+				file id</label>
 			<div class="col-sm-12">
-			<input type="text" class="form-control" id="fileid3"
-				placeholder="Please enter file id" name='file_id'>
+				<input type="text" class="form-control" id="fileid3"
+					placeholder="Please enter file id" name='file_id'>
+			</div>
+			<label for="passphrase4" class="col-sm-10 col-form-label">Passphrase</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase4"
+					placeholder="Please enter passphrase" name='passphrase4'>
 			</div>
 		</div>
 	</div>
