@@ -1,7 +1,7 @@
 /// APPLICATION CONFIGURATION
 var appConfig={
-	 'KeyG' : '123', //Key shared with TA
-	 'key_encrypt': 'key encrypt',  //Key for encrypting/ decrypting json object
+	 //'KeyG' : '123', //Key shared with TA
+	 //'key_encrypt': 'key encrypt',  //Key for encrypting/ decrypting json object
 	 'used_fields' : 2, // number of active fields in json_form.html
 	 'all_fields' : 24 // total number of fields in json_form.html
 }
@@ -10,8 +10,11 @@ var appConfig={
 /// HANDLERS
 // Handle event of data upload data
 function handleFileLoad(event){
-	  var KeyG = appConfig.KeyG;
-	  var Kenc = appConfig.key_encrypt; //Key for encrypting json object
+//	  var KeyG = appConfig.KeyG;
+//	  var Kenc = appConfig.key_encrypt; //Key for encrypting json object
+	  var Kenc = $("#passphrase1").val()
+	  var KeyG = Kenc;
+	  //console.log("shared passphrase:",KeyG)
       
 	  var file_id = $("#fileid1").val()
 	  if(file_id==""){
@@ -43,9 +46,11 @@ function handleFileLoad(event){
 
 // Handle search data event
 function handleSearchFileLoad(event){
-	var KeyG = appConfig.KeyG;	//shared key with TA
-	var Kenc = appConfig.key_encrypt; //symmetric key which is used for decryption
-
+	//var KeyG = appConfig.KeyG;	//shared key with TA
+	//var Kenc = appConfig.key_encrypt; //symmetric key which is used for decryption
+	var Kenc = $("#passphrase2").val();
+	var KeyG = Kenc;
+		
 	var jsonObj = JSON.parse(event.target.result);
 	
 	var st_date = new Date();
@@ -80,9 +85,11 @@ function dynamicallyLoadScript(url) {
 
 //Handle update data event
 function handleUpdateFileLoad(event){
-	var KeyG = appConfig.KeyG;	//shared key with TA
-	var Kenc = appConfig.key_encrypt; //symmetric key which is used for decryption
-
+	//var KeyG = appConfig.KeyG;	//shared key with TA
+	//var Kenc = appConfig.key_encrypt; //symmetric key which is used for decryption
+	var Kenc = $("#passphrase3").val();
+	var KeyG = Kenc;
+	
 	var jsonObj = JSON.parse(event.target.result);
 	
 	var st_date = new Date();
@@ -110,6 +117,40 @@ function handleUpdateFileLoad(event){
 	$('#update').append("<div class='alert-primary alert'>" + message+ "</div>");
 	$('#updatetime').html("<div class='alert-primary alert'> Update time: " +  diff + " </div>");
 	
+}
+
+//Handle update data event
+function handleDeleteFile(){
+	//var KeyG = appConfig.KeyG;	//shared key with TA
+	//var Kenc = appConfig.key_encrypt; //symmetric key which is used for decryption
+	var Kenc = $("#passphrase4").val();
+	var KeyG = Kenc;
+	
+	var st_date = new Date();
+    var st_time = st_date.getTime();
+    var file_id = $("#fileid3").val() 
+    if(file_id==""){
+    	message = "Please provide file id"
+    	//file_id=hash(Math.random().toString(36).substring(7)); // generate unique file_id. This should be changed in production
+	}
+    else{
+    	console.log("Delete data")
+    	var result=deleteData(file_id,KeyG,Kenc);
+    	console.log("Delete result:",result)
+    	if(result==true){
+    		message = "Deleted"
+    	}
+    	else
+    		message = "There is some error."
+    }
+    var end_date = new Date();
+    var end_time = end_date.getTime();
+    var diff = end_time - st_time;
+	
+	$('#delete').empty();
+	$('#deletetime').empty();
+	$('#delete').append("<div class='alert-primary alert'>" + message+ "</div>");
+	$('#deletetime').html("<div class='alert-primary alert'> Delete time: " +  diff + " </div>");
 }
 /// HANDLERS - END
 
@@ -148,6 +189,16 @@ $(document).ready(
 			});
 			
 			dynamicallyLoadScript('static/js/sse.js')
+			
+			// ADD PATIENT by submitting file
+			$("#btnSendHashKey").click(function(){
+				console.log("Send hashed key to TA")
+				$('#uploadkeyg').empty();
+				var key = $("#passphrase").val();
+				uploadKeyG(key); // Upload data to CSP
+				$('#passphrase').val("");
+				$('#uploadkeyg').html("<div class='alert-primary alert'> Submitted </div>");
+			});
 			
 			// ADD PATIENT by submitting file
 			$("#btnSubmitFile").click(function(){
@@ -279,5 +330,13 @@ $(document).ready(
 					reader.onload = handleUpdateFileLoad;
 					reader.readAsText($('#jsonUpdateFile').get(0).files[0]);
 				}
+			});
+			
+			/// DELETE by submitting json file
+			$('#btnDeleteFile').click(function(){
+				$('#resultDelete').empty();
+				$('#resultDelete').html("<div class='alert-primary alert'> Deleting </div>");
+				
+				handleDeleteFile();
 			});
 		});
