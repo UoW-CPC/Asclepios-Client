@@ -6,10 +6,10 @@
 HTTP_CODE_CREATED = 201
 
 var sseConfig={
-	 'base_url_ta' : 'ta_url', //This will be replaced with correct value at runtime at the web server
-	 'base_url_sse_server' : 'sse_url',//This will be replaced with correct value at runtime at the web server
-	 'salt' : 'salt_value', // salt value for encryption. This will be replaced with correct value at runtime at the web server
-	 'iv' : 'iv_value', // iv for encryption. This will be replaced with correct value at runtime at the web server 
+	 'base_url_ta' : 'http://127.0.0.1:8000', //This will be replaced with correct value at runtime at the web server
+	 'base_url_sse_server' : 'http://127.0.0.1:8080',//This will be replaced with correct value at runtime at the web server
+	 'salt' : 'abc123!?', // salt value for encryption. This will be replaced with correct value at runtime at the web server
+	 'iv' : 'abcdefg', // iv for encryption. This will be replaced with correct value at runtime at the web server 
 	 'iter' : 10000,
 	 'ks' : 128,
 	 'ts' : 64,
@@ -75,13 +75,14 @@ function putRequest(api_url, jsonObj, callback, async_feat=true) {
 	})
 }
 
-function patchRequest(api_url, jsonObj, callback) {
+function patchRequest(api_url, jsonObj, callback, async_feat=true) {
 	console.log("Run patch request")
 	$.ajax({
 		url: api_url,
 		type: 'PATCH',
 		contentType: 'application/json',
 		data: jsonObj,
+		async: async_feat,
 		success: function(data) {
 			//console.log("success patch request")
 			if(callback!=undefined){
@@ -187,7 +188,6 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 	}
 
 	var KeyG = computeKeyG(sharedKey);
-	//console.log("shared key to compute KeyG:",sharedKey);
 	console.log("KeyG in upload:",KeyG);
 	var key = hash(Kenc); //generate encryption key from inputted passphrase Kenc
 
@@ -203,84 +203,56 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 	var length = json_keys.length; // number of json objects
 	var i, w;
 
-	// combine multiple hashed keywords into a list, separated by comma
-	var Lw=""; //list of hashed keywords
-	var L=""; //list of keywords
+	var listHw=[], arrW=[];
 	for(i=0; i< length; i++){
 		w = json_keys[i] + "|" + json_values[i] //separate key and value by ;
-		L = L + w + ","; // list of keyword
-		Lw = Lw + hash(w) + ","; // list of hashed keyword
+		arrW.push(w);//list of keyword
+		listHw.push(hash(w)) ; // list of hashed keyword
 	}
-	//remove the last comma
-	Lw = Lw.slice(0, -1);
-	L = L.slice(0, -1);
-	console.log("list of uploaded keywords:",L);
-	console.log("list of hashed keywords:",Lw);
+	
+	console.log("list of uploaded keywords:",arrW);
+	console.log("list of hashed keywords:",listHw);
+	
+	console.log("invoke upload rest api");
+	var data_ta = JSON.stringify({"Lw":listHw});
+	console.log("data sent to TA:",data_ta);
+	
+	// If a keyword is new, create fileNo in TA; if a keyword is existed, update fileNo in TA
+	var ta_response=postRequest(sseConfig.base_url_ta + "/api/v1/upload/", data_ta, undefined, false);
+	
+	var json_response = ta_response.responseJSON;
+	var Lfileno = ta_response.responseJSON["Lfileno"];
+	var Lsearchno = ta_response.responseJSON["Lsearchno"];
+	console.log("data back from TA:",Lfileno,Lsearchno);
+	
+	var Lcipher = '{"objects": ['; //list of cipher objects in PATCH request
+	var Laddress='{"objects": [';  //list of address objects in PATCH request
 
-	var LfileNo;
-	var LfileNoUri;
-	var listW;
-	
-	// Retrieve list of file number
-	[LfileNo, LfileNoUri,listW] = getMultiFileNo(Lw); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
-	console.log("keyword string input:",Lw);
-	console.log("List of file numbers: ", LfileNo);
-	console.log("List of Url:", LfileNoUri);
-	console.log("List of retrieved keywords:",listW);
-	
-	// Compare listW and Lw
-	arrLw = Lw.split(",");
-	var diff = $(arrLw).not(listW).get();
-	console.log("Difference between 2 list of words:",diff);
-	listW = listW.concat(diff); //full list of keywords, including existed ones and non-existed ones
-	console.log("full list of words:",listW);
-
-	var LsearchNo; // list of search numbers
-	var LsearchNoUri; // list of URL to retrieve search numbers
-	var tempListWord;
-	
-	// Retrieve search number
-	[LsearchNo, LsearchNoUri,tempListWord] = getMultiSearchNo(Lw); //"tempListWord" can be empty if all keywords has been never searched
-	console.log("Search numbers: ", LsearchNo);
-	console.log("Urls: ", LsearchNoUri);
-	console.log("list of words in searchno:",tempListWord);
-	
-	
-	objects = '{"objects": ['; //list of objects in PATCH request
-	Lcipher = '{"objects": ['; //list of cipher objects in PATCH request
-	Laddress='{"objects": [';  //list of address objects in PATCH request
-
-	var l = listW.length; //LfileNo.length can be less than listW.length
-	var noExisted = LfileNo.length; // number of existed items
-	
-	arrW = L.split(",");
+	var l = listHw.length; //LfileNo.length can be less than listW.length
+	var searchno, fileno, item, kw;
 	for(i=0; i<l; i++){
-		w = listW[i]; // hashed of keyword
-		var searchno;
-		if(noExisted>0 && i<noExisted) // update fileno for existed item
-			fileno = LfileNo[i] + 1;
-		else
-			fileno=1;//initialize fileno for new item. File number is counted from 1
-
-		searchno = LsearchNo[tempListWord.indexOf(w)];
-		console.log("index of keyword in the searchno list:",tempListWord.indexOf(w));
-		console.log("search number is:",searchno);
-		if(searchno === undefined){ //if not found
+		hw = listHw[i]; // hashed of keyword
+		console.log("i:",i);
+		//item = Lfileno.find(element => element.w=hw);
+		item =  Lfileno.filter(function(element) {
+			return element.w == hw;
+		})[0];
+		console.log("found item:",item);
+		fileno  = item.fileno;
+		console.log("found fileno:",fileno);
+		
+		try{
+			item = Lsearchno.find(element=>element.w=hw);
+			searchno = item.searchno;
+		}
+		catch(err){
+			console.log("not found searchno")
 			searchno = 0;
 		}
 		
-		if(fileno==1){ // If the keyword is new, create fileNo in TA
-			console.log('Create new entry in fileNo:',w);
-			objects += '{ "w" : "' + w + '","fileno" : ' + fileno + '},';		
-		}	
-		else{ // If the keyword is existed, update fileNo in TA
-			console.log('Update the entry in fileNo:',w);
-			objects += '{ "w" : "' + w + '","fileno" : ' + fileno + ',"resource_uri" : "' + LfileNoUri[i] + '"},';	
-		}
-		
 		// Compute the new key
-		KeyW = encrypt(KeyG,w + searchno);	
-		console.log(" - Hash of keyword:",w," -Search number:",searchno)
+		KeyW = encrypt(KeyG,hw + searchno);	
+		console.log(" - Hash of keyword:",hw," -Search number:",searchno)
 		console.log("ciphertext:",KeyW);
 		
 		// Retrieve ciphertext value from the ciphertext object KeyW
@@ -288,8 +260,7 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 		console.log("KeyW_ciphertext:",KeyW_ciphertext);
 		
 		//Encrypt keyword
-		kw = arrW[arrLw.indexOf(w)]
-		//var c = encrypt(Kenc, kw);
+		kw = arrW[i];
 		var c = encrypt(key, kw);
 		Lcipher += '{ "jsonId" : "' + file_id + '","data" : ' + c + '},';
 		
@@ -306,10 +277,6 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 		Laddress += '{ "address" : "' + addr + '","value" : "' + val + '"},';
 		
 	}
-	// remove the last comma (,) from objects
-	objects = objects.slice(0, -1);
-	objects +="]}"
-	console.log("objects:", objects)
 	
 	Lcipher = Lcipher.slice(0,-1);
 	Lcipher +="]}"
@@ -319,14 +286,13 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 	Laddress +="]}"
 	console.log("Laddress:", Laddress)
 	
-	// PATCH request (if a keyword is new, create fileNo in TA) and PUT request (if a keyword is existed, update fileNo in TA)
-	patchRequest(sseConfig.base_url_ta + "/api/v1/fileno/", objects,callback);
-	console.log("send patch request to TA:",sseConfig.base_url_ta + "/api/v1/fileno/",objects)
 	// Send ciphertext to CSP 
 	patchRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/", Lcipher,callback);
 	
 	// Send new address, and value to CSP
 	patchRequest(sseConfig.base_url_sse_server + "/api/v1/map/", Laddress,callback);
+	
+	console.log("complete upload");
 	
 	return true;
 }
@@ -424,6 +390,7 @@ function decryptData(cipherList, Kenc){
 //Input: keyword (string) - keyword, KeyG, Kenc - symmetric keys
 function findKeyword(keyword, sharedKey, Kenc){
 	console.log("Search keyword function");
+	//console.log("In search keyword function: KeyG, Kenc:",sharedKey, Kenc);
 	
 	var KeyG = computeKeyG(sharedKey);
 	var key = hash(Kenc);
