@@ -387,4 +387,33 @@
 
 <div id='delete'></div>
 <div id='deletetime'></div>
+
+<label for="upload-blob"><b>ENCRYPT BLOB DATA</b></label>
+<form id='upload-blob' class='mb-2' method="post" action="">
+	<div class='mb-2'>
+		<div class="form-group row">
+			<input type="file" class="form-control" id="blobUpload" placeholder="Please enter URL of blob data" name='blobUpload'>
+			<img id='output'>
+			<!--  <label for="fileid3" class="col-sm-10 col-form-label">Unique file id</label>
+			<div class="col-sm-12">
+			<input type="text" class="form-control" id="fileid4"
+				placeholder="Please enter file id" name='file_id'>
+			</div>-->
+			<label for="passphrase5" class="col-sm-10 col-form-label">Passphrase</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase5"
+					placeholder="Please enter passphrase" name='passphrase5'>
+			</div>
+		</div>
+	</div>
+	<button type="button" class="btn btn-primary" id="btnUploadBlob">Encrypt</button>
+	<button type="button" class="btn btn-primary" id="btnDecryptBlob">Decrypt</button>
+</form>
+
+<div id='uploadblob'></div>
+<div id='uploadblobtime'></div>
+
+<div id='filename'></div>
+<div id='filetype'></div>
+
 {% endblock %}

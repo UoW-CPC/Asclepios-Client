@@ -189,9 +189,9 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 
 	var KeyG = computeKeyG(sharedKey);
 	console.log("KeyG in upload:",KeyG);
-	var key = hash(Kenc); //generate encryption key from inputted passphrase Kenc
+	var key = hash(Kenc); //generate encryption key from inputed passphrase Kenc
 
-	console.log("New file id")
+	//console.log("New file id")
 	console.log("URL TA:",sseConfig.base_url_ta)
 	
 	console.log("json object:",data);
@@ -203,7 +203,7 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 	var length = json_keys.length; // number of json objects
 	var i, w;
 
-	var listHw=[], arrW=[];
+	var listHw=[], arrW=[]; //listHw be the list of hashed keywords, arrW be the list of keywords
 	for(i=0; i< length; i++){
 		w = json_keys[i] + "|" + json_values[i] //separate key and value by ;
 		arrW.push(w);//list of keyword
@@ -213,11 +213,13 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 	console.log("list of uploaded keywords:",arrW);
 	console.log("list of hashed keywords:",listHw);
 	
-	console.log("invoke upload rest api");
+	//console.log("Invoke upload rest api");
 	var data_ta = JSON.stringify({"Lw":listHw});
-	console.log("data sent to TA:",data_ta);
+	console.log("Data sent to TA:",data_ta);
 	
+	// Request meta data fileNo and searchNo from TA, and increase fileNo for uploaded keywords
 	// If a keyword is new, create fileNo in TA; if a keyword is existed, update fileNo in TA
+	console.log("Send post request to TA from object:",data); // for testing
 	var ta_response=postRequest(sseConfig.base_url_ta + "/api/v1/upload/", data_ta, undefined, false);
 	
 	var json_response = ta_response.responseJSON;
@@ -230,17 +232,27 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 
 	var l = listHw.length; //LfileNo.length can be less than listW.length
 	var searchno, fileno, item, kw;
-	for(i=0; i<l; i++){
+	for(i=0; i<l; i++){ // For all keywords
 		hw = listHw[i]; // hashed of keyword
-		console.log("i:",i);
+		//console.log("i:",i);
 		//item = Lfileno.find(element => element.w=hw);
-		item =  Lfileno.filter(function(element) {
-			return element.w == hw;
-		})[0];
+		var len = Lfileno.length;
+		var item,element;
+		for(j=0; j<len; j++){
+			element = Lfileno[j];
+			if(element.w==hw){
+				item=element;
+				j=len;
+			}
+		}
+//		item =  Lfileno.filter(function(element) {
+//			return element.w == hw;
+//		})[0]; //retrieve fileNo of the keyword
 		console.log("found item:",item);
 		fileno  = item.fileno;
 		console.log("found fileno:",fileno);
 		
+		// retrieve searchNo of the keyword
 		try{
 			item = Lsearchno.find(element=>element.w=hw);
 			searchno = item.searchno;
@@ -250,10 +262,10 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 			searchno = 0;
 		}
 		
-		// Compute the new key
+		// Compute the key KeyW
 		KeyW = encrypt(KeyG,hw + searchno);	
 		console.log(" - Hash of keyword:",hw," -Search number:",searchno)
-		console.log("ciphertext:",KeyW);
+		console.log("KeyW object:",KeyW);
 		
 		// Retrieve ciphertext value from the ciphertext object KeyW
 		KeyW_ciphertext = JSON.parse(KeyW).ct;
@@ -262,7 +274,7 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 		//Encrypt keyword
 		kw = arrW[i];
 		var c = encrypt(key, kw);
-		Lcipher += '{ "jsonId" : "' + file_id + '","data" : ' + c + '},';
+		Lcipher += '{ "jsonId" : "' + file_id + '","data" : ' + c + '},'; // List of ciphertexts of keywords
 		
 		// Compute the address in the dictionary
 		var input = KeyW_ciphertext + fileno + "0";
@@ -271,10 +283,10 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 		console.log("hash input to compute address:",input);
 		console.log("Address:" + addr);
 		
-		// Compute value of entry in the dictionary
-		var val = file_id; //do not encrypt json_id anymore
+		// Compute value of entry in the dictionary (Map)
+		var val = file_id; //Do not encrypt json_id anymore
 		console.log("json_id:", val, " - file number:", fileno, " - value of entry in the dictionary:",val);
-		Laddress += '{ "address" : "' + addr + '","value" : "' + val + '"},';
+		Laddress += '{ "address" : "' + addr + '","value" : "' + val + '"},'; // the dictionary (Map)
 		
 	}
 	
@@ -286,10 +298,11 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 	Laddress +="]}"
 	console.log("Laddress:", Laddress)
 	
+	console.log("Send patch request from object:",data); //for testing
 	// Send ciphertext to CSP 
 	patchRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/", Lcipher,callback);
 	
-	// Send new address, and value to CSP
+	// Send the dictionary to CSP
 	patchRequest(sseConfig.base_url_sse_server + "/api/v1/map/", Laddress,callback);
 	
 	console.log("complete upload");
@@ -890,3 +903,65 @@ function uploadKeyG(pwdphrase){
 	postRequest(sseConfig.base_url_ta + "/api/v1/key/", jsonData, undefined, async_feat = false);
 	return true;
 }
+
+function encryptBlob(blobData,ftype, Kenc){
+	return function(resolve) {
+		var reader = new FileReader()
+
+		reader.onload = function(e){
+			var imageData = new Uint8Array(e.target.result);
+			console.log("Blob content:",imageData);    	    
+			var imageString = sjcl.codec.base64.fromBits(imageData); // convert byte array to base64 string
+			console.log("image plaintext in string:",imageString);
+
+			var imagecipher = encrypt(Kenc,imageString); //encrypt
+
+			var objJsonStr = JSON.stringify(imagecipher); // json -> string
+			console.log("cipher image in string:",objJsonStr);
+			var objJsonB64 = btoa(objJsonStr); // string -> base64
+			console.log("cipher image in base64:",objJsonB64);
+			var temp=sjcl.codec.base64.toBits(objJsonB64); // base64 -> bits
+			console.log("number of bits:",temp.length);
+			console.log("bit array:",sjcl.codec.base64.toBits(objJsonB64));
+			
+			var cipherByte = new Uint8Array(fromBitArrayCodec(sjcl.codec.base64.toBits(objJsonB64)));
+			console.log("cipher image in byte:",cipherByte);
+			console.log("number of bytes:",cipherByte.length);
+			var cipherBlob = new Blob([cipherByte], { type: ftype });
+			resolve(cipherBlob);
+
+		};
+		reader.readAsArrayBuffer(blobData);	
+	}
+ }
+
+function decryptBlob(blobCipher,ftype,Kenc){
+	return function(resolve) {
+		var reader = new FileReader();
+		reader.onload = function(e){
+			var imagecipher = new Uint8Array(event.target.result);
+			console.log("input array:",imagecipher);
+
+			var bitarray = toBitArrayCodec(imagecipher);
+			console.log("bit array:",bitarray);
+
+			var imageBase = sjcl.codec.base64.fromBits(bitarray); // byte array->base64
+			console.log("image ciphertext in base64:",imageBase);
+			var imageString = atob(imageBase); //base64 -> string
+			console.log("image ciphertext in string:",imageString);
+			var imageJson = JSON.parse(imageString);//string->json
+			console.log("ciphertext in json:",imageJson);
+
+			var imagept = decrypt(Kenc,imageJson);
+			console.log("decrypt image in string:",imagept);
+
+			var imageByte = new Uint8Array(sjcl.codec.base64.toBits(imagept)); // create byte array from base64 string
+			console.log("plaintext in bytes:",imageByte);
+
+			var imageDecryptBlob = new Blob([imageByte], { type: ftype });
+			resolve(imageDecryptBlob);
+		};
+		reader.readAsArrayBuffer(blobCipher);	
+	}
+}
+
