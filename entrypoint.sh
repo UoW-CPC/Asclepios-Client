@@ -13,10 +13,10 @@ python3 manage.py migrate
 python3 manage.py collectstatic
 
 # configure sseConfig
-sed -i -e "s|ta_url|$ta_url|" sse/static/js/sse.js
-sed -i -e "s|sse_url|$sse_url|" sse/static/js/sse.js
-sed -i -e "s|salt_value|$salt_value|" sse/static/js/sse.js
-sed -i -e "s|iv_value|$iv_value|" sse/static/js/sse.js
+sed -i -e "s|ta_url|$TA_URL|" sse/static/js/sse.js
+sed -i -e "s|sse_url|$SSE_URL|" sse/static/js/sse.js
+sed -i -e "s|salt_value|$SALT|" sse/static/js/sse.js
+sed -i -e "s|iv_value|$IV|" sse/static/js/sse.js
 
 exec gunicorn SSEclient.wsgi:application \
     --name sse \
