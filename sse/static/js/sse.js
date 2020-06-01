@@ -1,6 +1,6 @@
-//const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
-//const sjcl = require('./sjcl.js') // for jest automatic testing
-//module.exports = [uploadData,search,updateData,deleteData,uploadKeyG]; // for jest automatic testing
+const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
+const sjcl = require('./sjcl.js') // for jest automatic testing
+module.exports = [uploadData,search,updateData,deleteData,uploadKeyG]; // for jest automatic testing
 
 /// SSE CONFIGURATION
 HTTP_CODE_CREATED = 201
@@ -253,14 +253,23 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 		console.log("found fileno:",fileno);
 		
 		// retrieve searchNo of the keyword
-		try{
-			item = Lsearchno.find(element=>element.w=hw);
-			searchno = item.searchno;
+		//try{
+		len = Lsearchno.length;
+		for(j=0; j<len; j++){
+			element = Lsearchno[j];
+			if(element.w==hw){
+				item=element;
+				searchno = item.searchno;
+				j=len+1; // exit For loop
+			}
 		}
-		catch(err){
-			console.log("not found searchno")
+		if(j==len) // not found searchno
 			searchno = 0;
-		}
+		
+//		catch(err){
+//			console.log("not found searchno")
+//			searchno = 0;
+//		}
 		
 		// Compute the key KeyW
 		KeyW = encrypt(KeyG,hw + searchno);	
