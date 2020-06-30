@@ -154,35 +154,130 @@ function handleDeleteFile(){
 	$('#deletetime').html("<div class='alert-primary alert'> Delete time: " +  diff + " </div>");
 }
 
-/** Convert from an array of bytes to a bitArray. */
-function toBitArrayCodec(bytes) {
-    var out = [], i, tmp=0;
-    for (i=0; i<bytes.length; i++) {
-        tmp = tmp << 8 | bytes[i];
-        if ((i&3) === 3) {
-            out.push(tmp);
-            tmp = 0;
-        }
-    }
-    if (i&3) {
-        out.push(sjcl.bitArray.partial(8*(i&3), tmp));
-    }
-    return out;
+
+//// encrypt and save to localhost
+//function handleBlobUpload1(event){
+//	var Kenc = $("#passphrase5").val();
+//	
+//	var st_date = new Date();
+//    var st_time = st_date.getTime();
+//
+//    var fname = $("#filename").val();
+//    var ftype = $("#filetype").val();
+//    var outputname = fname.split(".")[0] + "_encrypted";
+//    console.log("Filename: " + typeof  fname);
+//    console.log("Type: " +  ftype);
+//
+//    var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
+//    console.log(blobData);
+//    var promise = new Promise(encryptBlob(blobData,ftype,Kenc));
+//
+//    // Wait for promise to be resolved, or log error.
+//    promise.then(function(cipherBlob) {
+//    	saveBlob(cipherBlob,outputname);
+//    }).catch(function(err) {
+//    	console.log('Error: ',err);
+//    });
+//
+//    var end_date = new Date();
+//    var end_time = end_date.getTime();
+//    var diff = end_time - st_time;
+//}
+//
+
+
+//// decrypt and save to localhost
+//function handleBlobDecrypt1(event){
+//	var Kenc = $("#passphrase5").val();
+//	
+//	var st_date = new Date();
+//    var st_time = st_date.getTime();
+//
+//    var fname = $("#filename").val();
+//    var ftype = $("#filetype").val();
+//    var outputname = fname.split(".")[0] + "_decrypted";
+//    console.log("Filename: " + typeof  fname);
+//    console.log("Type: " +  ftype);
+//
+//    var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
+//    console.log(blobData);
+//
+//    var promise = new Promise(decryptBlob(blobData,ftype,Kenc));
+//    // Wait for promise to be resolved, or log error.
+//    promise.then(function(plainBlob) {
+//    	saveBlob(plainBlob,outputname);
+//    }).catch(function(err) {
+//    	console.log('Error: ',err);
+//    });
+//    
+//    var end_date = new Date();
+//    var end_time = end_date.getTime();
+//    var diff = end_time - st_time;
+//}
+
+// Decrypt blob data
+// Input: - data: blob data, - fname: file name. Output: - save file to local host
+//function handleBlobDecrypt(data,fname){
+//	var Kenc = $("#passphrase6").val();
+//	
+//	var st_date = new Date();
+//    var st_time = st_date.getTime();
+//
+//    var ftype = data.type; //identify filetype from blob
+//    console.log("filetype:",ftype);
+//    var outputname = fname.split(".")[0];// + "_decrypted";
+//    console.log("Filename: " + typeof  fname);
+//    console.log("Type: " +  ftype);
+//    
+//    console.log("encrypted data:",data)
+//
+//    var blobData = new Blob([data], {type: ftype });
+//    console.log(blobData);
+//
+//    var promise = new Promise(decryptBlob(blobData,ftype,Kenc));
+//    // Wait for promise to be resolved, or log error.
+//    promise.then(function(plainBlob) {
+//    	saveBlob(plainBlob,outputname);
+//    }).catch(function(err) {
+//    	console.log('Error: ',err);
+//    });
+//    
+//    var end_date = new Date();
+//    var end_time = end_date.getTime();
+//    var diff = end_time - st_time;
+//}
+
+function handleBlobDecrypt(fname){
+	var Kenc = $("#passphrase6").val();
+	
+	var st_date = new Date();
+    var st_time = st_date.getTime();
+    downloadDecryptBlob(fname,Kenc);
+//    var ftype = data.type; //identify filetype from blob
+//    console.log("filetype:",ftype);
+//    var outputname = fname.split(".")[0];// + "_decrypted";
+//    console.log("Filename: " + typeof  fname);
+//    console.log("Type: " +  ftype);
+//    
+//    console.log("encrypted data:",data)
+//
+//    var blobData = new Blob([data], {type: ftype });
+//    console.log(blobData);
+//
+//    var promise = new Promise(decryptBlob(blobData,ftype,Kenc));
+//    // Wait for promise to be resolved, or log error.
+//    promise.then(function(plainBlob) {
+//    	saveBlob(plainBlob,outputname);
+//    }).catch(function(err) {
+//    	console.log('Error: ',err);
+//    });
+    
+    var end_date = new Date();
+    var end_time = end_date.getTime();
+    var diff = end_time - st_time;
 }
 
-/** Convert from a bitArray to an array of bytes. */
-function fromBitArrayCodec(arr) {
-    var out = [], bl = sjcl.bitArray.bitLength(arr), i, tmp;
-    for (i=0; i<bl/8; i++) {
-        if ((i&3) === 0) {
-            tmp = arr[i/4];
-        }
-        out.push(tmp >>> 24);
-        tmp <<= 8;
-    }
-    return out;
-}
-
+// Browse file, encrypt it and upload to Minio
 function handleBlobUpload(event){
 	var Kenc = $("#passphrase5").val();
 	
@@ -191,59 +286,24 @@ function handleBlobUpload(event){
 
     var fname = $("#filename").val();
     var ftype = $("#filetype").val();
-    var outputname = fname.split(".")[0] + "_encrypted";
+    var outputname = fname.split(".")[0];// + "_encrypted";
     console.log("Filename: " + typeof  fname);
     console.log("Type: " +  ftype);
 
     var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
-    console.log(blobData);
-    var promise = new Promise(encryptBlob(blobData,ftype,Kenc));
-    // Wait for promise to be resolved, or log error.
-    promise.then(function(cipherBlob) {
-    	saveBlob(cipherBlob,outputname);
-    }).catch(function(err) {
-    	console.log('Error: ',err);
-    });
-
-    var end_date = new Date();
-    var end_time = end_date.getTime();
-    var diff = end_time - st_time;
-}
-
-function saveBlob(blob, fileName) {
-    var a = document.createElement("a");
-    document.body.appendChild(a);
-    a.style = "display: none";
-    var url = window.URL.createObjectURL(blob);
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    window.URL.revokeObjectURL(url);
-};
-
-function handleBlobDecrypt(event){
-	var Kenc = $("#passphrase5").val();
-	
-	var st_date = new Date();
-    var st_time = st_date.getTime();
-
-    var fname = $("#filename").val();
-    var ftype = $("#filetype").val();
-    var outputname = fname.split(".")[0] + "_decrypted";
-    console.log("Filename: " + typeof  fname);
-    console.log("Type: " +  ftype);
-
-    var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
-    console.log(blobData);
-
-    var promise = new Promise(decryptBlob(blobData,ftype,Kenc));
-    // Wait for promise to be resolved, or log error.
-    promise.then(function(plainBlob) {
-    	saveBlob(plainBlob,outputname);
-    }).catch(function(err) {
-    	console.log('Error: ',err);
-    });
     
+    encryptUploadBlob(blobData,fname,Kenc);
+//    console.log(blobData);
+//    var promise = new Promise(encryptBlob(blobData,ftype,Kenc));
+//
+//    // Wait for promise to be resolved, or log error.
+//    promise.then(function(cipherBlob) {
+//    	uploadMinio(cipherBlob,outputname)
+//    	//saveBlob(cipherBlob,outputname);
+//    }).catch(function(err) {
+//    	console.log('Error: ',err);
+//    });
+
     var end_date = new Date();
     var end_time = end_date.getTime();
     var diff = end_time - st_time;
@@ -458,23 +518,36 @@ $(document).ready(
 				}
 			});
 			
-			$('#btnDecryptBlob').click(function(){
-				$('#resultUploadBlob').empty();
-				$('#resultUploadBlob').html("<div class='alert-primary alert'> Uploading </div>");
-				
-				if ($('#blobUpload').get(0).files.length === 0) {
-					console.log("No files selected.");
-				}
-				else{
-					var reader = new FileReader()
-					reader.onload = handleBlobDecrypt;
-					var file = $('#blobUpload').get(0).files[0];
-					var filename = file.name;
-					var filetype = file.type;
-					 $("#filename").val(filename);
-					 $("#filetype").val(filetype);
-					console.log("name:",filename,",type:",filetype);
-					reader.readAsArrayBuffer(file);
-				}
-			});
+//			$('#btnDecryptBlob').click(function(){
+//				$('#resultUploadBlob').empty();
+//				$('#resultUploadBlob').html("<div class='alert-primary alert'> Uploading </div>");
+//				
+//				if ($('#blobUpload').get(0).files.length === 0) {
+//					console.log("No files selected.");
+//				}
+//				else{
+//					var reader = new FileReader()
+//					reader.onload = handleBlobDecrypt;
+//					var file = $('#blobUpload').get(0).files[0];
+//					var filename = file.name;
+//					var filetype = file.type;
+//					 $("#filename").val(filename);
+//					 $("#filetype").val(filetype);
+//					console.log("name:",filename,",type:",filetype);
+//					reader.readAsArrayBuffer(file);
+//				}
+//			});
+			
+			$('#btnDownload').click(function(){
+				console.log("Downloading")
+				fname = $("#filename1").val()
+				//downloadMinio(fname,handleBlobDecrypt) //download and decrypt file
+				handleBlobDecrypt(fname);
+			});	
+//			
+//			$('#btnUpload').click(function(){
+//				console.log("Uploading")
+//				fname = $("#filename1").val()
+//				uploadMinio(fname)
+//			});	
 		});

@@ -1,8 +1,10 @@
-Django==1.11.28
-django-tastypie==0.14.2
+Django==3.0.6
+django-tastypie==0.14.3
 django-cors-headers==3.1.1
 gunicorn==19.9.0
 requests==2.20.0
 psycopg2-binary==2.8.4
 django-jquery==3.1.0
 django-crispy-forms==1.7.2
+whitenoise==5.1.0
+minio

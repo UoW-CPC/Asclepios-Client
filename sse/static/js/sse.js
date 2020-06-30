@@ -1,15 +1,27 @@
+/// For automatic tests with Jest
 //const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
 //const sjcl = require('./sjcl.js') // for jest automatic testing
 //module.exports = [uploadData,search,updateData,deleteData,uploadKeyG]; // for jest automatic testing
+
+/// For benchmarking
+//let sjcl = require('./sjcl'); 
+//let btoa = require('../../../Benchmark/node_modules/btoa');
+//let dom = new (require('../../../Benchmark/node_modules/jsdom').JSDOM)(' '); // create mock document for jquery
+//let $ = require('../../../Benchmark/node_modules/jquery')(dom.window);
+//exports.uploadData = uploadData;
+//exports.updateData = updateData;
+//exports.search = search;
+//exports.uploadKeyG = uploadKeyG;
+
 
 /// SSE CONFIGURATION
 HTTP_CODE_CREATED = 201
 
 var sseConfig={
-	 'base_url_ta' : 'ta_url', //This will be replaced with correct value at runtime at the web server
-	 'base_url_sse_server' : 'sse_url',//This will be replaced with correct value at runtime at the web server
-	 'salt' : 'salt_value', // salt value for encryption. This will be replaced with correct value at runtime at the web server
-	 'iv' : 'iv_value', // iv for encryption. This will be replaced with correct value at runtime at the web server 
+	 'base_url_ta' : 'http://127.0.0.1:8000', //This will be replaced with correct value at runtime at the web server
+	 'base_url_sse_server' : 'http://127.0.0.1:8080',//This will be replaced with correct value at runtime at the web server
+	 'salt' : 'abc123!?', // salt value for encryption. This will be replaced with correct value at runtime at the web server
+	 'iv' : 'abcdefg', // iv for encryption. This will be replaced with correct value at runtime at the web server 
 	 'iter' : 10000,
 	 'ks' : 128,
 	 'ts' : 64,
@@ -973,4 +985,207 @@ function decryptBlob(blobCipher,ftype,Kenc){
 		reader.readAsArrayBuffer(blobCipher);	
 	}
 }
+
+//function uploadToAwsS3(presignedUrl,blob){
+//	$.ajax({
+//		  url: presignedUrl, // the presigned URL
+//		  type: 'PUT',
+//		  data: blob,
+//		  success: function() { 
+//			  return true; 
+//		  },
+//		  error: function(erro){
+//				console.error("Upload to AWS S3 Error");
+//		  }
+//	})
+//}
+
+function downloadWithPresignUrl(presignedUrl,fname,callback){
+	$.ajax({
+		  url: presignedUrl, // the presigned URL
+		  type: 'GET',
+          xhrFields:{
+              responseType: 'blob' //download as blob data
+          },
+		  success: function(data, status) {
+			  //console.log("data:",data)
+			  callback(data,fname) //decrypt data
+			  return true; 
+		  },
+		  error: function(erro){
+				console.error("Download from Minio Error");
+		  }
+	})
+}
+
+function getPresignUrl(fname){
+	url = sseConfig.base_url_sse_server + "/api/v1/presign/"+ fname + "/";
+	console.log("Rest API to get presign url:",url)
+	ret = ""
+	$.ajax({
+		  url: url, // the rest api URL
+		  type: 'GET',
+		  async: false,
+		  success: function(response, status) {
+			  console.log("presignUrl",response.url)
+			  ret = response.url
+		  },
+		  error: function(erro){
+				console.error("Download from Minio Error");
+		  }
+	})
+	return ret;
+}
+
+function putPresignUrl(fname){
+	url = sseConfig.base_url_sse_server + "/api/v1/presign/";
+	console.log("Rest API to put presign url:",url)
+	ret = ""
+	var data = {
+		"fname" : fname
+	};
+	$.ajax({
+		  url: url, // the rest api URL
+		  type: 'POST',
+          contentType: 'application/json',
+		  data: JSON.stringify(data),
+		  async: false,
+		  success: function(response, status) {
+			  console.log("presignUrl",response.url)
+			  ret = response.url
+		  },
+		  error: function(erro){
+				console.error("Put presign url from Minio Error");
+		  }
+	})
+	return ret;
+}
+
+//function uploadToMinio(presignedUrl,file){
+//    fetch(presignedUrl, {
+//        method: 'PUT',
+//        body: file
+//    }).then(() => {
+//        // If multiple files are uploaded, append upload status on the next line.
+//        //document.querySelector('#status').innerHTML += `<br>Uploaded ${file.name}.`;
+//    }).catch((e) => {
+//        console.error(e);
+//    });
+//}
+
+//Upload file to Minio
+//Input: - fname: filename, - blob: data to upload
+function uploadMinio(blob,fname){
+	var presigned_url = putPresignUrl(fname) // request for a presigned url
+	//console.log("put presign url:",url)
+	//uploadToMinio(url,blob) // upload to Minio
+    fetch(presigned_url, {
+        method: 'PUT',
+        body: blob
+    }).then(() => {
+        // If multiple files are uploaded, append upload status on the next line.
+        //document.querySelector('#status').innerHTML += `<br>Uploaded ${file.name}.`;
+    }).catch((e) => {
+        console.error(e);
+    });
+}
+
+//Encrypt blob data and upload to Minio
+function encryptUploadBlob(blob,fname,Kenc){
+    var ftype = blob.type;
+    var outputname = fname.split(".")[0];// + "_encrypted";
+
+    var promise = new Promise(encryptBlob(blob,ftype,Kenc));
+
+    // Wait for promise to be resolved, or log error.
+    promise.then(function(cipherBlob) {
+    	uploadMinio(cipherBlob,outputname);
+    }).catch(function(err) {
+    	console.log('Error: ',err);
+    });
+}
+
+//Download file from Minio, decrypt and save it to local host
+//Input: - fname: filename, - callback: function to decrypt and save file
+//function downloadMinio(fname,callback){
+function downloadDecryptBlob(fname,Kenc){
+	var presigned_url = getPresignUrl(fname) // request for a presigned url 
+	//downloadWithPresignUrl(url,fname,callback); // download the file and decrypt it with a callback function, which is "handleBlobDecrypt" function
+	$.ajax({
+		  url: presigned_url, // the presigned URL
+		  type: 'GET',
+        xhrFields:{
+            responseType: 'blob' //download as blob data
+        },
+		  success: function(data, status) {
+			  //console.log("data:",data)
+			  //callback(data,fname) //decrypt data
+			  decryptSaveBlob(data,fname,Kenc) //decrypt data
+			  return true; 
+		  },
+		  error: function(erro){
+				console.error("Download from Minio Error");
+		  }
+	})
+}
+
+//Decrypt blob data
+//Input: - data: blob data, - fname: file name. Output: - save file to local host
+function decryptSaveBlob(blob,fname,Kenc){
+	 var outputname = fname.split(".")[0];// + "_decrypted";
+	 console.log("Filename: " + typeof  fname);
+	 var ftype = blob.type; //identify filetype from blob
+	 
+	 var promise = new Promise(decryptBlob(blob,ftype,Kenc));
+	 // Wait for promise to be resolved, or log error.
+	 promise.then(function(plainBlob) {
+	 	saveBlob(plainBlob,outputname);
+	 }).catch(function(err) {
+	 	console.log('Error: ',err);
+	 });
+}
+
+//referenced from internet
+/** Convert from an array of bytes to a bitArray. */
+function toBitArrayCodec(bytes) {
+    var out = [], i, tmp=0;
+    for (i=0; i<bytes.length; i++) {
+        tmp = tmp << 8 | bytes[i];
+        if ((i&3) === 3) {
+            out.push(tmp);
+            tmp = 0;
+        }
+    }
+    if (i&3) {
+        out.push(sjcl.bitArray.partial(8*(i&3), tmp));
+    }
+    return out;
+}
+
+//referenced from internet
+/** Convert from a bitArray to an array of bytes. */
+function fromBitArrayCodec(arr) {
+    var out = [], bl = sjcl.bitArray.bitLength(arr), i, tmp;
+    for (i=0; i<bl/8; i++) {
+        if ((i&3) === 0) {
+            tmp = arr[i/4];
+        }
+        out.push(tmp >>> 24);
+        tmp <<= 8;
+    }
+    return out;
+}
+
+//referenced from internet
+//save file to localhost
+function saveBlob(blob, fileName) {
+ var a = document.createElement("a");
+ document.body.appendChild(a);
+ a.style = "display: none";
+ var url = window.URL.createObjectURL(blob);
+ a.href = url;
+ a.download = fileName;
+ a.click();
+ window.URL.revokeObjectURL(url);
+};
 
