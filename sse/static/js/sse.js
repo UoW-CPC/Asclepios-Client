@@ -1,7 +1,7 @@
-/// For automatic tests with Jest
+// For automatic tests with Jest
 //const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
 //const sjcl = require('./sjcl.js') // for jest automatic testing
-//module.exports = [uploadData,search,updateData,deleteData,uploadKeyG]; // for jest automatic testing
+//module.exports = [uploadData,search,updateData,deleteData,uploadKeyG,encryptUploadBlob,downloadDecryptBlob]; // for jest automatic testing
 
 /// For benchmarking
 //let sjcl = require('./sjcl'); 
@@ -956,35 +956,6 @@ function encryptBlob(blobData,ftype, Kenc){
 	}
  }
 
-function decryptBlob(blobCipher,ftype,Kenc){
-	return function(resolve) {
-		var reader = new FileReader();
-		reader.onload = function(e){
-			var imagecipher = new Uint8Array(event.target.result);
-			console.log("input array:",imagecipher);
-
-			var bitarray = toBitArrayCodec(imagecipher);
-			console.log("bit array:",bitarray);
-
-			var imageBase = sjcl.codec.base64.fromBits(bitarray); // byte array->base64
-			console.log("image ciphertext in base64:",imageBase);
-			var imageString = atob(imageBase); //base64 -> string
-			console.log("image ciphertext in string:",imageString);
-			var imageJson = JSON.parse(imageString);//string->json
-			console.log("ciphertext in json:",imageJson);
-
-			var imagept = decrypt(Kenc,imageJson);
-			console.log("decrypt image in string:",imagept);
-
-			var imageByte = new Uint8Array(sjcl.codec.base64.toBits(imagept)); // create byte array from base64 string
-			console.log("plaintext in bytes:",imageByte);
-
-			var imageDecryptBlob = new Blob([imageByte], { type: ftype });
-			resolve(imageDecryptBlob);
-		};
-		reader.readAsArrayBuffer(blobCipher);	
-	}
-}
 
 //function uploadToAwsS3(presignedUrl,blob){
 //	$.ajax({
@@ -1040,6 +1011,7 @@ function getPresignUrl(fname){
 function putPresignUrl(fname){
 	url = sseConfig.base_url_sse_server + "/api/v1/presign/";
 	console.log("Rest API to put presign url:",url)
+	console.log("filename:",fname)
 	ret = ""
 	var data = {
 		"fname" : fname
@@ -1056,6 +1028,7 @@ function putPresignUrl(fname){
 		  },
 		  error: function(erro){
 				console.error("Put presign url from Minio Error");
+				console.error(erro);
 		  }
 	})
 	return ret;
@@ -1075,75 +1048,227 @@ function putPresignUrl(fname){
 
 //Upload file to Minio
 //Input: - fname: filename, - blob: data to upload
-function uploadMinio(blob,fname){
+function uploadMinio(blob,fname,callback=undefined){
 	var presigned_url = putPresignUrl(fname) // request for a presigned url
-	//console.log("put presign url:",url)
+	//console.log("put presign url:",presigned_url)
 	//uploadToMinio(url,blob) // upload to Minio
-    fetch(presigned_url, {
-        method: 'PUT',
-        body: blob
-    }).then(() => {
-        // If multiple files are uploaded, append upload status on the next line.
-        //document.querySelector('#status').innerHTML += `<br>Uploaded ${file.name}.`;
-    }).catch((e) => {
-        console.error(e);
-    });
+    
+	$.ajax({
+		url: presigned_url,
+		type: 'PUT',
+		processData:false,
+		data: blob,
+		async: false,
+		success: function(data) {
+			if(callback!=undefined){
+				callback(true);
+			}
+		},
+		error: function(erro){
+			console.error("Put Request Error");
+		}
+	})
+//    fetch(presigned_url, {
+//        method: 'PUT',
+//        body: blob
+//    }).then(function(response) {
+//    	console.log("response status:",response.status)
+//    	console.log("response:",response)
+//    	if(callback!=undefined)
+//    		callback(true)
+////    	if (response.status !== 200) {
+////    		console.log('Looks like there was a problem. Status Code: ' +
+////    		response.status);
+////    		return;
+////    	}
+//    		//() => {
+//        // If multiple files are uploaded, append upload status on the next line.
+//        //document.querySelector('#status').innerHTML += `<br>Uploaded ${file.name}.`;
+//    	return true;//for jest testing
+//    }).catch((e) => {
+//        console.error(e);
+//    });
 }
 
 //Encrypt blob data and upload to Minio
-function encryptUploadBlob(blob,fname,Kenc){
+function encryptUploadBlob(blob,fname,Kenc,callback=undefined){
     var ftype = blob.type;
-    var outputname = fname.split(".")[0];// + "_encrypted";
-
+  //  var outputname = fname.split(".")[0];// + "_encrypted";
+    var outputname = fname;
     var promise = new Promise(encryptBlob(blob,ftype,Kenc));
 
     // Wait for promise to be resolved, or log error.
     promise.then(function(cipherBlob) {
-    	uploadMinio(cipherBlob,outputname);
+    	console.log("Completed encrypting blob. Now send data to server.")
+    	console.log(cipherBlob);
+    	uploadMinio(cipherBlob,outputname,callback);
+    	//return true;//for jest
     }).catch(function(err) {
     	console.log('Error: ',err);
     });
+    return promise;
 }
 
 //Download file from Minio, decrypt and save it to local host
 //Input: - fname: filename, - callback: function to decrypt and save file
 //function downloadMinio(fname,callback){
-function downloadDecryptBlob(fname,Kenc){
+function downloadDecryptBlob(fname,Kenc,callback=undefined){
+	console.log("Download blob")
 	var presigned_url = getPresignUrl(fname) // request for a presigned url 
 	//downloadWithPresignUrl(url,fname,callback); // download the file and decrypt it with a callback function, which is "handleBlobDecrypt" function
 	$.ajax({
 		  url: presigned_url, // the presigned URL
 		  type: 'GET',
-        xhrFields:{
-            responseType: 'blob' //download as blob data
-        },
+	      xhrFields:{
+	            responseType: 'blob' //download as blob data
+	      },
 		  success: function(data, status) {
 			  //console.log("data:",data)
 			  //callback(data,fname) //decrypt data
-			  decryptSaveBlob(data,fname,Kenc) //decrypt data
-			  return true; 
+			  console.log("Decrypt and save blob")
+			  decryptSaveBlob(data,fname,Kenc,callback) //decrypt data
+			 // return true; 
 		  },
 		  error: function(erro){
-				console.error("Download from Minio Error");
+			  console.error("Download from Minio Error");
+			  console.error(erro);
 		  }
 	})
+	
+//    var promise = new Promise((resolve, reject) => {
+//        $.ajax({
+//        	url: presigned_url, // the presigned URL
+//        	type: 'GET',
+//        	xhrFields:{
+//	            responseType: 'blob' //download as blob data
+//        	},
+//            success: function (data) {
+//              resolve(data)
+//            },
+//            error: function (error) {
+//              reject(error)
+//            },
+//          })
+//     })
+//
+//    // Wait for promise to be resolved, or log error.
+//    promise.then(async function(data) {
+//    	console.log("Decrypt and save blob")
+//    	console.log("data:",data)
+//    	//var myBlob = new Blob(['hello blob'], {type : 'text/plain'});
+//    	//saveBlob(data,fname);
+//    	var output = await readFileAsync(data)
+//		console.log(output)
+//    	//return myBlob;
+//		//decryptSaveBlob(data,fname,Kenc,callback) //decrypt data
+//    }).catch(function(err) {
+//    	console.log('Error: ',err);
+//    });
+//    return promise;
+}
+
+function readFileAsync(file) {
+	return new Promise((resolve, reject) => {
+	    var fr = new FileReader();  
+		fr.onload = () => {
+	      resolve(fr.result)
+	    };
+	    fr.readAsText(file);
+	});
 }
 
 //Decrypt blob data
 //Input: - data: blob data, - fname: file name. Output: - save file to local host
-function decryptSaveBlob(blob,fname,Kenc){
-	 var outputname = fname.split(".")[0];// + "_decrypted";
-	 console.log("Filename: " + typeof  fname);
+function decryptSaveBlob(blob,fname,Kenc,callback=undefined){
+	 var outputname = fname;//fname.split(".")[0];// + "_decrypted";
+	 console.log("Filename to be saved: " +  outputname);
 	 var ftype = blob.type; //identify filetype from blob
 	 
 	 var promise = new Promise(decryptBlob(blob,ftype,Kenc));
-	 // Wait for promise to be resolved, or log error.
-	 promise.then(function(plainBlob) {
-	 	saveBlob(plainBlob,outputname);
-	 }).catch(function(err) {
-	 	console.log('Error: ',err);
-	 });
+	 //var promise = decryptBlob(blob,ftype,Kenc);
+	 
+	 promise.then((plainBlob) => {
+		 console.log("Save file to disk");
+		 saveBlob(plainBlob,outputname);
+		 if(callback!=undefined){
+			callback(true); // for jest
+		}
+	 })
+//	 var promise = new Promise(decryptBlob(blob,ftype,Kenc));
+//	 // Wait for promise to be resolved, or log error.
+//	 promise.then(function(plainBlob) {
+//		console.log("Save file to disk");
+//	 	saveBlob(plainBlob,outputname);
+//	 	if(callback!=undefined){
+//			callback(true); // for jest
+//		}
+//	 }).catch(function(err) {
+//	 	console.log('Error: ',err);
+//	 });
+	 
+	 return promise;
 }
+
+function decryptBlob(blobCipher,ftype,Kenc){
+	return function(resolve) {
+//	var promise = new Promise((resolve, reject) => {
+		var reader = new FileReader();
+		console.log("Decrypt blob")
+		reader.onload = function(e){
+			var imagecipher = new Uint8Array(e.target.result);
+			console.log("input array:",imagecipher);
+	
+			var bitarray = toBitArrayCodec(imagecipher);
+			console.log("bit array:",bitarray);
+	
+			var imageBase = sjcl.codec.base64.fromBits(bitarray); // byte array->base64
+			console.log("image ciphertext in base64:",imageBase);
+			var imageString = atob(imageBase); //base64 -> string
+			console.log("image ciphertext in string:",imageString);
+			var imageJson = JSON.parse(imageString);//string->json
+			console.log("ciphertext in json:",imageJson);
+	
+			var imagept = decrypt(Kenc,imageJson);
+			console.log("decrypt image in string:",imagept);
+	
+			var imageByte = new Uint8Array(sjcl.codec.base64.toBits(imagept)); // create byte array from base64 string
+			console.log("plaintext in bytes:",imageByte);
+	
+			var imageDecryptBlob = new Blob([imageByte], { type: ftype });
+			resolve(imageDecryptBlob);
+		};	
+		reader.readAsArrayBuffer(blobCipher);
+	}
+	//return promise;
+}
+//	return function(resolve) {
+//		var reader = new FileReader();
+//		reader.onload = function(e){
+//			var imagecipher = new Uint8Array(e.target.result);
+//			console.log("input array:",imagecipher);
+//
+//			var bitarray = toBitArrayCodec(imagecipher);
+//			console.log("bit array:",bitarray);
+//
+//			var imageBase = sjcl.codec.base64.fromBits(bitarray); // byte array->base64
+//			console.log("image ciphertext in base64:",imageBase);
+//			var imageString = atob(imageBase); //base64 -> string
+//			console.log("image ciphertext in string:",imageString);
+//			var imageJson = JSON.parse(imageString);//string->json
+//			console.log("ciphertext in json:",imageJson);
+//
+//			var imagept = decrypt(Kenc,imageJson);
+//			console.log("decrypt image in string:",imagept);
+//
+//			var imageByte = new Uint8Array(sjcl.codec.base64.toBits(imagept)); // create byte array from base64 string
+//			console.log("plaintext in bytes:",imageByte);
+//
+//			var imageDecryptBlob = new Blob([imageByte], { type: ftype });
+//			resolve(imageDecryptBlob);
+//		};
+//		reader.readAsArrayBuffer(blobCipher);	
+//	}
+//}
 
 //referenced from internet
 /** Convert from an array of bytes to a bitArray. */
@@ -1179,13 +1304,24 @@ function fromBitArrayCodec(arr) {
 //referenced from internet
 //save file to localhost
 function saveBlob(blob, fileName) {
- var a = document.createElement("a");
- document.body.appendChild(a);
- a.style = "display: none";
- var url = window.URL.createObjectURL(blob);
- a.href = url;
- a.download = fileName;
- a.click();
- window.URL.revokeObjectURL(url);
+	console.log("save file")
+	 var a = document.createElement("a");
+	 document.body.appendChild(a);
+	 a.style = "display: none";
+	 var url = window.URL.createObjectURL(blob);
+	 a.href = url;
+	 a.download = fileName;
+	 a.click();
+	 console.log("click")
+	 window.URL.revokeObjectURL(url);
 };
 
+function sleep(milliseconds) { 
+    let timeStart = new Date().getTime(); 
+    while (true) { 
+      let elapsedTime = new Date().getTime() - timeStart; 
+      if (elapsedTime > milliseconds) { 
+        break; 
+      } 
+    } 
+ } 
