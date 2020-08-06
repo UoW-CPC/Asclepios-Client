@@ -18,10 +18,10 @@
 HTTP_CODE_CREATED = 201
 
 var sseConfig={
-	 'base_url_ta' : 'http://127.0.0.1:8000', //This will be replaced with correct value at runtime at the web server
-	 'base_url_sse_server' : 'http://127.0.0.1:8080',//This will be replaced with correct value at runtime at the web server
-	 'salt' : 'abc123!?', // salt value for encryption. This will be replaced with correct value at runtime at the web server
-	 'iv' : 'abcdefg', // iv for encryption. This will be replaced with correct value at runtime at the web server 
+	 'base_url_ta' : 'ta_url', //This will be replaced with correct value at runtime at the web server
+	 'base_url_sse_server' : 'sse_url',//This will be replaced with correct value at runtime at the web server
+	 'salt' : 'salt_value', // salt value for encryption. This will be replaced with correct value at runtime at the web server
+	 'iv' : 'iv_value', // iv for encryption. This will be replaced with correct value at runtime at the web server 
 	 'iter' : 10000,
 	 'ks' : 128,
 	 'ts' : 64,
