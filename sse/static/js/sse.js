@@ -1,6 +1,18 @@
+// For automatic tests with Jest
 //const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
 //const sjcl = require('./sjcl.js') // for jest automatic testing
-//module.exports = [uploadData,search,updateData,deleteData,uploadKeyG]; // for jest automatic testing
+//module.exports = [uploadData,search,updateData,deleteData,uploadKeyG,encryptUploadBlob,downloadDecryptBlob]; // for jest automatic testing
+
+/// For benchmarking
+//let sjcl = require('./sjcl'); 
+//let btoa = require('../../../Benchmark/node_modules/btoa');
+//let dom = new (require('../../../Benchmark/node_modules/jsdom').JSDOM)(' '); // create mock document for jquery
+//let $ = require('../../../Benchmark/node_modules/jquery')(dom.window);
+//exports.uploadData = uploadData;
+//exports.updateData = updateData;
+//exports.search = search;
+//exports.uploadKeyG = uploadKeyG;
+
 
 /// SSE CONFIGURATION
 HTTP_CODE_CREATED = 201
@@ -75,13 +87,14 @@ function putRequest(api_url, jsonObj, callback, async_feat=true) {
 	})
 }
 
-function patchRequest(api_url, jsonObj, callback) {
+function patchRequest(api_url, jsonObj, callback, async_feat=true) {
 	console.log("Run patch request")
 	$.ajax({
 		url: api_url,
 		type: 'PATCH',
 		contentType: 'application/json',
 		data: jsonObj,
+		async: async_feat,
 		success: function(data) {
 			//console.log("success patch request")
 			if(callback!=undefined){
@@ -187,11 +200,10 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 	}
 
 	var KeyG = computeKeyG(sharedKey);
-	//console.log("shared key to compute KeyG:",sharedKey);
 	console.log("KeyG in upload:",KeyG);
-	var key = hash(Kenc); //generate encryption key from inputted passphrase Kenc
+	var key = hash(Kenc); //generate encryption key from inputed passphrase Kenc
 
-	console.log("New file id")
+	//console.log("New file id")
 	console.log("URL TA:",sseConfig.base_url_ta)
 	
 	console.log("json object:",data);
@@ -203,95 +215,87 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 	var length = json_keys.length; // number of json objects
 	var i, w;
 
-	// combine multiple hashed keywords into a list, separated by comma
-	var Lw=""; //list of hashed keywords
-	var L=""; //list of keywords
+	var listHw=[], arrW=[]; //listHw be the list of hashed keywords, arrW be the list of keywords
 	for(i=0; i< length; i++){
 		w = json_keys[i] + "|" + json_values[i] //separate key and value by ;
-		L = L + w + ","; // list of keyword
-		Lw = Lw + hash(w) + ","; // list of hashed keyword
+		arrW.push(w);//list of keyword
+		listHw.push(hash(w)) ; // list of hashed keyword
 	}
-	//remove the last comma
-	Lw = Lw.slice(0, -1);
-	L = L.slice(0, -1);
-	console.log("list of uploaded keywords:",L);
-	console.log("list of hashed keywords:",Lw);
+	
+	console.log("list of uploaded keywords:",arrW);
+	console.log("list of hashed keywords:",listHw);
+	
+	//console.log("Invoke upload rest api");
+	var data_ta = JSON.stringify({"Lw":listHw});
+	console.log("Data sent to TA:",data_ta);
+	
+	// Request meta data fileNo and searchNo from TA, and increase fileNo for uploaded keywords
+	// If a keyword is new, create fileNo in TA; if a keyword is existed, update fileNo in TA
+	console.log("Send post request to TA from object:",data); // for testing
+	var ta_response=postRequest(sseConfig.base_url_ta + "/api/v1/upload/", data_ta, undefined, false);
+	
+	var json_response = ta_response.responseJSON;
+	var Lfileno = ta_response.responseJSON["Lfileno"];
+	var Lsearchno = ta_response.responseJSON["Lsearchno"];
+	console.log("data back from TA:",Lfileno,Lsearchno);
+	
+	var Lcipher = '{"objects": ['; //list of cipher objects in PATCH request
+	var Laddress='{"objects": [';  //list of address objects in PATCH request
 
-	var LfileNo;
-	var LfileNoUri;
-	var listW;
-	
-	// Retrieve list of file number
-	[LfileNo, LfileNoUri,listW] = getMultiFileNo(Lw); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
-	console.log("keyword string input:",Lw);
-	console.log("List of file numbers: ", LfileNo);
-	console.log("List of Url:", LfileNoUri);
-	console.log("List of retrieved keywords:",listW);
-	
-	// Compare listW and Lw
-	arrLw = Lw.split(",");
-	var diff = $(arrLw).not(listW).get();
-	console.log("Difference between 2 list of words:",diff);
-	listW = listW.concat(diff); //full list of keywords, including existed ones and non-existed ones
-	console.log("full list of words:",listW);
-
-	var LsearchNo; // list of search numbers
-	var LsearchNoUri; // list of URL to retrieve search numbers
-	var tempListWord;
-	
-	// Retrieve search number
-	[LsearchNo, LsearchNoUri,tempListWord] = getMultiSearchNo(Lw); //"tempListWord" can be empty if all keywords has been never searched
-	console.log("Search numbers: ", LsearchNo);
-	console.log("Urls: ", LsearchNoUri);
-	console.log("list of words in searchno:",tempListWord);
-	
-	
-	objects = '{"objects": ['; //list of objects in PATCH request
-	Lcipher = '{"objects": ['; //list of cipher objects in PATCH request
-	Laddress='{"objects": [';  //list of address objects in PATCH request
-
-	var l = listW.length; //LfileNo.length can be less than listW.length
-	var noExisted = LfileNo.length; // number of existed items
-	
-	arrW = L.split(",");
-	for(i=0; i<l; i++){
-		w = listW[i]; // hashed of keyword
-		var searchno;
-		if(noExisted>0 && i<noExisted) // update fileno for existed item
-			fileno = LfileNo[i] + 1;
-		else
-			fileno=1;//initialize fileno for new item. File number is counted from 1
-
-		searchno = LsearchNo[tempListWord.indexOf(w)];
-		console.log("index of keyword in the searchno list:",tempListWord.indexOf(w));
-		console.log("search number is:",searchno);
-		if(searchno === undefined){ //if not found
+	var l = listHw.length; //LfileNo.length can be less than listW.length
+	var searchno, fileno, item, kw;
+	for(i=0; i<l; i++){ // For all keywords
+		hw = listHw[i]; // hashed of keyword
+		//console.log("i:",i);
+		//item = Lfileno.find(element => element.w=hw);
+		var len = Lfileno.length;
+		var item,element;
+		for(j=0; j<len; j++){
+			element = Lfileno[j];
+			if(element.w==hw){
+				item=element;
+				j=len;
+			}
+		}
+//		item =  Lfileno.filter(function(element) {
+//			return element.w == hw;
+//		})[0]; //retrieve fileNo of the keyword
+		console.log("found item:",item);
+		fileno  = item.fileno;
+		console.log("found fileno:",fileno);
+		
+		// retrieve searchNo of the keyword
+		//try{
+		len = Lsearchno.length;
+		for(j=0; j<len; j++){
+			element = Lsearchno[j];
+			if(element.w==hw){
+				item=element;
+				searchno = item.searchno;
+				j=len+1; // exit For loop
+			}
+		}
+		if(j==len) // not found searchno
 			searchno = 0;
-		}
 		
-		if(fileno==1){ // If the keyword is new, create fileNo in TA
-			console.log('Create new entry in fileNo:',w);
-			objects += '{ "w" : "' + w + '","fileno" : ' + fileno + '},';		
-		}	
-		else{ // If the keyword is existed, update fileNo in TA
-			console.log('Update the entry in fileNo:',w);
-			objects += '{ "w" : "' + w + '","fileno" : ' + fileno + ',"resource_uri" : "' + LfileNoUri[i] + '"},';	
-		}
+//		catch(err){
+//			console.log("not found searchno")
+//			searchno = 0;
+//		}
 		
-		// Compute the new key
-		KeyW = encrypt(KeyG,w + searchno);	
-		console.log(" - Hash of keyword:",w," -Search number:",searchno)
-		console.log("ciphertext:",KeyW);
+		// Compute the key KeyW
+		KeyW = encrypt(KeyG,hw + searchno);	
+		console.log(" - Hash of keyword:",hw," -Search number:",searchno)
+		console.log("KeyW object:",KeyW);
 		
 		// Retrieve ciphertext value from the ciphertext object KeyW
 		KeyW_ciphertext = JSON.parse(KeyW).ct;
 		console.log("KeyW_ciphertext:",KeyW_ciphertext);
 		
 		//Encrypt keyword
-		kw = arrW[arrLw.indexOf(w)]
-		//var c = encrypt(Kenc, kw);
+		kw = arrW[i];
 		var c = encrypt(key, kw);
-		Lcipher += '{ "jsonId" : "' + file_id + '","data" : ' + c + '},';
+		Lcipher += '{ "jsonId" : "' + file_id + '","data" : ' + c + '},'; // List of ciphertexts of keywords
 		
 		// Compute the address in the dictionary
 		var input = KeyW_ciphertext + fileno + "0";
@@ -300,16 +304,12 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 		console.log("hash input to compute address:",input);
 		console.log("Address:" + addr);
 		
-		// Compute value of entry in the dictionary
-		var val = file_id; //do not encrypt json_id anymore
+		// Compute value of entry in the dictionary (Map)
+		var val = file_id; //Do not encrypt json_id anymore
 		console.log("json_id:", val, " - file number:", fileno, " - value of entry in the dictionary:",val);
-		Laddress += '{ "address" : "' + addr + '","value" : "' + val + '"},';
+		Laddress += '{ "address" : "' + addr + '","value" : "' + val + '"},'; // the dictionary (Map)
 		
 	}
-	// remove the last comma (,) from objects
-	objects = objects.slice(0, -1);
-	objects +="]}"
-	console.log("objects:", objects)
 	
 	Lcipher = Lcipher.slice(0,-1);
 	Lcipher +="]}"
@@ -319,14 +319,14 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 	Laddress +="]}"
 	console.log("Laddress:", Laddress)
 	
-	// PATCH request (if a keyword is new, create fileNo in TA) and PUT request (if a keyword is existed, update fileNo in TA)
-	patchRequest(sseConfig.base_url_ta + "/api/v1/fileno/", objects,callback);
-	console.log("send patch request to TA:",sseConfig.base_url_ta + "/api/v1/fileno/",objects)
+	console.log("Send patch request from object:",data); //for testing
 	// Send ciphertext to CSP 
 	patchRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/", Lcipher,callback);
 	
-	// Send new address, and value to CSP
+	// Send the dictionary to CSP
 	patchRequest(sseConfig.base_url_sse_server + "/api/v1/map/", Laddress,callback);
+	
+	console.log("complete upload");
 	
 	return true;
 }
@@ -424,6 +424,7 @@ function decryptData(cipherList, Kenc){
 //Input: keyword (string) - keyword, KeyG, Kenc - symmetric keys
 function findKeyword(keyword, sharedKey, Kenc){
 	console.log("Search keyword function");
+	//console.log("In search keyword function: KeyG, Kenc:",sharedKey, Kenc);
 	
 	var KeyG = computeKeyG(sharedKey);
 	var key = hash(Kenc);
@@ -923,3 +924,404 @@ function uploadKeyG(pwdphrase){
 	postRequest(sseConfig.base_url_ta + "/api/v1/key/", jsonData, undefined, async_feat = false);
 	return true;
 }
+
+function encryptBlob(blobData,ftype, Kenc){
+	return function(resolve) {
+		var reader = new FileReader()
+
+		reader.onload = function(e){
+			var imageData = new Uint8Array(e.target.result);
+			console.log("Blob content:",imageData);    	    
+			var imageString = sjcl.codec.base64.fromBits(imageData); // convert byte array to base64 string
+			console.log("image plaintext in string:",imageString);
+
+			var imagecipher = encrypt(Kenc,imageString); //encrypt
+
+			var objJsonStr = JSON.stringify(imagecipher); // json -> string
+			console.log("cipher image in string:",objJsonStr);
+			var objJsonB64 = btoa(objJsonStr); // string -> base64
+			console.log("cipher image in base64:",objJsonB64);
+			var temp=sjcl.codec.base64.toBits(objJsonB64); // base64 -> bits
+			console.log("number of bits:",temp.length);
+			console.log("bit array:",sjcl.codec.base64.toBits(objJsonB64));
+			
+			var cipherByte = new Uint8Array(fromBitArrayCodec(sjcl.codec.base64.toBits(objJsonB64)));
+			console.log("cipher image in byte:",cipherByte);
+			console.log("number of bytes:",cipherByte.length);
+			var cipherBlob = new Blob([cipherByte], { type: ftype });
+			resolve(cipherBlob);
+
+		};
+		reader.readAsArrayBuffer(blobData);	
+	}
+ }
+
+
+//function uploadToAwsS3(presignedUrl,blob){
+//	$.ajax({
+//		  url: presignedUrl, // the presigned URL
+//		  type: 'PUT',
+//		  data: blob,
+//		  success: function() { 
+//			  return true; 
+//		  },
+//		  error: function(erro){
+//				console.error("Upload to AWS S3 Error");
+//		  }
+//	})
+//}
+
+function downloadWithPresignUrl(presignedUrl,fname,callback){
+	$.ajax({
+		  url: presignedUrl, // the presigned URL
+		  type: 'GET',
+          xhrFields:{
+              responseType: 'blob' //download as blob data
+          },
+		  success: function(data, status) {
+			  //console.log("data:",data)
+			  callback(data,fname) //decrypt data
+			  return true; 
+		  },
+		  error: function(erro){
+				console.error("Download from Minio Error");
+		  }
+	})
+}
+
+function getPresignUrl(fname){
+	url = sseConfig.base_url_sse_server + "/api/v1/presign/"+ fname + "/";
+	console.log("Rest API to get presign url:",url)
+	ret = ""
+	$.ajax({
+		  url: url, // the rest api URL
+		  type: 'GET',
+		  async: false,
+		  success: function(response, status) {
+			  console.log("presignUrl",response.url)
+			  ret = response.url
+		  },
+		  error: function(erro){
+				console.error("Download from Minio Error");
+		  }
+	})
+	return ret;
+}
+
+function putPresignUrl(fname){
+	url = sseConfig.base_url_sse_server + "/api/v1/presign/";
+	console.log("Rest API to put presign url:",url)
+	console.log("filename:",fname)
+	ret = ""
+	var data = {
+		"fname" : fname
+	};
+	$.ajax({
+		  url: url, // the rest api URL
+		  type: 'POST',
+          contentType: 'application/json',
+		  data: JSON.stringify(data),
+		  async: false,
+		  success: function(response, status) {
+			  console.log("presignUrl",response.url)
+			  ret = response.url
+		  },
+		  error: function(erro){
+				console.error("Put presign url from Minio Error");
+				console.error(erro);
+		  }
+	})
+	return ret;
+}
+
+//function uploadToMinio(presignedUrl,file){
+//    fetch(presignedUrl, {
+//        method: 'PUT',
+//        body: file
+//    }).then(() => {
+//        // If multiple files are uploaded, append upload status on the next line.
+//        //document.querySelector('#status').innerHTML += `<br>Uploaded ${file.name}.`;
+//    }).catch((e) => {
+//        console.error(e);
+//    });
+//}
+
+//Upload file to Minio
+//Input: - fname: filename, - blob: data to upload
+function uploadMinio(blob,fname,callback=undefined){
+	var presigned_url = putPresignUrl(fname) // request for a presigned url
+	//console.log("put presign url:",presigned_url)
+	//uploadToMinio(url,blob) // upload to Minio
+    
+	$.ajax({
+		url: presigned_url,
+		type: 'PUT',
+		processData:false,
+		data: blob,
+		async: false,
+		success: function(data) {
+			if(callback!=undefined){
+				callback(true);
+			}
+		},
+		error: function(erro){
+			console.error("Put Request Error");
+		}
+	})
+//    fetch(presigned_url, {
+//        method: 'PUT',
+//        body: blob
+//    }).then(function(response) {
+//    	console.log("response status:",response.status)
+//    	console.log("response:",response)
+//    	if(callback!=undefined)
+//    		callback(true)
+////    	if (response.status !== 200) {
+////    		console.log('Looks like there was a problem. Status Code: ' +
+////    		response.status);
+////    		return;
+////    	}
+//    		//() => {
+//        // If multiple files are uploaded, append upload status on the next line.
+//        //document.querySelector('#status').innerHTML += `<br>Uploaded ${file.name}.`;
+//    	return true;//for jest testing
+//    }).catch((e) => {
+//        console.error(e);
+//    });
+}
+
+//Encrypt blob data and upload to Minio
+function encryptUploadBlob(blob,fname,Kenc,callback=undefined){
+    var ftype = blob.type;
+  //  var outputname = fname.split(".")[0];// + "_encrypted";
+    var outputname = fname;
+    var promise = new Promise(encryptBlob(blob,ftype,Kenc));
+
+    // Wait for promise to be resolved, or log error.
+    promise.then(function(cipherBlob) {
+    	console.log("Completed encrypting blob. Now send data to server.")
+    	console.log(cipherBlob);
+    	uploadMinio(cipherBlob,outputname,callback);
+    	//return true;//for jest
+    }).catch(function(err) {
+    	console.log('Error: ',err);
+    });
+    return promise;
+}
+
+//Download file from Minio, decrypt and save it to local host
+//Input: - fname: filename, - callback: function to decrypt and save file
+//function downloadMinio(fname,callback){
+function downloadDecryptBlob(fname,Kenc,callback=undefined){
+	console.log("Download blob")
+	var presigned_url = getPresignUrl(fname) // request for a presigned url 
+	//downloadWithPresignUrl(url,fname,callback); // download the file and decrypt it with a callback function, which is "handleBlobDecrypt" function
+	$.ajax({
+		  url: presigned_url, // the presigned URL
+		  type: 'GET',
+	      xhrFields:{
+	            responseType: 'blob' //download as blob data
+	      },
+		  success: function(data, status) {
+			  //console.log("data:",data)
+			  //callback(data,fname) //decrypt data
+			  console.log("Decrypt and save blob")
+			  decryptSaveBlob(data,fname,Kenc,callback) //decrypt data
+			 // return true; 
+		  },
+		  error: function(erro){
+			  console.error("Download from Minio Error");
+			  console.error(erro);
+		  }
+	})
+	
+//    var promise = new Promise((resolve, reject) => {
+//        $.ajax({
+//        	url: presigned_url, // the presigned URL
+//        	type: 'GET',
+//        	xhrFields:{
+//	            responseType: 'blob' //download as blob data
+//        	},
+//            success: function (data) {
+//              resolve(data)
+//            },
+//            error: function (error) {
+//              reject(error)
+//            },
+//          })
+//     })
+//
+//    // Wait for promise to be resolved, or log error.
+//    promise.then(async function(data) {
+//    	console.log("Decrypt and save blob")
+//    	console.log("data:",data)
+//    	//var myBlob = new Blob(['hello blob'], {type : 'text/plain'});
+//    	//saveBlob(data,fname);
+//    	var output = await readFileAsync(data)
+//		console.log(output)
+//    	//return myBlob;
+//		//decryptSaveBlob(data,fname,Kenc,callback) //decrypt data
+//    }).catch(function(err) {
+//    	console.log('Error: ',err);
+//    });
+//    return promise;
+}
+
+function readFileAsync(file) {
+	return new Promise((resolve, reject) => {
+	    var fr = new FileReader();  
+		fr.onload = () => {
+	      resolve(fr.result)
+	    };
+	    fr.readAsText(file);
+	});
+}
+
+//Decrypt blob data
+//Input: - data: blob data, - fname: file name. Output: - save file to local host
+function decryptSaveBlob(blob,fname,Kenc,callback=undefined){
+	 var outputname = fname;//fname.split(".")[0];// + "_decrypted";
+	 console.log("Filename to be saved: " +  outputname);
+	 var ftype = blob.type; //identify filetype from blob
+	 
+	 var promise = new Promise(decryptBlob(blob,ftype,Kenc));
+	 //var promise = decryptBlob(blob,ftype,Kenc);
+	 
+	 promise.then((plainBlob) => {
+		 console.log("Save file to disk");
+		 saveBlob(plainBlob,outputname);
+		 if(callback!=undefined){
+			callback(true); // for jest
+		}
+	 })
+//	 var promise = new Promise(decryptBlob(blob,ftype,Kenc));
+//	 // Wait for promise to be resolved, or log error.
+//	 promise.then(function(plainBlob) {
+//		console.log("Save file to disk");
+//	 	saveBlob(plainBlob,outputname);
+//	 	if(callback!=undefined){
+//			callback(true); // for jest
+//		}
+//	 }).catch(function(err) {
+//	 	console.log('Error: ',err);
+//	 });
+	 
+	 return promise;
+}
+
+function decryptBlob(blobCipher,ftype,Kenc){
+	return function(resolve) {
+//	var promise = new Promise((resolve, reject) => {
+		var reader = new FileReader();
+		console.log("Decrypt blob")
+		reader.onload = function(e){
+			var imagecipher = new Uint8Array(e.target.result);
+			console.log("input array:",imagecipher);
+	
+			var bitarray = toBitArrayCodec(imagecipher);
+			console.log("bit array:",bitarray);
+	
+			var imageBase = sjcl.codec.base64.fromBits(bitarray); // byte array->base64
+			console.log("image ciphertext in base64:",imageBase);
+			var imageString = atob(imageBase); //base64 -> string
+			console.log("image ciphertext in string:",imageString);
+			var imageJson = JSON.parse(imageString);//string->json
+			console.log("ciphertext in json:",imageJson);
+	
+			var imagept = decrypt(Kenc,imageJson);
+			console.log("decrypt image in string:",imagept);
+	
+			var imageByte = new Uint8Array(sjcl.codec.base64.toBits(imagept)); // create byte array from base64 string
+			console.log("plaintext in bytes:",imageByte);
+	
+			var imageDecryptBlob = new Blob([imageByte], { type: ftype });
+			resolve(imageDecryptBlob);
+		};	
+		reader.readAsArrayBuffer(blobCipher);
+	}
+	//return promise;
+}
+//	return function(resolve) {
+//		var reader = new FileReader();
+//		reader.onload = function(e){
+//			var imagecipher = new Uint8Array(e.target.result);
+//			console.log("input array:",imagecipher);
+//
+//			var bitarray = toBitArrayCodec(imagecipher);
+//			console.log("bit array:",bitarray);
+//
+//			var imageBase = sjcl.codec.base64.fromBits(bitarray); // byte array->base64
+//			console.log("image ciphertext in base64:",imageBase);
+//			var imageString = atob(imageBase); //base64 -> string
+//			console.log("image ciphertext in string:",imageString);
+//			var imageJson = JSON.parse(imageString);//string->json
+//			console.log("ciphertext in json:",imageJson);
+//
+//			var imagept = decrypt(Kenc,imageJson);
+//			console.log("decrypt image in string:",imagept);
+//
+//			var imageByte = new Uint8Array(sjcl.codec.base64.toBits(imagept)); // create byte array from base64 string
+//			console.log("plaintext in bytes:",imageByte);
+//
+//			var imageDecryptBlob = new Blob([imageByte], { type: ftype });
+//			resolve(imageDecryptBlob);
+//		};
+//		reader.readAsArrayBuffer(blobCipher);	
+//	}
+//}
+
+//referenced from internet
+/** Convert from an array of bytes to a bitArray. */
+function toBitArrayCodec(bytes) {
+    var out = [], i, tmp=0;
+    for (i=0; i<bytes.length; i++) {
+        tmp = tmp << 8 | bytes[i];
+        if ((i&3) === 3) {
+            out.push(tmp);
+            tmp = 0;
+        }
+    }
+    if (i&3) {
+        out.push(sjcl.bitArray.partial(8*(i&3), tmp));
+    }
+    return out;
+}
+
+//referenced from internet
+/** Convert from a bitArray to an array of bytes. */
+function fromBitArrayCodec(arr) {
+    var out = [], bl = sjcl.bitArray.bitLength(arr), i, tmp;
+    for (i=0; i<bl/8; i++) {
+        if ((i&3) === 0) {
+            tmp = arr[i/4];
+        }
+        out.push(tmp >>> 24);
+        tmp <<= 8;
+    }
+    return out;
+}
+
+//referenced from internet
+//save file to localhost
+function saveBlob(blob, fileName) {
+	console.log("save file")
+	 var a = document.createElement("a");
+	 document.body.appendChild(a);
+	 a.style = "display: none";
+	 var url = window.URL.createObjectURL(blob);
+	 a.href = url;
+	 a.download = fileName;
+	 a.click();
+	 console.log("click")
+	 window.URL.revokeObjectURL(url);
+};
+
+function sleep(milliseconds) { 
+    let timeStart = new Date().getTime(); 
+    while (true) { 
+      let elapsedTime = new Date().getTime() - timeStart; 
+      if (elapsedTime > milliseconds) { 
+        break; 
+      } 
+    } 
+ } 
