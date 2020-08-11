@@ -309,6 +309,30 @@ function handleBlobUpload(event){
     var diff = end_time - st_time;
 }
 
+function handleBlobSSEUpload(jsonObj){
+	return function(event){
+		var Kenc = $("#passphrase7").val();
+		var KeyG = Kenc;
+		
+		var st_date = new Date();
+	    var st_time = st_date.getTime();
+	
+	    var fname = $("#filename").val();
+	    var ftype = $("#filetype").val();
+	    var outputname = fname.split(".")[0];// + "_encrypted";
+	    console.log("Filename: " + typeof  fname);
+	    console.log("Type: " +  ftype);
+	
+	    var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
+	    
+	    encryptUploadSearchableBlob(blobData,fname,jsonObj,fname,KeyG,Kenc);
+	
+	    var end_date = new Date();
+	    var end_time = end_date.getTime();
+	    var diff = end_time - st_time;
+	}
+}
+
 /// HANDLERS - END
 
 $(document).ready(
@@ -544,6 +568,28 @@ $(document).ready(
 				//downloadMinio(fname,handleBlobDecrypt) //download and decrypt file
 				handleBlobDecrypt(fname);
 			});	
+			
+			/// ENCRYPT BLOB with METADATA by submitting blob file and metadata file
+			$('#btnUploadBlobSSE').click(function(){
+				$('#uploadblobsse').empty();
+				$('#uploadblobsse').html("<div class='alert-primary alert'> Uploading </div>");
+				
+				if ($('#blobSSEUpload').get(0).files.length == 0) {
+					console.log("No files selected.");
+				}
+				else{
+					var reader = new FileReader()
+					var jsonObj = {"size":"unknown"}
+					reader.onload = handleBlobSSEUpload(jsonObj);
+					var file = $('#blobSSEUpload').get(0).files[0];
+					var filename = file.name;
+					var filetype = file.type;
+					 $("#filename").val(filename);
+					 $("#filetype").val(filetype);
+					console.log("name:",filename,",type:",filetype);
+					reader.readAsArrayBuffer(file);
+				}
+			});
 //			
 //			$('#btnUpload').click(function(){
 //				console.log("Uploading")
