@@ -25,7 +25,7 @@ SECRET_KEY = '5qea2o2*9wq5@42qy!on$j@cjm7j2mn)zby%25tt%6jeou!yeq'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG')
 
-ALLOWED_HOSTS =  os.getenv('ALLOWED_HOSTS').split(' ')
+ALLOWED_HOSTS = '*' # os.getenv('ALLOWED_HOSTS').split(' ')
 
 
 # Application definition
@@ -46,6 +46,7 @@ CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -125,11 +126,12 @@ USE_L10N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
+# Static files (CSS, JavaScript, Images)    
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT = '/static'
+STATIC_ROOT = os.path.join(BASE_DIR,'/static')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Prevent creating pyc files
 PYTHONDONTWRITEBYTECODE = 1
