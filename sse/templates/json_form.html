@@ -435,4 +435,25 @@
 	<!--  <button type="button" class="btn btn-primary" id="btnUpload">Encrypt and Upload</button>-->
 	<button type="button" class="btn btn-primary" id="btnDownload">Download and Decrypt</button>
 </form>
+
+<label for="upload-blob-metadata"><b>ENCRYPT BLOB WITH METADATA</b></label>
+<form id='upload-blob-metadata' class='mb-2' method="post" action="">
+	<div class='mb-2'>
+		<div class="form-group row">
+			<label for="blobSSEUpload">Choose a blob file</label>
+			<input type="file" class="form-control" id="blobSSEUpload" placeholder="Please enter URL of blob data" name='blobSSEUpload'>
+<!-- 			<label for="metadataSSEUpload">Choose its metadata file</label> -->
+<!-- 			<input type="file" class="form-control" id="metadataSSEUpload" placeholder="Please enter URL of metadata" name='metadataSSEUpload'> -->
+			<label for="passphrase7" class="col-sm-10 col-form-label">Passphrase</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase7"
+					placeholder="Please enter passphrase" name='passphrase7'>
+			</div>
+		</div>
+	</div>
+	<button type="button" class="btn btn-primary" id="btnUploadBlobSSE">Encrypt and Upload</button>
+</form>
+
+<div id='uploadblobsse'></div>
+<div id='uploadblobssetime'></div>
 {% endblock %}
