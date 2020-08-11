@@ -1090,6 +1090,14 @@ function uploadMinio(blob,fname,callback=undefined){
 //    });
 }
 
+//Encrypt blob data and upload to Minio along with its searchable metadata (json format)
+function encryptUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,callback=undefined){
+	//append filename to metadata
+	jsonObj.filename = fname;
+	console.log("metadata after appending filename:{}",jsonObj);
+	encryptUploadBlob(blob,fname,Kenc);
+	uploadData(jsonObj,file_id,KeyG,Kenc);
+}
 //Encrypt blob data and upload to Minio
 function encryptUploadBlob(blob,fname,Kenc,callback=undefined){
     var ftype = blob.type;
