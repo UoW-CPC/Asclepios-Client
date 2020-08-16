@@ -1,5 +1,7 @@
 # Asclepios-Client
 
+## License
+Apache License, version 2.0
 ## How to run SSE client in development mode
 Please refer to the section "Local deployment in development mode" in SSE_deployment_manual
 ## How to run SSE client in docker container
