@@ -321,10 +321,10 @@ function uploadData(data, file_id, sharedKey, Kenc,callback){
 	
 	console.log("Send patch request from object:",data); //for testing
 	// Send ciphertext to CSP 
-	patchRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/", Lcipher,callback);
+	patchRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/", Lcipher,callback,async_feat=false);
 	
 	// Send the dictionary to CSP
-	patchRequest(sseConfig.base_url_sse_server + "/api/v1/map/", Laddress,callback);
+	patchRequest(sseConfig.base_url_sse_server + "/api/v1/map/", Laddress,callback,async_feat=false);
 	
 	console.log("complete upload");
 	
