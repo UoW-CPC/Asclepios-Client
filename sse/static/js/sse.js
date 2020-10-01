@@ -142,51 +142,79 @@ function decrypt(key, cipherObj){
 	return res;	
 }
 
-// Retrieve file numbers of a list of keywords
-// Params: Lw - list of hashed keywords
-function getMultiFileNo(Lw){
-	LfileNo = [];
-	LfileNoUri = [];
+//// Retrieve file numbers of a list of keywords
+//// Params: Lw - list of hashed keywords
+//function getMultiFileNo(Lw){
+//	LfileNo = [];
+//	LfileNoUri = [];
+//	listW = [];
+//	
+//	var obj = getRequest(sseConfig.base_url_ta + "/api/v1/fileno/?w=" + Lw);
+//	//var obj = getRequest(sseConfig.base_url_ta + "/api/v1/fileno/?limit=0&w=" + Lw);//limit=0 allows to get all items
+//	//console.log("request for fileno:",sseConfig.base_url_ta + "/api/v1/fileno/?w=" + Lw);
+//	console.log("response:",obj);
+//	var count = obj.meta.total_count;
+//	
+//	console.log("number of items:",count);
+//	
+//	for(i=0; i<count;i++){
+//		console.log("Push item of index:",i);
+//		LfileNo.push(obj.objects[i].fileno);
+//		LfileNoUri.push(sseConfig.base_url_ta + obj.objects[i].resource_uri);
+//		listW.push(obj.objects[i].w);
+//	}
+//	return [LfileNo, LfileNoUri,listW];
+//}
+//
+////Retrieve search numbers of a list of keywords
+////Params: Lw - list of keywords
+//function getMultiSearchNo(Lw){	
+//	var obj = getRequest(sseConfig.base_url_ta + "/api/v1/searchno/?w=" + Lw);
+//	//var obj = getRequest(sseConfig.base_url_ta + "/api/v1/searchno/?limit=0&w=" + Lw);
+//
+//	LsearchNo = [];
+//	LsearchNoUri = [];
+//	listW = [];
+//	
+//	var count = obj.meta.total_count;
+//	for(i=0; i<count;i++){
+//		LsearchNo.push(obj.objects[i].searchno);
+//		LsearchNoUri.push(sseConfig.base_url_ta +  obj.objects[i].resource_uri);
+//		listW.push(obj.objects[i].w); //list of keyword, which No.Search exists
+//	}
+//	
+//	console.log('List of search no:',LsearchNo)
+//	return [LsearchNo, LsearchNoUri,listW];
+//}
+
+//Retrieve file numbers/ search numbers of a list of keywords
+//Params: requestType - searchno or fileno, Lw - list of keywords
+function getMultiFileOrSearchNo(requestType,Lw){	
+	var data_ta = JSON.stringify({"requestType": requestType,"Lw":Lw});
+	console.log("Invoke longrequest")
+	console.log(data_ta)
+	var ret = postRequest(sseConfig.base_url_ta + "/api/v1/longrequest/",data_ta,callback=undefined,async_feat=false);
+
+	var obj = ret.responseJSON;
+	console.log(obj);
+	Lno = [];
+	LnoUri = [];
 	listW = [];
 	
-	var obj = getRequest(sseConfig.base_url_ta + "/api/v1/fileno/?w=" + Lw);
-	//var obj = getRequest(sseConfig.base_url_ta + "/api/v1/fileno/?limit=0&w=" + Lw);//limit=0 allows to get all items
-	//console.log("request for fileno:",sseConfig.base_url_ta + "/api/v1/fileno/?w=" + Lw);
-	console.log("response:",obj);
-	var count = obj.meta.total_count;
-	
-	console.log("number of items:",count);
-	
+	var count = obj.objects.length;
 	for(i=0; i<count;i++){
-		console.log("Push item of index:",i);
-		LfileNo.push(obj.objects[i].fileno);
-		LfileNoUri.push(sseConfig.base_url_ta + obj.objects[i].resource_uri);
-		listW.push(obj.objects[i].w);
-	}
-	return [LfileNo, LfileNoUri,listW];
-}
-
-//Retrieve search numbers of a list of keywords
-//Params: Lw - list of keywords
-function getMultiSearchNo(Lw){	
-	var obj = getRequest(sseConfig.base_url_ta + "/api/v1/searchno/?w=" + Lw);
-	//var obj = getRequest(sseConfig.base_url_ta + "/api/v1/searchno/?limit=0&w=" + Lw);
-
-	LsearchNo = [];
-	LsearchNoUri = [];
-	listW = [];
-	
-	var count = obj.meta.total_count;
-	for(i=0; i<count;i++){
-		LsearchNo.push(obj.objects[i].searchno);
-		LsearchNoUri.push(sseConfig.base_url_ta +  obj.objects[i].resource_uri);
+		if(requestType=="searchno")
+			Lno.push(obj.objects[i].searchno);
+		else
+			Lno.push(obj.objects[i].fileno);
+		LnoUri.push(sseConfig.base_url_ta +  "/api/v1/" + requestType + "/"+ obj.objects[i].id+"/");
 		listW.push(obj.objects[i].w); //list of keyword, which No.Search exists
 	}
-	
-	console.log('List of search no:',LsearchNo)
-	return [LsearchNo, LsearchNoUri,listW];
+	console.log('List of no:',Lno)
+	console.log('List of uri:',LnoUri)
+	console.log('list of w:',listW)
+	return [Lno, LnoUri,listW];
 }
-
 /// BASIC FUNCTIONS - END
 
 //Upload data (json object)
@@ -432,7 +460,8 @@ function findKeyword(keyword, sharedKey, Kenc){
 	var fileNo, fileNoUri;
 	
 	// Get file number
-	[LfileNo, LfileNoUri,listW] = getMultiFileNo([hash(keyword)]); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+	//[LfileNo, LfileNoUri,listW] = getMultiFileNo([hash(keyword)]); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+	[LfileNo, LfileNoUri,listW] = getMultiFileOrSearchNo("fileno",[hash(keyword)]); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
 	console.log("Lfileno:",LfileNo)
 	if(LfileNo.length>0){
 		fileNo = LfileNo[0]
@@ -447,7 +476,8 @@ function findKeyword(keyword, sharedKey, Kenc){
 	
 	// Get search number
 	var searchNo, searchNoUri;
-	[LsearchNo, LsearchNoUri,tempListWord] = getMultiSearchNo([hash(keyword)]); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+	//[LsearchNo, LsearchNoUri,tempListWord] = getMultiSearchNo([hash(keyword)]); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+	[LsearchNo, LsearchNoUri,tempListWord] = getMultiFileOrSearchNo("searchno",[hash(keyword)]); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
 	console.log("List of search number:",LsearchNo)
 	if(LsearchNo.length>0){
 		searchNo = LsearchNo[0]
@@ -704,7 +734,8 @@ function updateData(data, file_id, sharedKey, Kenc, callback){
 	Lcurrent_fileNo = [];
 	Lcurrent_fileNoUri = [];
 	current_listW = [];
-	[Lcurrent_fileNo, Lcurrent_fileNoUri,current_listW] = getMultiFileNo(Lcurrent_hash);
+	//[Lcurrent_fileNo, Lcurrent_fileNoUri,current_listW] = getMultiFileNo(Lcurrent_hash);
+	[Lcurrent_fileNo, Lcurrent_fileNoUri,current_listW] = getMultiFileOrSearchNo("fileno",Lcurrent_hash);
 	
 	if(Lcurrent_fileNo.length<length){ //at least 1 keyword is not found in No.Files
 		console.log("At least one of update field does not exist in database")
@@ -718,7 +749,8 @@ function updateData(data, file_id, sharedKey, Kenc, callback){
 	Lall_searchNoUri = [];
 	all_tempListWord = [];
 	Lall_hash = Lcurrent_hash.concat(Lnew_hash); //combine Lcurrent_hash and Lnew_hash
-	[Lall_found_searchNo,Lall_searchNoUri,all_tempListWord]=getMultiSearchNo(Lall_hash);
+	//[Lall_found_searchNo,Lall_searchNoUri,all_tempListWord]=getMultiSearchNo(Lall_hash);
+	[Lall_found_searchNo,Lall_searchNoUri,all_tempListWord]=getMultiFileOrSearchNo("searchno",Lall_hash);
 	console.log("Lall_found_searchNo:",Lall_found_searchNo);
 	console.log("all_tempListWord:",all_tempListWord);
 	console.log("Lcurrent_hash:",Lcurrent_hash);
@@ -741,7 +773,8 @@ function updateData(data, file_id, sharedKey, Kenc, callback){
 	Lnew_fileNo = [];
 	Lnew_fileNoUri = [];
 	new_listW = [];
-	[Lnew_found_fileNo, Lnew_fileNoUri,new_listW] = getMultiFileNo(Lnew_hash); 
+	//[Lnew_found_fileNo, Lnew_fileNoUri,new_listW] = getMultiFileNo(Lnew_hash); 
+	[Lnew_found_fileNo, Lnew_fileNoUri,new_listW] = getMultiFileOrSearchNo("fileno",Lnew_hash); 
 
 	// Build full list of No.File of every keyword
 	Lnew_fileNo = createFullList(Lnew_hash,new_listW,Lnew_found_fileNo)
@@ -806,10 +839,10 @@ function updateData(data, file_id, sharedKey, Kenc, callback){
 	return true;
 }
 
-//Update data
+//Delete data
 function deleteData(file_id, sharedKey, Kenc, callback){
 	// Send GET request to CSP to retrieve ciphertext of data belonging to file_id
-	var obj = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?jsonId=" + file_id);
+	var obj = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?limit=0&jsonId=" + file_id); //limit=0 allows to get all items
 	console.log("response:",obj);
 	var length = obj.meta.total_count;
 	if(length==0){
@@ -832,7 +865,7 @@ function deleteData(file_id, sharedKey, Kenc, callback){
 		var Lcipher=[];
 		
 		// retrieve data from Map table by file_id
-		var objMap = getRequest(sseConfig.base_url_sse_server + "/api/v1/map/?value=" + file_id);
+		var objMap = getRequest(sseConfig.base_url_sse_server + "/api/v1/map/?limit=0&value=" + file_id);
 		console.log("objects in map table:",objMap);
 		for(i=0; i< length; i++){
 			w = pt[i];
@@ -843,12 +876,13 @@ function deleteData(file_id, sharedKey, Kenc, callback){
 		console.log("list of hashed keywords:",Lw);
 		
 		// Retrieve list of file number
-		[LfileNo, LfileNoUri,listW] = getMultiFileNo(Lw); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+		//[LfileNo, LfileNoUri,listW] = getMultiFileNo(Lw); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+		[LfileNo, LfileNoUri,listW] = getMultiFileOrSearchNo("fileno",Lw);
 		console.log("keyword string input:",Lw);
 		console.log("List of file numbers: ", LfileNo);
 		console.log("List of Url:", LfileNoUri);
 		console.log("List of retrieved keywords:",listW);
-		
+
 		//var arrLw = Lw.split(",");
 		var listFileNo;
 		if(Lw.length > listW.length)
@@ -859,10 +893,13 @@ function deleteData(file_id, sharedKey, Kenc, callback){
 		console.log("full list of file no of keywords:",listFileNo);
 		// Retrieve search number
 		
-		[LsearchNo, LsearchNoUri,tempListWord] = getMultiSearchNo(Lw); //"tempListWord" can be empty if all keywords has been never searched
+		//[LsearchNo, LsearchNoUri,tempListWord] = getMultiSearchNo(Lw); //"tempListWord" can be empty if all keywords has been never searched
+		[LsearchNo, LsearchNoUri,tempListWord] = getMultiFileOrSearchNo("searchno",Lw); //"tempListWord" can be empty if all keywords has been never searched
+
 		console.log("Search numbers: ", LsearchNo);
 		console.log("Urls: ", LsearchNoUri);
 		console.log("list of words in searchno:",tempListWord);
+		//getMultiSearchNo1(Lw);// test
 
 		var listSearchNo;
 		if(Lw.length > tempListWord.length)
