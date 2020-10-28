@@ -277,6 +277,18 @@ function handleBlobDecrypt(fname){
     var diff = end_time - st_time;
 }
 
+function handleProgressBlobDecrypt(fname){
+	var Kenc = $("#passphrase6").val();
+	
+	var st_date = new Date();
+    var st_time = st_date.getTime();
+    downloadProgressDecryptBlob(fname,Kenc);
+    
+    var end_date = new Date();
+    var end_time = end_date.getTime();
+    var diff = end_time - st_time;
+}
+
 // Browse file, encrypt it and upload to Minio
 function handleBlobUpload(event){
 	var Kenc = $("#passphrase5").val();
@@ -293,6 +305,38 @@ function handleBlobUpload(event){
     var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
     
     encryptUploadBlob(blobData,fname,Kenc);
+//    console.log(blobData);
+//    var promise = new Promise(encryptBlob(blobData,ftype,Kenc));
+//
+//    // Wait for promise to be resolved, or log error.
+//    promise.then(function(cipherBlob) {
+//    	uploadMinio(cipherBlob,outputname)
+//    	//saveBlob(cipherBlob,outputname);
+//    }).catch(function(err) {
+//    	console.log('Error: ',err);
+//    });
+
+    var end_date = new Date();
+    var end_time = end_date.getTime();
+    var diff = end_time - st_time;
+}
+
+
+function handleBlobProgressUpload(event){
+	var Kenc = $("#passphrase5").val();
+	
+	var st_date = new Date();
+    var st_time = st_date.getTime();
+
+    var fname = $("#filename").val();
+    var ftype = $("#filetype").val();
+    var outputname = fname.split(".")[0];// + "_encrypted";
+    console.log("Filename: " + typeof  fname);
+    console.log("Type: " +  ftype);
+
+    var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
+    
+    encryptProgressUploadBlob(blobData,fname,Kenc);
 //    console.log(blobData);
 //    var promise = new Promise(encryptBlob(blobData,ftype,Kenc));
 //
@@ -542,6 +586,27 @@ $(document).ready(
 				}
 			});
 			
+			$('#btnProgressUploadBlob').click(function(){
+				$('#resultUploadBlob').empty();
+				$('#resultUploadBlob').html("<div class='alert-primary alert'> Progressive Encrypting </div>");
+				//progressEncryptBlob("test","test","123");
+				if ($('#blobUpload').get(0).files.length === 0) {
+					console.log("No files selected.");
+				}
+				else{
+					var reader = new FileReader()
+					reader.onload = handleBlobProgressUpload;
+					var file = $('#blobUpload').get(0).files[0];
+					var filename = file.name;
+					var filetype = file.type;
+					 $("#filename").val(filename);
+					 $("#filetype").val(filetype);
+					console.log("name:",filename,",type:",filetype);
+					reader.readAsArrayBuffer(file);
+				}
+			});
+			
+			
 //			$('#btnDecryptBlob').click(function(){
 //				$('#resultUploadBlob').empty();
 //				$('#resultUploadBlob').html("<div class='alert-primary alert'> Uploading </div>");
@@ -567,6 +632,13 @@ $(document).ready(
 				fname = $("#filename1").val()
 				//downloadMinio(fname,handleBlobDecrypt) //download and decrypt file
 				handleBlobDecrypt(fname);
+			});	
+			
+			$('#btnProgressDownloadBlob').click(function(){
+				console.log("Progressive Downloading")
+				fname = $("#filename1").val()
+				//downloadMinio(fname,handleBlobDecrypt) //download and decrypt file
+				handleProgressBlobDecrypt(fname);
 			});	
 			
 			/// ENCRYPT BLOB with METADATA by submitting blob file and metadata file
