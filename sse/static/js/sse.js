@@ -1541,10 +1541,32 @@ function encryptProgressUploadBlob(blob,fname,Kenc,callback=undefined){
     return promise;
 }
 
+//Download file from Minio and decrypt
+function downloadDecryptBlob(fname,Kenc){
+	return new Promise((resolve, reject) => {
+		console.log("Download blob")
+		var presigned_url = getPresignUrl(fname) // request for a presigned url 
+		$.ajax({
+			url: presigned_url,
+			type: 'GET',
+			xhrFields:{responseType: 'blob'},
+			success: function(blob) {
+				console.log("Decrypt blob")
+				decryptBlob(blob,blob.type,Kenc).then(plainBlob => resolve(plainBlob));
+			},
+			error: function(erro){
+				console.error("Download from Minio Error");
+				console.error(erro);
+				reject(errno);
+			}
+		})
+	});
+}
+
 //Download file from Minio, decrypt and save it to local host
 //Input: - fname: filename, - callback: function to decrypt and save file
 //function downloadMinio(fname,callback){
-function downloadDecryptBlob(fname,Kenc,callback=undefined){
+function downloadDecryptSaveBlob(fname,Kenc,callback=undefined){
 	console.log("Download blob")
 	var presigned_url = getPresignUrl(fname) // request for a presigned url 
 	//downloadWithPresignUrl(url,fname,callback); // download the file and decrypt it with a callback function, which is "handleBlobDecrypt" function
@@ -1686,10 +1708,7 @@ function decryptSaveBlob(blob,fname,Kenc,callback=undefined){
 	 console.log("Filename to be saved: " +  outputname);
 	 var ftype = blob.type; //identify filetype from blob
 	 
-	 var promise = new Promise(decryptBlob(blob,ftype,Kenc));
-	 //var promise = decryptBlob(blob,ftype,Kenc);
-	 
-	 promise.then((plainBlob) => {
+	 return decryptBlob(blob,ftype,Kenc).then((plainBlob) => {
 		 console.log("Save file to disk");
 		 saveBlob(plainBlob,outputname);
 		 if(callback!=undefined){
@@ -1708,9 +1727,7 @@ function decryptSaveBlob(blob,fname,Kenc,callback=undefined){
 //	 	console.log('Error: ',err);
 //	 });
 	 
-	 return promise;
 }
-
 function decryptProgressSaveBlob(blob,fname,Kenc,callback=undefined){
 	 var outputname = fname;//fname.split(".")[0];// + "_decrypted";
 	 console.log("Filename to be saved: " +  outputname);
@@ -1731,10 +1748,8 @@ function decryptProgressSaveBlob(blob,fname,Kenc,callback=undefined){
 }
 
 
-
 function decryptBlob(blobCipher,ftype,Kenc){
-	return function(resolve) {
-//	var promise = new Promise((resolve, reject) => {
+	return new Promise(function(resolve, reject) {
 		var reader = new FileReader();
 		console.log("Decrypt blob")
 		reader.onload = function(e){
@@ -1761,9 +1776,9 @@ function decryptBlob(blobCipher,ftype,Kenc){
 			resolve(imageDecryptBlob);
 		};	
 		reader.readAsArrayBuffer(blobCipher);
-	}
-	//return promise;
+	});
 }
+
 //	return function(resolve) {
 //		var reader = new FileReader();
 //		reader.onload = function(e){
