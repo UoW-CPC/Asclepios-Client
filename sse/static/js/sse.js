@@ -1019,79 +1019,7 @@ function getBlob (sigBytes, words) {
 	 return new Blob([ new Uint8Array(bytes) ])
 }
 
-//Approach 1: File -> divide into chunks -> encrypt each chunk -> merge result -> upload
-//function encryptProgressBlob(blobData,ftype, Kenc){
-//	console.log("Progress Encrypt Blob")
-//	console.log("blob content:",blobData)
-//	return function(resolve) {
-//		var reader = new FileReader()
-//		reader.onload = function(e){
-//			console.log("input data:",e.target.result)
-//			var imageData = new Uint8Array(e.target.result);
-//			console.log("Blob content:",imageData);    	    
-////			var imageString = sjcl.codec.base64.fromBits(imageData); // convert byte array to base64 string
-////			console.log("image plaintext in string:",imageString);
-//			
-//			h = sjcl.codec.hex
-//			pt = toBitArrayCodec(imageData);//h.toBits(imageString)
-//			var iv = [-16119071, -276457509, 2001133657, 474172955];//sjcl.random.randomWords(4, 0);
-//			console.log("iv:",iv)
-//			//iv = h.toBits(sseConfig.iv);
-//		    var keyString = "2d73c1dd2f6a3c981afc7c0d49d7b58f";
-//			console.log("keystring:",keyString);
-//		    var key = sjcl.codec.base64.toBits(keyString);
-//			aes = new sjcl.cipher.aes(key);
-//			console.log("key:",key);
-//			//adata = "";
-//			var enc = sjcl.mode.ocb2progressive.createEncryptor(aes, iv);
-//			console.log("plaintext length:",pt.length)
-//			
-//		    var result = [];
-//		    var sliceSizeRange = 1024*256; // 1 to 128 bytes
-//		    var slice = [0, sliceSizeRange];//Math.floor((Math.random() * sliceSizeRange) + 1)];
-//		    var count = 0;
-//		    while (slice[0] < pt.length) {
-//		    	result = result.concat(enc.process(pt.slice(slice[0], slice[1])));
-//		        slice[0] = slice[1];
-//		        slice[1] = slice[0] + sliceSizeRange; //Math.floor((Math.random() * sliceSizeRange) + 1);
-//		        //console.log("fragment:",result);
-//		        console.log("count:",count);
-//		        count = count +1 ;
-//		    }
-//		    result = result.concat(enc.finalize());
-//		    console.log("Ciphertext:",result)
-//		    ct = result;
-//		    
-////		    try {
-////		        var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
-////		        var dresult = [];
-////		        var sliceSizeRange = 64; // 1 to 128 bytes
-////		        var slice = [0, Math.floor((Math.random() * sliceSizeRange) + 1)];
-////		        while (slice[0] < ct.length) {
-////		          dresult = dresult.concat(dec.process(ct.slice(slice[0], slice[1])));
-////		          slice[0] = slice[1];
-////		          slice[1] = slice[0] + sliceSizeRange; //Math.floor((Math.random() * sliceSizeRange) + 1);
-////		        }
-////		        dresult = dresult.concat(dec.finalize());
-////		        console.log("plaintext:",dresult)
-////		        
-////		        var imageByte = new Uint8Array(fromBitArrayCodec(dresult)); // create byte array from base64 string
-////				console.log("plaintext in bytes:",imageByte);
-////		
-////				//var imageDecryptBlob = new Blob([imageByte], { type: ftype });
-////				//resolve(imageDecryptBlob);
-////		    } catch (e) {
-////		        console.log("Error:" + e);
-////		    }		
-//			var cipherBlob = new Blob([result], { type: ftype });
-//			resolve(cipherBlob);
-//
-//		};
-//		reader.readAsArrayBuffer(blobData);	
-//	}
-//}
-
-// Approach 2: File -> divide into chunks -> encrypt each chunk -> upload -> (loop) -> until finish
+// Approach: File -> divide into chunks -> encrypt each chunk -> upload -> (loop) -> until finish
 function encryptProgressBlob(blobData,ftype, Kenc){
 	console.log("Progress Encrypt Blob")
 	console.log("blob content:",blobData)
@@ -1114,20 +1042,20 @@ function encryptProgressBlob(blobData,ftype, Kenc){
 			var enc = sjcl.mode.ocb2progressive.createEncryptor(aes, iv);
 
 		    var result = [];
-		    var sliceSizeRange = 1024*32//1024*1024; // size of 1 slice/ chunk for encryption (in uint8 items)
+		    var sliceSizeRange = 1024*32;//1024*1024; // size of 1 slice/ chunk for encryption (in uint8 items)
 		    var slice = [0, sliceSizeRange];//data will be sliced/ chunked/ read between slice[0] and slice[1]
 		    var count = 0;
 		    console.log("length of data:",imageData.length);
 		    
-		    var fragment =50; //number of chunks to be packed in 1 upload
+		    var fragment =30; //number of chunks to be packed in 1 upload
 		       
 		    var cipherpart, outputname;
 		    var idx=0;
-		    var res=[];
-		    var tb=[]
+		    var tb=[];
 		    
 		    while (slice[0] < imageData.length) {
 		    	result = result.concat(enc.process(toBitArrayCodec(imageData.slice(slice[0], slice[1]))));
+		    	//result = result.concat(enc.process(sjcl.codec.bytes.toBits(imageData.slice(slice[0], slice[1]))));
 		        slice[0] = slice[1];
 		        slice[1] = slice[0] + sliceSizeRange;
 		        if(slice[1]>imageData.length)
@@ -1138,60 +1066,67 @@ function encryptProgressBlob(blobData,ftype, Kenc){
 		        if((count % fragment)==0){ //upload each part of #fragment chunks/ slices.
 		        	console.log("upload part:",count);
 		        	console.log("ciphertext type:",typeof result);
-		        	res = res.concat(result);
+
 		        	tb[idx]=result;
 		        	console.log("tb[idx]:",tb[idx])
-		        	idx = idx+1;
-		        	
-		        	
+		        	idx = idx+1;        	
 		        	
 					cipherpart = new Blob([result], { type: ftype });//upload as 1 whole part
 		        	result = [];
-		        	outputname= "part" + count;
+		        	outputname= "part" + idx;
 		        	console.log("blob cipher:",cipherpart);
 		        	uploadMinio(cipherpart,outputname);
 		        }
 		    }
-		    if((count % fragment)==0)
-		    	result = enc.finalize();
-		    else
-		    	result = result.concat(enc.finalize());
-		    res = res.concat(result);
+		    result = result.concat(enc.finalize());
 		    console.log("Last part ciphertext:",result)
 		    tb[idx]=result;
 		    console.log("tb[idx]:",tb[idx])
 	    	idx = idx+1;
-		    ct = res;
-		    
 		    
 		    cipherpart = new Blob([result], { type: ftype });
         	outputname= "final_part";
         	uploadMinio(cipherpart,outputname);
         	
+        	
         	//decryption - for testing only
+        	/*
 		    try {
 		    	console.log("Decrypting")
 		        var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
 		        var dresult = [];
 		        console.log("idx",idx);
-		        
+		       
 		        var i;
+		        var imageByte, imageDecryptBlob;
+		        
 		        for (i = 0; i < idx; i++) {
+		        	console.log("decrypting block:",i)
 		        	console.log("type of ciphertext:",typeof tb[i]);
 		        	console.log("ciphertext:",tb[i]);
-		        	dresult = dresult.concat(fromBitArrayCodec(dec.process(tb[i])));
+		        	//dresult = dresult.concat(fromBitArrayCodec(dec.process(tb[i])));
+		        	
+		        	dresult = fromBitArrayCodec(dec.process(tb[i])); // testing only
+		        	console.log("plaintext:",dresult);
+		        	
+		        	//for testing
+		        	imageByte = new Uint8Array(dresult); // create byte array from base64 string
+					console.log("plaintext in bytes:",imageByte);	
+					imageDecryptBlob = new Blob([imageByte], { type: ftype });
+					uploadMinio(imageDecryptBlob,"plaintext" + idx + ".mp4");
 		        }
 		        dresult = dresult.concat(dec.finalize());
 		        console.log("plaintext:",dresult)
-		        var imageByte = new Uint8Array(dresult); // create byte array from base64 string
+		        imageByte = new Uint8Array(dresult); // create byte array from base64 string
 				console.log("plaintext in bytes:",imageByte);
 		
-				var imageDecryptBlob = new Blob([imageByte], { type: "image/jpeg" });//{ type: ftype });
-				uploadMinio(imageDecryptBlob,"plaintext.jpg");
-				//resolve(imageDecryptBlob);
+				imageDecryptBlob = new Blob([imageByte], { type: ftype });//{ type: ftype });
+				uploadMinio(imageDecryptBlob,"plaintext_final.mp4");
+				
+				console.log("complete decrypting and sending to minio");
 		    } catch (e) {
 		        console.log("Error:" + e);
-		    }
+		    }*/
 		    
 			//var cipherBlob = new Blob([result], { type: ftype });
 			resolve(cipherpart);
@@ -1200,180 +1135,6 @@ function encryptProgressBlob(blobData,ftype, Kenc){
 		reader.readAsArrayBuffer(blobData);	
 	}
 }
-
-
-//for testing only
-function encryptProgressBlob1(blobData,ftype, Kenc){
-	console.log("Progress Encrypt Blob")
-	console.log("blob content:",blobData)
-	return function(resolve) {
-		var reader = new FileReader()
-		reader.onload = function(e){
-			var imageData = new Uint8Array(e.target.result);
-			console.log("Blob content:",imageData);    	    
-			
-			h = sjcl.codec.hex;
-			var iv = [-16119071, -276457509, 2001133657, 474172955];//sjcl.random.randomWords(4, 0);
-			console.log("iv:",iv)
-			//iv = h.toBits(sseConfig.iv);
-		    var keyString = "2d73c1dd2f6a3c981afc7c0d49d7b58f";
-			console.log("keystring:",keyString);
-		    var key = sjcl.codec.base64.toBits(keyString);
-			aes = new sjcl.cipher.aes(key);
-			console.log("key:",key);
-			//adata = "";
-			var enc = sjcl.mode.ocb2progressive.createEncryptor(aes, iv);
-
-		    var result = [];
-		    var sliceSizeRange = 1024*128;//1024*1024; // size of 1 slice/ chunk for encryption (in uint8 items)
-		    var slice = [0, sliceSizeRange];//data will be sliced/ chunked/ read between slice[0] and slice[1]
-		    var count = 0;
-		    console.log("length of data:",imageData.length);
-		        
-		    var cipherpart, outputname;
-		    var idx=0;
-		    var res1=[],res2=[];
-		    var tb=[];
-		    var fragments = imageData.length/(sliceSizeRange*3);
-		    
-		    while (slice[0] < imageData.length) {
-		    	console.log("slice[0],slice[1]:",slice[0],slice[1]);
-		    	if(count<=fragments){
-		    		console.log("part1");
-		    		result.push(enc.process(toBitArrayCodec(imageData.slice(slice[0], slice[1]))));
-		    	}
-		    	else if(count<=2*fragments){
-		    		console.log("part2");
-		    		res1.push(enc.process(toBitArrayCodec(imageData.slice(slice[0], slice[1]))));
-		    	} else{
-		    		console.log("part2");
-		    		res2.push(enc.process(toBitArrayCodec(imageData.slice(slice[0], slice[1]))));
-		    	}
-		    	//result = result.concat(enc.process(toBitArrayCodec(imageData.slice(slice[0], slice[1]))));
-		        slice[0] = slice[1];
-		        slice[1] = slice[0] + sliceSizeRange;
-		        count = count+1
-		        if(slice[1]>imageData.length)
-		        	slice[1] = imageData.length;
-		    }
-		    //result.push(enc.finalize());
-		    res2.push(enc.finalize());
-		    console.log("writing");
-		    
-		    //decryption
-		    /*cipherpart = new Blob(result.concat(res), { type: ftype });
-        	outputname= "cipher";
-        	uploadMinio(cipherpart,outputname);*/
-		   	/*result = result.concat(enc.finalize());
-		    cipherpart = new Blob([result], { type: ftype });
-        	outputname= "cipher";
-        	uploadMinio(cipherpart,outputname);
-        	
-		    try {
-		    	console.log("Decrypting")
-		        var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
-		        var dresult = [];
-		        var sliceSizeRange = 1024*128; // 1 to 128 bytes
-		        var slice = [0, sliceSizeRange];//Math.floor((Math.random() * sliceSizeRange) + 1)];
-		        while (slice[0] < result.length) {
-		          dresult = dresult.concat(dec.process(result.slice(slice[0], slice[1])));
-		          slice[0] = slice[1];
-		          slice[1] = slice[0] + sliceSizeRange; //Math.floor((Math.random() * sliceSizeRange) + 1);
-			      if(slice[1]>imageData.length)
-			    	  slice[1] = imageData.length;
-		        }
-		        dresult = dresult.concat(dec.finalize());
-		        console.log("plaintext:",dresult)
-		        
-		        var imageByte = new Uint8Array(fromBitArrayCodec(dresult)); // create byte array from base64 string
-				console.log("plaintext in bytes:",imageByte);
-		      
-				var imageDecryptBlob = new Blob([imageByte],{ type: ftype });
-				uploadMinio(imageDecryptBlob,"plaintext.edf");
-				//resolve(imageDecryptBlob);
-		    } catch (e) {
-		        console.log("Error:" + e);
-		    }
-			resolve(cipherpart);*/
-
-		};
-		reader.readAsArrayBuffer(blobData);	
-	}
-}
-
-
-function encryptProgressBlob_Crytojs(blobData,ftype, Kenc){
-	console.log("Progress Encrypt Blob")
-	return function(resolve) {
-		var reader = new FileReader()
-
-		reader.onload = function(e){
-			console.log("input data:",e.target.result)
-			var imageData = new Uint8Array(e.target.result);
-			console.log("Blob content:",imageData);    	    
-
-			var original_message = imageData.toString(CryptoJS.enc.Utf8); //" ...0, ...1, ...2, ...3, ...4, ...5, ...6, ...7, ...8, ...9, ...The End!"
-			console.log("original_message:",original_message)
-			//var textString = " ...0, ...1, ...2, ...3, ...4, ...5, ...6, ...7, ...8, ...9, ...The End!"; // Utf8-encoded string
-			var key = CryptoJS.enc.Hex.parse("101112131415161718191a1b1c1d1e1f");//CryptoJS.enc.Utf16.parse(textString); // WordArray object
-			var iv  = CryptoJS.enc.Hex.parse("101112131415161718191a1b1c1d1e1f");
-				
-			const aesEncryptor = CryptoJS.algo.AES.createEncryptor(key, { iv: iv });
-			const aesDecryptor = CryptoJS.algo.AES.createDecryptor(key, { iv: iv });
-				
-			console.log("size of original message:",original_message.length)
-			const fragment_size = 1024*1024
-			const e_acc = []
-			var start, end;
-			for(let i = 0 ; i*fragment_size < original_message.length ; ++i ) {
-				start = i*fragment_size
-				end = i*fragment_size + fragment_size
-				if(end > original_message.length)
-				end = original_message.length;
-				const slice = original_message.slice(start, end)
-				console.log("slice to encrypt", slice)
-				e_acc.push(aesEncryptor.process(slice));
-				console.log(e_acc);
-			}
-			e_acc.push(aesEncryptor.finalize());
-			
-			var ct = e_acc.toString(CryptoJS.enc.Utf8); //" ...0, ...1, ...2, ...3, ...4, ...5, ...6, ...7, ...8, ...9, ...The End!"
-			console.log("encrypted string:",ct)
-			
-			//decryption
-			let message = ""
-			for(let i = 0 ; i !== e_acc.length ; ++i ) {
-				message += aesDecryptor.process(e_acc[i]).toString(CryptoJS.enc.Utf8)
-				console.log("intermediate message", message) 
-			}
-			message += aesDecryptor.finalize().toString(CryptoJS.enc.Utf8)		
-			console.log("full message", message)
-				
-			var imageByte = message.split(',').map(function(item) {
-			    return parseInt(item, 10);
-			});
-			console.log("plaintext in bytes:",imageByte);
-
-			var cipherBlob = new Blob([e_acc], { type: ftype });
-			resolve(cipherBlob);
-		};
-		reader.readAsArrayBuffer(blobData);	
-	}
-}
-
-//function uploadToAwsS3(presignedUrl,blob){
-//	$.ajax({
-//		  url: presignedUrl, // the presigned URL
-//		  type: 'PUT',
-//		  data: blob,
-//		  success: function() { 
-//			  return true; 
-//		  },
-//		  error: function(erro){
-//				console.error("Upload to AWS S3 Error");
-//		  }
-//	})
-//}
 
 function downloadWithPresignUrl(presignedUrl,fname,callback){
 	$.ajax({
@@ -1438,18 +1199,6 @@ function putPresignUrl(fname){
 	return ret;
 }
 
-//function uploadToMinio(presignedUrl,file){
-//    fetch(presignedUrl, {
-//        method: 'PUT',
-//        body: file
-//    }).then(() => {
-//        // If multiple files are uploaded, append upload status on the next line.
-//        //document.querySelector('#status').innerHTML += `<br>Uploaded ${file.name}.`;
-//    }).catch((e) => {
-//        console.error(e);
-//    });
-//}
-
 //Upload file to Minio
 //Input: - fname: filename, - blob: data to upload
 function uploadMinio(blob,fname,callback=undefined){
@@ -1472,26 +1221,6 @@ function uploadMinio(blob,fname,callback=undefined){
 			console.error("Put Request Error");
 		}
 	})
-//    fetch(presigned_url, {
-//        method: 'PUT',
-//        body: blob
-//    }).then(function(response) {
-//    	console.log("response status:",response.status)
-//    	console.log("response:",response)
-//    	if(callback!=undefined)
-//    		callback(true)
-////    	if (response.status !== 200) {
-////    		console.log('Looks like there was a problem. Status Code: ' +
-////    		response.status);
-////    		return;
-////    	}
-//    		//() => {
-//        // If multiple files are uploaded, append upload status on the next line.
-//        //document.querySelector('#status').innerHTML += `<br>Uploaded ${file.name}.`;
-//    	return true;//for jest testing
-//    }).catch((e) => {
-//        console.error(e);
-//    });
 }
 
 //Encrypt blob data and upload to Minio along with its searchable metadata (json format)
@@ -1525,16 +1254,13 @@ function encryptUploadBlob(blob,fname,Kenc,callback=undefined){
 function encryptProgressUploadBlob(blob,fname,Kenc,callback=undefined){
     var ftype = blob.type;
     console.log("blob type:",ftype);
-  //  var outputname = fname.split(".")[0];// + "_encrypted";
+
     var outputname = fname;
     var promise = new Promise(encryptProgressBlob(blob,ftype,Kenc));
 
     // Wait for promise to be resolved, or log error.
     promise.then(function(cipherBlob) {
     	console.log("Completed encrypting blob. Now send data to server.")
-    	//console.log(cipherBlob);
-    	//uploadMinio(cipherBlob,outputname,callback);
-    	//return true;//for jest
     }).catch(function(err) {
     	console.log('Error: ',err);
     });
@@ -1566,107 +1292,6 @@ function downloadDecryptBlob(fname,Kenc,callback=undefined){
 			  console.error(erro);
 		  }
 	})
-	
-//    var promise = new Promise((resolve, reject) => {
-//        $.ajax({
-//        	url: presigned_url, // the presigned URL
-//        	type: 'GET',
-//        	xhrFields:{
-//	            responseType: 'blob' //download as blob data
-//        	},
-//            success: function (data) {
-//              resolve(data)
-//            },
-//            error: function (error) {
-//              reject(error)
-//            },
-//          })
-//     })
-//
-//    // Wait for promise to be resolved, or log error.
-//    promise.then(async function(data) {
-//    	console.log("Decrypt and save blob")
-//    	console.log("data:",data)
-//    	//var myBlob = new Blob(['hello blob'], {type : 'text/plain'});
-//    	//saveBlob(data,fname);
-//    	var output = await readFileAsync(data)
-//		console.log(output)
-//    	//return myBlob;
-//		//decryptSaveBlob(data,fname,Kenc,callback) //decrypt data
-//    }).catch(function(err) {
-//    	console.log('Error: ',err);
-//    });
-//    return promise;
-}
-
-function downloadProgressDecryptBlob(fname,Kenc,callback=undefined){
-	console.log("Download blob")
-	var fragments=["part50","part100","part150","part200","part250","part300","part350","part400","part450","part500","final_part"];
-	
-    try {
-		h = sjcl.codec.hex;
-		var iv = [-16119071, -276457509, 2001133657, 474172955];//sjcl.random.randomWords(4, 0);
-		console.log("iv:",iv)
-		//iv = h.toBits(sseConfig.iv);
-	    var keyString = "2d73c1dd2f6a3c981afc7c0d49d7b58f";
-		console.log("keystring:",keyString);
-	    var key = sjcl.codec.base64.toBits(keyString);
-		aes = new sjcl.cipher.aes(key);
-		console.log("key:",key);
-		//adata = "";
-	    var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
-	    var dresult = [];
-	        
-		$.each(fragments, function (i, item) {
-			console.log("fragment:",fragments[i]);
-			var presigned_url = getPresignUrl(fragments[i]);
-			//console.log("fragment url:",presigned_url);
-			$.ajax({
-			  url: presigned_url, // the presigned URL
-			  type: 'GET',
-			 // async: false,
-		      xhrFields:{
-		            responseType: 'blob' //download as blob data
-		      },
-			  success: function(data, status) {
-				  console.log("ciphertext part:",data);
-				  console.log("Decrypt and save blob")
-
-				  var dresult = [];
-				  var promise = new Promise(decryptProgressBlob(data,Kenc,dec));
-					 
-				  promise.then((res) => {
-						 console.log("Concat dresult of fragment:",fragments[i]);
-						 dresult = dresult.concat(res);
-						 if(fragments[i]=="final_part"){
-						   	  console.log("final part")
-							  dresult = dresult.concat(dec.finalize());
-					          console.log("plaintext:",dresult)
-					          var imageByte = new Uint8Array(dresult);
-					          console.log("plaintext in bytes:",imageByte);
-							  var imageDecryptBlob = new Blob([imageByte], { type: "image/jpeg" });
-							  uploadMinio(imageDecryptBlob,"plaintext.jpg");
-						}
-				 })
-				 	  /*dresult = dresult.concat(fromBitArrayCodec(dec.process(e.target.result)));
-					  if(fragments[i]=="final_part"){
-						  dresult = dresult.concat(dec.finalize());
-				          console.log("plaintext:",dresult)
-				          var imageByte = new Uint8Array(dresult); // create byte array from base64 string
-						  console.log("plaintext in bytes:",imageByte);
-						  var imageDecryptBlob = new Blob([imageByte], { type: "application/pdf" });
-						  uploadMinio(imageDecryptBlob,"plaintext.pdf");
-					  }*/
-			  },
-			  error: function(erro){
-				  console.error("Download from Minio Error");
-				  console.error(erro);
-			  }
-			})
-		})
-	} catch (e) {
-	    console.log("Error:" + e);
-	}	
 }
 
 function readFileAsync(file) {
@@ -1696,18 +1321,6 @@ function decryptSaveBlob(blob,fname,Kenc,callback=undefined){
 			callback(true); // for jest
 		}
 	 })
-//	 var promise = new Promise(decryptBlob(blob,ftype,Kenc));
-//	 // Wait for promise to be resolved, or log error.
-//	 promise.then(function(plainBlob) {
-//		console.log("Save file to disk");
-//	 	saveBlob(plainBlob,outputname);
-//	 	if(callback!=undefined){
-//			callback(true); // for jest
-//		}
-//	 }).catch(function(err) {
-//	 	console.log('Error: ',err);
-//	 });
-	 
 	 return promise;
 }
 
@@ -1734,7 +1347,6 @@ function decryptProgressSaveBlob(blob,fname,Kenc,callback=undefined){
 
 function decryptBlob(blobCipher,ftype,Kenc){
 	return function(resolve) {
-//	var promise = new Promise((resolve, reject) => {
 		var reader = new FileReader();
 		console.log("Decrypt blob")
 		reader.onload = function(e){
@@ -1762,123 +1374,100 @@ function decryptBlob(blobCipher,ftype,Kenc){
 		};	
 		reader.readAsArrayBuffer(blobCipher);
 	}
-	//return promise;
 }
-//	return function(resolve) {
-//		var reader = new FileReader();
-//		reader.onload = function(e){
-//			var imagecipher = new Uint8Array(e.target.result);
-//			console.log("input array:",imagecipher);
-//
-//			var bitarray = toBitArrayCodec(imagecipher);
-//			console.log("bit array:",bitarray);
-//
-//			var imageBase = sjcl.codec.base64.fromBits(bitarray); // byte array->base64
-//			console.log("image ciphertext in base64:",imageBase);
-//			var imageString = atob(imageBase); //base64 -> string
-//			console.log("image ciphertext in string:",imageString);
-//			var imageJson = JSON.parse(imageString);//string->json
-//			console.log("ciphertext in json:",imageJson);
-//
-//			var imagept = decrypt(Kenc,imageJson);
-//			console.log("decrypt image in string:",imagept);
-//
-//			var imageByte = new Uint8Array(sjcl.codec.base64.toBits(imagept)); // create byte array from base64 string
-//			console.log("plaintext in bytes:",imageByte);
-//
-//			var imageDecryptBlob = new Blob([imageByte], { type: ftype });
-//			resolve(imageDecryptBlob);
-//		};
-//		reader.readAsArrayBuffer(blobCipher);	
-//	}
-//}
 
 
-function decryptProgressBlob(blobCipher,Kenc,dec){
+function downloadProgressDecryptBlob(fname,Kenc,callback=undefined){
+    console.log("Download blob")
+    var n = 900; //number of parts except final_part
+    var fragments = [];
+    var i;
+    for (i = 1; i <= n; i++) {
+    	fragments.push("part"+i);
+    }
+    fragments.push("final_part");
+    console.log("file names:",fragments);
+    
+    try {
+        h = sjcl.codec.hex;
+        var iv = [-16119071, -276457509, 2001133657, 474172955];
+        var keyString = "2d73c1dd2f6a3c981afc7c0d49d7b58f";
+        var key = sjcl.codec.base64.toBits(keyString);
+        aes = new sjcl.cipher.aes(key);
+        var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
+        var dresult;
+        var ftype = "video/mp4";//"video/mp4";//"application/pdf";//"image/jpeg";
+        var fext = ".mp4";//".pdf";//".mp4";//".pdf";//".jpg";
+        
+        for (var i=0; i<fragments.length; i++) {
+            var presigned_url = getPresignUrl(fragments[i]);        
+            var h = sjcl.codec.bytes;
+            $.ajax({
+            	url: presigned_url,
+                type: 'GET',
+                async: false,
+                success: function(blob, status) {
+                 	console.log("blob:",blob);                    	
+                   	var imageJson = JSON.parse("[" +blob+"]");//string->json
+           			console.log("ciphertext in json:",imageJson);
+            			
+           			dresult = h.fromBits(dec.process(imageJson));            			
+         		    if(i==fragments.length-1){
+   	     		    	dresult = dresult.concat(dec.finalize());
+   	     		    }
+    	     		    
+           			imageByte = new Uint8Array(dresult); // create byte array from base64 string
+     				console.log("plaintext in bytes:",imageByte);
+     			
+     		        console.log("create blob");
+     				imageDecryptBlob = new Blob([imageByte], { type: ftype });//, { type: "image/jpeg" } );
+     				console.log("saving file");
+            			
+           			saveBlob(imageDecryptBlob,"plaintext"+i+fext);
+            			
+           			dresult = [];
+           		},
+                error: function(erro){
+                     console.log("Download from Minio Error");
+                     console.log(erro);
+                 }
+                })
+        }
+    } catch (e) {
+        console.log("Error:" + e);
+    }    
+}
+
+function decryptProgressBlob(blobCipher,Kenc,dec,name){
 	return function(resolve) {
-//	var promise = new Promise((resolve, reject) => {
 		var reader = new FileReader();
 		console.log("Decrypt blob")
 		reader.onload = function(e){
 			var imagecipher = new Uint8Array(e.target.result);
 			console.log("input array:",imagecipher);
 			
-			resolve(imagecipher);//for test
-			
-//			var bitarray = toBitArrayCodec(imagecipher);
-//			console.log("bit array:",bitarray);
-//	
-//			var imageBase = sjcl.codec.base64.fromBits(bitarray); // byte array->base64
-//			console.log("image ciphertext in base64:",imageBase);
-//			var imageString = atob(imageBase); //base64 -> string
-//			console.log("image ciphertext in string:",imageString);
-//			var imageJson = JSON.parse("[" +imageString+"]");//string->json
-//			console.log("ciphertext in json:",imageJson);
-//			
-//			try {
-//		       // var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
-//		        var dresult = fromBitArrayCodec(dec.process(imageJson));
-//		       	console.log("dresult:",dresult);
-//		    } catch (e) {
-//		        console.log("Error:" + e);
-//		    }		
-//			
-//			resolve(dresult);
-		};	
-		reader.readAsArrayBuffer(blobCipher);
-	}
-	//return promise;
-}
-
-function decryptProgressBlob1(blobCipher,ftype,Kenc){
-	return function(resolve) {
-//	var promise = new Promise((resolve, reject) => {
-		var reader = new FileReader();
-		console.log("Decrypt blob")
-		reader.onload = function(e){
-			var imagecipher = new Uint8Array(e.target.result);
-			console.log("input array:",imagecipher);
+			var bitarray = toBitArrayCodec(imagecipher);
+			console.log("bit array:",bitarray);
 	
-//			var bitarray = toBitArrayCodec(imagecipher);
-//			console.log("bit array:",bitarray);
-			
-			h = sjcl.codec.hex
-			ct = toBitArrayCodec(imagecipher);//h.toBits(imageString)
-			console.log("ciphertext",ct);
-			var iv = [-16119071, -276457509, 2001133657, 474172955];
-			//iv = h.toBits(sseConfig.iv);
-		    var keyString = "2d73c1dd2f6a3c981afc7c0d49d7b58f";
-		    var key = sjcl.codec.base64.toBits(keyString);
-			aes = new sjcl.cipher.aes(key);
+			var imageBase = sjcl.codec.base64.fromBits(bitarray); // byte array->base64
+			console.log("image ciphertext in base64:",imageBase);
+			var imageString = atob(imageBase); //base64 -> string
+			console.log("image ciphertext in string:",imageString);
+			var imageJson = JSON.parse("[" +imageString+"]");//string->json
+			console.log("ciphertext in json:",imageJson);
 			
 			try {
-		        var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
-		        var dresult = [];
-		        var sliceSizeRange = 3; // 1 to 3 bytes
-		        var slice = [0, Math.floor((Math.random() * sliceSizeRange) + 1)];
-		        while (slice[0] < ct.length) {
-		          dresult = dresult.concat(dec.process(ct.slice(slice[0], slice[1])));
-		          slice[0] = slice[1];
-		          slice[1] = slice[0] + Math.floor((Math.random() * sliceSizeRange) + 1);
-		        }
-		        dresult = dresult.concat(dec.finalize());
-		        console.log("plaintext:",dresult)
-		        
-		        var imageByte = new Uint8Array(fromBitArrayCodec(dresult)); // create byte array from base64 string
-				console.log("plaintext in bytes:",imageByte);
-		
-				//var imageDecryptBlob = new Blob([imageByte], { type: ftype });
-				//resolve(imageDecryptBlob);
+		       // var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
+		        var dresult = fromBitArrayCodec(dec.process(imageJson));
+		       	console.log("dresult:",dresult);
 		    } catch (e) {
 		        console.log("Error:" + e);
 		    }		
 			
-			var imageDecryptBlob = new Blob([imageByte], { type: ftype });
-			resolve(imageDecryptBlob);
+			resolve({name:name,result:dresult});
 		};	
 		reader.readAsArrayBuffer(blobCipher);
 	}
-	//return promise;
 }
 
 //referenced from internet
@@ -1925,6 +1514,7 @@ function saveBlob(blob, fileName) {
 	 a.click();
 	 console.log("click")
 	 window.URL.revokeObjectURL(url);
+	 document.body.removeChild(a);
 };
 
 function sleep(milliseconds) { 
