@@ -63,6 +63,20 @@
 			</div>
 		</div>
 	</div>
+	<div class='mb-2' id="fe-fields" style="display: none;">
+		<h6>Please choose from a list of options below for apply a functional encryption:</h6>
+		<div id="fe-checkbox">
+		<input type="checkbox" id="fe-age" name="age">
+		<label for="fe-age" id="fe-label-age">age</label>
+		<input type="checkbox" id="fe-height" name="heigth">
+		<label for="fe-height" id="fe-label-height">height</label>
+		<input type="checkbox" id="fe-weight" name="weight">
+		<label for="fe-weight" id="fe-label-weight">weight</label>
+		</div>
+	</div>
+	<div class='mb-2' id="fe-fields-not-supported" style="display: true;">
+		<h7>*for functional encryption we support only numeric fields (for upload data)</h7>
+	</div>
 	<button type="button" class="btn btn-primary" id="btnSubmitFile">Submit</button>
 </form>
 
@@ -259,6 +273,7 @@
 
 <div id='notify'></div>
 <div id='exetime'></div>
+<div id='notify-fe'></div>
 
 <form id='search-form' enctype="application/json" class='mb-2'
 	method="post" action="" hidden>
@@ -407,7 +422,7 @@
 		</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnUploadBlob">Encrypt and Upload</button>
-	<!--  <button type="button" class="btn btn-primary" id="btnDecryptBlob">Decrypt</button>-->
+	<button type="button" class="btn btn-primary" id="btnProgressUploadBlob">Progressive encrypt</button>
 </form>
 
 <div id='uploadblob'></div>
@@ -434,5 +449,90 @@
 	</div>
 	<!--  <button type="button" class="btn btn-primary" id="btnUpload">Encrypt and Upload</button>-->
 	<button type="button" class="btn btn-primary" id="btnDownload">Download and Decrypt</button>
+	<button type="button" class="btn btn-primary" id="btnProgressDownloadBlob">Progressive decrypt</button>
 </form>
+
+<label for="upload-blob-metadata"><b>ENCRYPT BLOB WITH METADATA</b></label>
+<form id='upload-blob-metadata' class='mb-2' method="post" action="">
+	<div class='mb-2'>
+		<div class="form-group row">
+			<label for="blobSSEUpload">Choose a blob file</label>
+			<input type="file" class="form-control" id="blobSSEUpload" placeholder="Please enter URL of blob data" name='blobSSEUpload'>
+<!-- 			<label for="metadataSSEUpload">Choose its metadata file</label> -->
+<!-- 			<input type="file" class="form-control" id="metadataSSEUpload" placeholder="Please enter URL of metadata" name='metadataSSEUpload'> -->
+			<label for="passphrase7" class="col-sm-10 col-form-label">Passphrase</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase7"
+					placeholder="Please enter passphrase" name='passphrase7'>
+			</div>
+		</div>
+	</div>
+	<button type="button" class="btn btn-primary" id="btnUploadBlobSSE">Encrypt and Upload</button>
+</form>
+
+<div id='uploadblobsse'></div>
+<div id='uploadblobssetime'></div>
+
+</br>
+</br>
+</br>
+
+<label for="fe-analyst"><b>FUNCTIONAL ENCRYPTION | ANALYST:</b></label>
+<form id='fe-analyst' class='mb-2' method="post" action="">
+
+	<ul class="nav nav-tabs  mb-3">
+		<li class="nav-item">
+		  <a class="nav-link active" data-toggle="tab" href="#fe-menu1">FileIDs</a>
+		</li>
+		<li class="nav-item">
+		  <a class="nav-link" data-toggle="tab" href="#fe-menu2">Search</a>
+		</li>
+	  </ul>
+	  
+	  <!-- Tab panes -->
+	  <div class="tab-content">
+		<div class="tab-pane container active" id="fe-menu1">
+	  <div class="col-sm-12">
+		  <input placeholder="Please enter file ids" class="form-control" type="text" id="fe-analyst-fileIDs" name="fe-analyst-fileIDs">
+	  </div>
+		
+		</div>
+		<div class="tab-pane container fade" id="fe-menu2">
+			<input type="file" class="form-control" id="fe-search-file" placeholder="Please enter URL of json file" name="fe-search-file"><div class="form-group row">
+			  <label for="fe-passphrase" class="col-sm-10 col-form-label">Passphrase</label>
+			  <div class="col-sm-12">
+				  <input type="text" class="form-control" id="fe-passphrase" placeholder="Please enter passphrase" name="fe-passphrase">
+			  </div>
+		  </div>
+		
+		</div>
+	  </div>
+
+	  
+	<div class='mb-2 mt-2 border-top'>
+		<div class="form-group row">
+			<!-- <label for="fe-analyst-fileIDs">FileIDs:</label>
+			<div class="col-sm-12">
+				<input placeholder="Please enter file ids" class="form-control" type="text" id="fe-analyst-fileIDs" name="fe-analyst-fileIDs">
+			</div> -->
+			
+			<label for="fe-analyst-field">Field:</label>
+			<div class="col-sm-12">
+				<input placeholder="Please enter field name (age, height, weight, ....)" class="form-control" type="text" id="fe-analyst-field" name="fe-analyst-field">
+			</div>
+
+			<label for="fe-analyst-function">Function:</label>
+			<div class="col-sm-12">
+				<select class="form-control" name="fe-analyst-function" id="fe-analyst-function">
+				<option value="sum">Sum</option>
+				<!-- <option value="average">Avarage</option> -->
+				</select>
+			</div>
+		</div>
+	</div>
+	<button type="button" class="btn btn-primary" id="fe-analyst-compute">Compute</button>
+</form>
+
+<div id='notify-analyst'></div>
+
 {% endblock %}

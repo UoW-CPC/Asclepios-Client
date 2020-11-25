@@ -10,3 +10,5 @@ sed -i -e "s|ta_url|$ta_url|" sse/static/js/sse.js
 sed -i -e "s|sse_url|$sse_url|" sse/static/js/sse.js
 sed -i -e "s|salt_value|$salt_value|" sse/static/js/sse.js
 sed -i -e "s|iv_value|$iv_value|" sse/static/js/sse.js
+sed -i -e "s|fe_ta_url|$fe_ta_url|" sse/static/js/fe.js
+sed -i -e "s|fe_ev_url|$fe_ev_url|" sse/static/js/fe.js

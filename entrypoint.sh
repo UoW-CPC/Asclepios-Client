@@ -17,6 +17,8 @@ sed -i -e "s|ta_url|$TA_URL|" sse/static/js/sse.js
 sed -i -e "s|sse_url|$SSE_URL|" sse/static/js/sse.js
 sed -i -e "s|salt_value|$SALT|" sse/static/js/sse.js
 sed -i -e "s|iv_value|$IV|" sse/static/js/sse.js
+sed -i -e "s|fe_ta_url|$FE_TA_URL|" sse/static/js/fe.js
+sed -i -e "s|fe_ev_url|$FE_EV_URL|" sse/static/js/fe.js
 
 exec gunicorn SSEclient.wsgi:application \
     --name sse \
