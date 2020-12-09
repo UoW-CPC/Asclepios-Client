@@ -1,30 +1,56 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-  	{% load static %}
-  	<!--<script type="text/javascript" src="{% static 'js/jquery-3.4.1.min.js' %}"></script>  -->
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-  	<!--  <script src="https://cdnjs.cloudflare.com/ajax/libs/sjcl/1.0.8/sjcl.js"></script> -->
-  	<script type="text/javascript" src="{% static 'js/sjcl.js' %}"></script>
-  	<script type="text/javascript" src="{% static 'js/ocb2progressive.js' %}"></script>
-	<!--  <script type="text/javascript" src="{% static 'js/ocb2.js' %}"></script>
+    {% load static %}
+    <script
+      src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"
+      integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
+      integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV"
+      crossorigin="anonymous"
+    ></script>
+
+    <script src="{% static 'js/moment-with-locales.min.js' %}"></script>
+
+    <!--<script type="text/javascript" src="{% static 'js/jquery-3.4.1.min.js' %}"></script>  -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <!--  <script src="https://cdnjs.cloudflare.com/ajax/libs/sjcl/1.0.8/sjcl.js"></script> -->
+    <script type="text/javascript" src="{% static 'js/sjcl.js' %}"></script>
+    <script
+      type="text/javascript"
+      src="{% static 'js/ocb2progressive.js' %}"
+    ></script>
+    <!--  <script type="text/javascript" src="{% static 'js/ocb2.js' %}"></script>
 	<script type="text/javascript" src="{% static 'js/bitArray.js' %}"></script>
 	<script type="text/javascript" src="{% static 'js/codecBytes.js' %}"></script>-->
-	<script type="text/javascript" src="{% static 'js/main.js' %}"></script>
-	<script type="text/javascript" src="{% static 'js/jquery-image-blob.min.js' %}"></script>
-	<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>-->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <script type="text/javascript" src="{% static 'js/main.js' %}"></script>
+    <script
+      type="text/javascript"
+      src="{% static 'js/jquery-image-blob.min.js' %}"
+    ></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>-->
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+      integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
+      crossorigin="anonymous"
+    />
     <title>Patient form</title>
   </head>
   <body>
     <div class="container d-flex h-100">
       <div class="row justify-content-center">
         <div>
-          <h1> Medical Health Record</h1>
-          {% block main %}
-          {% endblock %}
+          <h1>Medical Health Record</h1>
+          {% block main %} {% endblock %}
         </div>
       </div>
     </div>
   </body>
+  <footer>
+    <!-- <script type="text/javascript" src="{% static 'js/fe.js' %}"></script> -->
+  </footer>
 </html>

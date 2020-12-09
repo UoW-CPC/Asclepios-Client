@@ -15,13 +15,11 @@
 {% block main %}
 
 <div class="form-check form-check-inline">
-	<input class="form-check-input" type="radio" name="inputFormat"
-		id="jsonInput" value="json_input" checked> 
+	<input class="form-check-input" type="radio" name="inputFormat" id="jsonInput" value="json_input" checked>
 	<label class="form-check-label" for="jsonInput">Input by json file</label>
 </div>
 <div class="form-check form-check-inline">
-	<input class="form-check-input" type="radio" name="inputFormat"
-		id="formInput" value="form_input"> 
+	<input class="form-check-input" type="radio" name="inputFormat" id="formInput" value="form_input">
 	<label class="form-check-label" for="formInput">Input by form</label>
 </div>
 </br>
@@ -30,15 +28,15 @@
 <form id='upload-keyg' class='mb-2' method="post" action="">
 	<div class='mb-2'>
 		<div class="form-group row">
-			<label for="passphrase" class="col-sm-10 col-form-label">Passphrase (it will be hashed prior to sending to Trusted Authority)</label>
+			<label for="passphrase" class="col-sm-10 col-form-label">Passphrase (it will be hashed prior to sending to
+				Trusted Authority)</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="passphrase"
-					placeholder="Please enter passphrase" name='passphrase'>
+				<input type="text" class="form-control" id="passphrase" placeholder="Please enter passphrase"
+					name='passphrase'>
 			</div>
 			<label for="keyid" class="col-sm-10 col-form-label">Key ID</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="keyid"
-					placeholder="Please enter key Id" name='keyid'>
+				<input type="text" class="form-control" id="keyid" placeholder="Please enter key Id" name='keyid'>
 			</div>
 		</div>
 	</div>
@@ -48,31 +46,43 @@
 
 
 <label for="json-file"><b>UPLOAD DATA</b></label>
-<form id='json-file' enctype="application/json" class='mb-2'
-	method="post" action="">
+<form id='json-file' enctype="application/json" class='mb-2' method="post" action="">
 	{% csrf_token %}
 	<div class='mb-2'>
-		<input type="file" class="form-control" id="jsonFile"
-			placeholder="Please enter URL of json file" name='jsonFile' multiple>
+		<input type="file" class="form-control" id="jsonFile" placeholder="Please enter URL of json file"
+			name='jsonFile' multiple>
 		<div class="form-group row">
 			<label for="fileid1" class="col-sm-10 col-form-label">Unique file id</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="fileid1"
-					placeholder="Please enter file id or it will be generated"
-					name='file_id'>
+					placeholder="Please enter file id or it will be generated" name='file_id'>
 			</div>
 			<label for="passphrase1" class="col-sm-10 col-form-label">Passphrase</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="passphrase1"
-					placeholder="Please enter passphrase" name='passphrase1'>
+				<input type="text" class="form-control" id="passphrase1" placeholder="Please enter passphrase"
+					name='passphrase1'>
 			</div>
 			<label for="keyid1" class="col-sm-10 col-form-label">Unique key id</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="keyid1"
-					placeholder="Please enter the unique key id"
+				<input type="text" class="form-control" id="keyid1" placeholder="Please enter the unique key id"
 					name='keyid'>
 			</div>
 		</div>
+	</div>
+	<div class="mb-2" id="fe-fields" style="display: none;">
+		<h6>Please choose from a list of options below for apply a functional encryption:</h6>
+		<div class="form-group row">
+
+			<div class="col-sm-12" id="fe-checkbox"></div>
+
+			<div class="col-sm-12" style="display: none;">
+				<label for="fe-datetime-format" class="col-sm-10 col-form-label">Date format found:</label>
+				<input type="text" class="form-control" id="fe-datetime-format" name="fe-datetime-format">
+			</div>
+		</div>
+	</div>
+	<div class='mb-2' id="fe-fields-not-supported" style="display: true;">
+		<h7>*for functional encryption we support only numeric fields (for upload data)</h7>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnSubmitFile">Submit</button>
 </form>
@@ -86,58 +96,58 @@
 			<div class="form-group row">
 				<label for="field1" class="col-sm-2 col-form-label">Name</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field1"
-						placeholder="Please enter your name" name='patient[name]'>
+					<input type="text" class="form-control" id="field1" placeholder="Please enter your name"
+						name='patient[name]'>
 				</div>
 				<!--  <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small> aria-describedby="emailHelp" -->
 			</div>
 			<div class="form-group row">
 				<label for="field2" class="col-sm-2 col-form-label">Email</label>
 				<div class="col-sm-10">
-					<input type="email" class="form-control" id="field2"
-						placeholder="Pleasen enter your email" name='patient[email]'>
+					<input type="email" class="form-control" id="field2" placeholder="Pleasen enter your email"
+						name='patient[email]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field3" class="col-sm-2 col-form-label">Age</label>
 				<div class="col-sm-10">
-					<input type="number" class="form-control" id="field3"
-						placeholder="Pleasen enter your age" name='patient[age]'>
+					<input type="number" class="form-control" id="field3" placeholder="Pleasen enter your age"
+						name='patient[age]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field4" class="col-sm-2 col-form-label">Gender</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field4"
-						placeholder="Pleasen enter your gender" name='patient[gender]'>
+					<input type="text" class="form-control" id="field4" placeholder="Pleasen enter your gender"
+						name='patient[gender]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field5" class="col-sm-2 col-form-label">Birth</label>
 				<div class="col-sm-10">
-					<input type="number" class="form-control" id="field5"
-						placeholder="Year of birth" name='patient[birth]'>
+					<input type="number" class="form-control" id="field5" placeholder="Year of birth"
+						name='patient[birth]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field6" class="col-sm-2 col-form-label">Marital</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field6"
-						placeholder="single/ married/ divorced" name='patient[marital]'>
+					<input type="text" class="form-control" id="field6" placeholder="single/ married/ divorced"
+						name='patient[marital]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field7" class="col-sm-2 col-form-label">Addr.</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field7"
-						placeholder="Pleasen enter your address" name='patient[address]'>
+					<input type="text" class="form-control" id="field7" placeholder="Pleasen enter your address"
+						name='patient[address]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field8" class="col-sm-2 col-form-label">Phone</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field8"
-						placeholder="Pleasen enter your phone" name='patient[phone]'>
+					<input type="text" class="form-control" id="field8" placeholder="Pleasen enter your phone"
+						name='patient[phone]'>
 				</div>
 			</div>
 		</div>
@@ -146,60 +156,58 @@
 			<div class="form-group row">
 				<label for="field9" class="col-sm-2 col-form-label">Allergy</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field9"
-						placeholder="Please enter allergy name" name='allergy[name]'>
+					<input type="text" class="form-control" id="field9" placeholder="Please enter allergy name"
+						name='allergy[name]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field10" class="col-sm-2 col-form-label">React.</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field10"
-						placeholder="Please enter allergy reaction"
+					<input type="text" class="form-control" id="field10" placeholder="Please enter allergy reaction"
 						name='allergy[reaction]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field11" class="col-sm-2 col-form-label">Note</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field11"
-						placeholder="Please enter allergy note" name='allergy[note]'>
+					<input type="text" class="form-control" id="field11" placeholder="Please enter allergy note"
+						name='allergy[note]'>
 				</div>
 			</div>
 			<label><b>Family member history</b></label>
 			<div class="form-group row">
 				<label for="field12" class="col-sm-2 col-form-label">Name</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field12"
-						placeholder="Enter family member name" name='family[name]'>
+					<input type="text" class="form-control" id="field12" placeholder="Enter family member name"
+						name='family[name]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field13" class="col-sm-2 col-form-label">Rela.</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field13"
-						placeholder="Please enter relationship"
+					<input type="text" class="form-control" id="field13" placeholder="Please enter relationship"
 						name='family[relationship]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field14" class="col-sm-2 col-form-label">Gender</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field14"
-						placeholder="Please enter gender" name='family[gender]'>
+					<input type="text" class="form-control" id="field14" placeholder="Please enter gender"
+						name='family[gender]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field15" class="col-sm-2 col-form-label">Birth</label>
 				<div class="col-sm-10">
-					<input type="number" class="form-control" id="field15"
-						placeholder="Please enter the birth year" name='family[born]'>
+					<input type="number" class="form-control" id="field15" placeholder="Please enter the birth year"
+						name='family[born]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field16" class="col-sm-2 col-form-label">Cond.</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field16"
-						placeholder="Please describe condition" name='family[condition]'>
+					<input type="text" class="form-control" id="field16" placeholder="Please describe condition"
+						name='family[condition]'>
 				</div>
 			</div>
 		</div>
@@ -209,70 +217,70 @@
 			<div class="form-group row">
 				<label for="field17" class="col-sm-2 col-form-label">Name</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field17"
-						placeholder="Medication name" name='medication[name]'>
+					<input type="text" class="form-control" id="field17" placeholder="Medication name"
+						name='medication[name]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field18" class="col-sm-2 col-form-label">Amount</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field18"
-						placeholder="Medication amount" name='medication[amount]'>
+					<input type="text" class="form-control" id="field18" placeholder="Medication amount"
+						name='medication[amount]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field19" class="col-sm-2 col-form-label">Dose</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field19"
-						placeholder="Please describe the dose" name='medication[dose]'>
+					<input type="text" class="form-control" id="field19" placeholder="Please describe the dose"
+						name='medication[dose]'>
 				</div>
 			</div>
 			<label><b>Practitioner</b></label>
 			<div class="form-group row">
 				<label for="field20" class="col-sm-2 col-form-label">Name</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field20"
-						placeholder="Please enter name" name='practitioner[name]'>
+					<input type="text" class="form-control" id="field20" placeholder="Please enter name"
+						name='practitioner[name]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field21" class="col-sm-2 col-form-label">Addr.</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field21"
-						placeholder="Please enter address" name='practitioner[address]'>
+					<input type="text" class="form-control" id="field21" placeholder="Please enter address"
+						name='practitioner[address]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field22" class="col-sm-2 col-form-label">Phone</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field22"
-						placeholder="Please enter phone" name='practitioner[phone]'>
+					<input type="text" class="form-control" id="field22" placeholder="Please enter phone"
+						name='practitioner[phone]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field23" class="col-sm-2 col-form-label">Gender</label>
 				<div class="col-sm-10">
-					<input type="number" class="form-control" id="field23"
-						placeholder="Please enter gender" name='practitioner[gender]'>
+					<input type="number" class="form-control" id="field23" placeholder="Please enter gender"
+						name='practitioner[gender]'>
 				</div>
 			</div>
 			<div class="form-group row">
 				<label for="field24" class="col-sm-2 col-form-label">Lang.</label>
 				<div class="col-sm-10">
-					<input type="text" class="form-control" id="field24"
-						placeholder="Language" name='practitioner[lang]'>
+					<input type="text" class="form-control" id="field24" placeholder="Language"
+						name='practitioner[lang]'>
 				</div>
 			</div>
 		</div>
 	</div>
-		<button type="button" class="btn btn-primary" id="btnSubmit">Submit</button>
+	<button type="button" class="btn btn-primary" id="btnSubmit">Submit</button>
 </form>
 
 <div id='notify'></div>
 <div id='exetime'></div>
+<div id='notify-fe'></div>
 
-<form id='search-form' enctype="application/json" class='mb-2'
-	method="post" action="" hidden>
+<form id='search-form' enctype="application/json" class='mb-2' method="post" action="" hidden>
 	{% csrf_token %}
 	<!--  
 	<div class="form-check form-check-inline">
@@ -313,24 +321,23 @@
 	-->
 	<label><b>Search by</b></label>
 	<select id="searchBy">
-	  <option value="patient[name]" id="select1">Patient name</option>
-	  <option value="patient[email]" id="select2">Patient email </option>
-	  <option value="patient[age]" id="select3">Patient age</option>
-	  <option value="patient[gender]" id="select4">Patient gender </option>
-	  <option value="patient[birth]" id="select5">Patient birth</option>
-	  <option value="patient[marital]" id="select6">Patient marital </option>
-	  <option value="patient[address]" id="select7">Patient address</option>
-	  <option value="patient[phone]" id="select8">Patient phone </option>
-	  <option value="allergy[name]" id="select9">Allergy name</option>
-	  <option value="medication[name]" id="select17">Medication name </option>
-	  <option value="practitioner[name]" id="select20">Practitioner name</option>
-	  <option value="practitioner[phone]" id="select22">Practitioner phone </option>
-	  <option value="practitioner[lang]" id="select24">Practitioner language</option>
+		<option value="patient[name]" id="select1">Patient name</option>
+		<option value="patient[email]" id="select2">Patient email </option>
+		<option value="patient[age]" id="select3">Patient age</option>
+		<option value="patient[gender]" id="select4">Patient gender </option>
+		<option value="patient[birth]" id="select5">Patient birth</option>
+		<option value="patient[marital]" id="select6">Patient marital </option>
+		<option value="patient[address]" id="select7">Patient address</option>
+		<option value="patient[phone]" id="select8">Patient phone </option>
+		<option value="allergy[name]" id="select9">Allergy name</option>
+		<option value="medication[name]" id="select17">Medication name </option>
+		<option value="practitioner[name]" id="select20">Practitioner name</option>
+		<option value="practitioner[phone]" id="select22">Practitioner phone </option>
+		<option value="practitioner[lang]" id="select24">Practitioner language</option>
 	</select>
 	<div class="form-group">
-		<label for="keyword">Search keyword</label> <input type="text"
-			class="form-control" id="keyword" placeholder="Search by keyword"
-			name='keyword'>
+		<label for="keyword">Search keyword</label> <input type="text" class="form-control" id="keyword"
+			placeholder="Search by keyword" name='keyword'>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnSearch">Search</button>
 </form>
@@ -338,17 +345,17 @@
 <label for="search-file"><b>SEARCH</b></label>
 <form id='search-file' class='mb-2' method="post" action="">
 	<div class='mb-2'>
-		<input type="file" class="form-control" id="jsonSearchFile" placeholder="Please enter URL of json file" name='jsonSearchFile'>
+		<input type="file" class="form-control" id="jsonSearchFile" placeholder="Please enter URL of json file"
+			name='jsonSearchFile'>
 		<div class="form-group row">
 			<label for="passphrase2" class="col-sm-10 col-form-label">Passphrase</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="passphrase2"
-					placeholder="Please enter passphrase" name='passphrase2'>
+				<input type="text" class="form-control" id="passphrase2" placeholder="Please enter passphrase"
+					name='passphrase2'>
 			</div>
 			<label for="keyid2" class="col-sm-10 col-form-label">KeyId</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="keyid2"
-					placeholder="Please enter keyId" name='keyid2'>
+				<input type="text" class="form-control" id="keyid2" placeholder="Please enter keyId" name='keyid2'>
 			</div>
 		</div>
 	</div>
@@ -361,22 +368,21 @@
 <label for="update-file"><b>UPDATE DATA</b></label>
 <form id='update-file' class='mb-2' method="post" action="">
 	<div class='mb-2'>
-		<input type="file" class="form-control" id="jsonUpdateFile" placeholder="Please enter URL of json file" name='jsonUpdateFile'>
+		<input type="file" class="form-control" id="jsonUpdateFile" placeholder="Please enter URL of json file"
+			name='jsonUpdateFile'>
 		<div class="form-group row">
 			<label for="fileid2" class="col-sm-10 col-form-label">Unique file id</label>
 			<div class="col-sm-12">
-			<input type="text" class="form-control" id="fileid2"
-				placeholder="Please enter file id" name='file_id'>
+				<input type="text" class="form-control" id="fileid2" placeholder="Please enter file id" name='file_id'>
 			</div>
 			<label for="passphrase3" class="col-sm-10 col-form-label">Passphrase</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="passphrase3"
-					placeholder="Please enter passphrase" name='passphrase3'>
+				<input type="text" class="form-control" id="passphrase3" placeholder="Please enter passphrase"
+					name='passphrase3'>
 			</div>
 			<label for="keyid3" class="col-sm-10 col-form-label">Key Id</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="keyid3"
-					placeholder="Please enter key Id" name='keyid3'>
+				<input type="text" class="form-control" id="keyid3" placeholder="Please enter key Id" name='keyid3'>
 			</div>
 		</div>
 	</div>
@@ -385,6 +391,7 @@
 
 <div id='update'></div>
 <div id='updatetime'></div>
+<div id='update-fe-notify'></div>
 
 <label for="delete-file"><b>DELETE DATA</b></label>
 <form id='delete-file' class='mb-2' method="post" action="">
@@ -393,18 +400,16 @@
 			<label for="fileid3" class="col-sm-10 col-form-label">Unique
 				file id</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="fileid3"
-					placeholder="Please enter file id" name='file_id'>
+				<input type="text" class="form-control" id="fileid3" placeholder="Please enter file id" name='file_id'>
 			</div>
 			<label for="passphrase4" class="col-sm-10 col-form-label">Passphrase</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="passphrase4"
-					placeholder="Please enter passphrase" name='passphrase4'>
+				<input type="text" class="form-control" id="passphrase4" placeholder="Please enter passphrase"
+					name='passphrase4'>
 			</div>
 			<label for="keyid4" class="col-sm-10 col-form-label">Key Id</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="keyid4"
-					placeholder="Please enter key Id" name='keyid4'>
+				<input type="text" class="form-control" id="keyid4" placeholder="Please enter key Id" name='keyid4'>
 			</div>
 		</div>
 	</div>
@@ -413,12 +418,14 @@
 
 <div id='delete'></div>
 <div id='deletetime'></div>
+<div id='fe-delete-message'></div>
 
 <label for="upload-blob"><b>ENCRYPT BLOB DATA</b></label>
 <form id='upload-blob' class='mb-2' method="post" action="">
 	<div class='mb-2'>
 		<div class="form-group row">
-			<input type="file" class="form-control" id="blobUpload" placeholder="Please enter URL of blob data" name='blobUpload'>
+			<input type="file" class="form-control" id="blobUpload" placeholder="Please enter URL of blob data"
+				name='blobUpload'>
 			<img id='output'>
 			<!--  <label for="fileid3" class="col-sm-10 col-form-label">Unique file id</label>
 			<div class="col-sm-12">
@@ -427,8 +434,8 @@
 			</div>-->
 			<label for="passphrase5" class="col-sm-10 col-form-label">Passphrase</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="passphrase5"
-					placeholder="Please enter passphrase" name='passphrase5'>
+				<input type="text" class="form-control" id="passphrase5" placeholder="Please enter passphrase"
+					name='passphrase5'>
 			</div>
 		</div>
 	</div>
@@ -448,13 +455,13 @@
 		<div class="form-group row">
 			<label for="filename1" class="col-sm-10 col-form-label">Filename</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="filename1"
-					placeholder="Please enter filename" name='filename1'>
+				<input type="text" class="form-control" id="filename1" placeholder="Please enter filename"
+					name='filename1'>
 			</div>
 			<label for="passphrase6" class="col-sm-10 col-form-label">Passphrase</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="passphrase6"
-					placeholder="Please enter passphrase" name='passphrase6'>
+				<input type="text" class="form-control" id="passphrase6" placeholder="Please enter passphrase"
+					name='passphrase6'>
 			</div>
 		</div>
 	</div>
@@ -468,13 +475,14 @@
 	<div class='mb-2'>
 		<div class="form-group row">
 			<label for="blobSSEUpload">Choose a blob file</label>
-			<input type="file" class="form-control" id="blobSSEUpload" placeholder="Please enter URL of blob data" name='blobSSEUpload'>
-<!-- 			<label for="metadataSSEUpload">Choose its metadata file</label> -->
-<!-- 			<input type="file" class="form-control" id="metadataSSEUpload" placeholder="Please enter URL of metadata" name='metadataSSEUpload'> -->
+			<input type="file" class="form-control" id="blobSSEUpload" placeholder="Please enter URL of blob data"
+				name='blobSSEUpload'>
+			<!-- 			<label for="metadataSSEUpload">Choose its metadata file</label> -->
+			<!-- 			<input type="file" class="form-control" id="metadataSSEUpload" placeholder="Please enter URL of metadata" name='metadataSSEUpload'> -->
 			<label for="passphrase7" class="col-sm-10 col-form-label">Passphrase</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="passphrase7"
-					placeholder="Please enter passphrase" name='passphrase7'>
+				<input type="text" class="form-control" id="passphrase7" placeholder="Please enter passphrase"
+					name='passphrase7'>
 			</div>
 		</div>
 	</div>
@@ -483,4 +491,84 @@
 
 <div id='uploadblobsse'></div>
 <div id='uploadblobssetime'></div>
+
+
+</br>
+</br>
+</br>
+
+<label for="fe-analyst"><b>FUNCTIONAL ENCRYPTION | ANALYST:</b></label>
+<form id='fe-analyst' class='mb-2' method="post" action="">
+
+	<ul class="nav nav-tabs  mb-3">
+		<li class="nav-item">
+			<a class="nav-link active" data-toggle="tab" href="#fe-menu1">FileIDs</a>
+		</li>
+		<li class="nav-item">
+			<a class="nav-link" data-toggle="tab" href="#fe-menu2">Search</a>
+		</li>
+	</ul>
+
+	<!-- Tab panes -->
+	<div class="tab-content">
+		<div class="tab-pane container active" id="fe-menu1">
+			<div class="col-sm-12">
+				<input placeholder="Please enter file ids" class="form-control" type="text" id="fe-analyst-fileIDs"
+					name="fe-analyst-fileIDs">
+			</div>
+
+		</div>
+		<div class="tab-pane container fade" id="fe-menu2">
+			<input type="file" class="form-control" id="fe-search-file" placeholder="Please enter URL of json file"
+				name="fe-search-file">
+			<div class="form-group row">
+				<label for="fe-passphrase" class="col-sm-10 col-form-label">Passphrase</label>
+				<div class="col-sm-12">
+					<input type="text" class="form-control" id="fe-passphrase" placeholder="Please enter passphrase"
+						name="fe-passphrase">
+				</div>
+				<label for="fe-keyid" class="col-sm-10 col-form-label">KeyId</label>
+				<div class="col-sm-12">
+					<input type="text" class="form-control" id="fe-keyid" placeholder="Please enter keyId"
+						name='fe-keyid'>
+				</div>
+			</div>
+
+		</div>
+	</div>
+
+
+	<div class='mb-2 mt-2 border-top'>
+		<div class="form-group row">
+			<!-- <label for="fe-analyst-fileIDs">FileIDs:</label>
+						  <div class="col-sm-12">
+							  <input placeholder="Please enter file ids" class="form-control" type="text" id="fe-analyst-fileIDs" name="fe-analyst-fileIDs">
+						  </div> -->
+
+			<label for="fe-analyst-field">Field:</label>
+			<div class="col-sm-12">
+				<input placeholder="Please enter field name (age, height, weight, ....)" class="form-control"
+					type="text" id="fe-analyst-field" name="fe-analyst-field">
+			</div>
+
+			<label for="fe-analyst-function">Function:</label>
+			<div class="col-sm-12">
+				<select class="form-control" name="fe-analyst-function" id="fe-analyst-function">
+					<option value="sum">Sum</option>
+					<option value="average">Avarage</option>
+					<option value="subtract">Subtract</option>
+				</select>
+			</div>
+		</div>
+	</div>
+
+	<div class="form-group row">
+		<div class="col-sm-3">
+			<button type="button" class="btn btn-primary" id="fe-analyst-compute">Compute</button>
+		</div>
+		<div class="col-sm-9" id='info-analyst'></div>
+	</div>
+</form>
+<div id='notify-analyst'></div>
+
 {% endblock %}
