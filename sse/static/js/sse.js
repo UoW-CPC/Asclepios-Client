@@ -1340,15 +1340,15 @@ function downloadProgressDecryptBlob(fname,Kenc,callback=undefined){
         var iv = [-16119071, -276457509, 2001133657, 474172955];
         var keyString = "2d73c1dd2f6a3c981afc7c0d49d7b58f";
         var key = sjcl.codec.base64.toBits(keyString);
-        aes = new sjcl.cipher.aes(key);
+        var aes = new sjcl.cipher.aes(key);
         var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
-        var dresult;
         var ftype = "video/mp4";//"video/mp4";//"application/pdf";//"image/jpeg";
         var fext = ".mp4";//".pdf";//".mp4";//".pdf";//".jpg";
         
+        var h = sjcl.codec.bytes;
+        
         for (var i=0; i<fragments.length; i++) {
-            var presigned_url = getPresignUrl(fragments[i]);        
-            var h = sjcl.codec.bytes;
+            var presigned_url = getPresignUrl(fragments[i]);          
             $.ajax({
             	url: presigned_url,
                 type: 'GET',
@@ -1356,29 +1356,23 @@ function downloadProgressDecryptBlob(fname,Kenc,callback=undefined){
                 success: function(blob, status) {
                  	console.log("blob:",blob);                    	
                    	var imageJson = JSON.parse("[" +blob+"]");//string->json
-           			console.log("ciphertext in json:",imageJson);
+           			console.log("ciphertext in json - imageJson:",imageJson);
             			
-           			dresult = h.fromBits(dec.process(imageJson));            			
+           			var dresult = h.fromBits(dec.process(imageJson));            			
          		    if(i==fragments.length-1){
    	     		    	dresult = dresult.concat(dec.finalize());
    	     		    }
     	     		    
-           			imageByte = new Uint8Array(dresult); // create byte array from base64 string
-     				console.log("plaintext in bytes:",imageByte);
-     			
-     		        console.log("create blob");
-     				imageDecryptBlob = new Blob([imageByte], { type: ftype });//, { type: "image/jpeg" } );
-     				console.log("saving file");
-            			
+           			var imageByte = new Uint8Array(dresult); // create byte array from base64 string
+     				console.log("plaintext in bytes - imageByte:",imageByte);
+     				var imageDecryptBlob = new Blob([imageByte], { type: ftype });
            			saveBlob(imageDecryptBlob,"plaintext"+i+fext);
-            			
-           			dresult = [];
            		},
                 error: function(erro){
                      console.log("Download from Minio Error");
                      console.log(erro);
                  }
-                })
+                })	
         }
     } catch (e) {
         console.log("Error:" + e);
@@ -1462,6 +1456,7 @@ function saveBlob(blob, fileName) {
 	 console.log("click")
 	 window.URL.revokeObjectURL(url);
 	 document.body.removeChild(a);
+	 blob=null;
 };
 
 function sleep(milliseconds) { 
