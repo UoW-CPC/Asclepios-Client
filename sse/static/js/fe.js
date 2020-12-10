@@ -457,6 +457,21 @@ const feDeleteData = (fileIDs, deleteCallback) => {
   });
 
   document
+    .getElementById("jsonUpdateFile")
+    .addEventListener("change", function (e) {
+      var fr = new FileReader();
+      fr.onload = function () {
+        const jsonObj = JSON.parse(fr.result);
+        const convertedJsonObj = Object.keys(jsonObj).reduce((results, key) => {
+          results[key] = jsonObj[key][1];
+          return results;
+        }, {});
+        dateTimeFormatChecker(convertedJsonObj);
+      };
+      fr.readAsText(this.files[0]);
+    });
+
+  document
     .getElementById("fe-analyst-function")
     .addEventListener("change", function (e) {
       if (document.getElementById("fe-analyst-function").value === "subtract") {
@@ -531,7 +546,7 @@ const feDeleteData = (fileIDs, deleteCallback) => {
     };
   })(window.deleteData);
 
-  const feUpdateData = (jsonObj, file_id, updateNotify) => {
+  const feUpdateData = (jsonObj, file_id, dateTimeFormat, updateNotify) => {
     const keys = Object.keys(jsonObj);
     const values = Object.values(jsonObj);
     const dataWithIDs = {};
@@ -552,7 +567,7 @@ const feDeleteData = (fileIDs, deleteCallback) => {
             }
           }
         }
-        encryptDataAndSendFE(deletedListWithData, null, (message) => {
+        encryptDataAndSendFE(deletedListWithData, dateTimeFormat, (message) => {
           updateNotify(message);
         });
       }
@@ -583,7 +598,11 @@ const feDeleteData = (fileIDs, deleteCallback) => {
           if (!!origCallback) origCallback(data);
           console.log(`fe-->callback:update:${data}`);
           // feDeleteData(file_id);
-          feUpdateData(rawData, file_id, (message) =>
+
+          const updateDataDateFormat = document.getElementById(
+            "fe-datetime-format-update"
+          ).value;
+          feUpdateData(rawData, file_id, updateDataDateFormat, (message) =>
             notify(message, "update-fe-notify")
           );
           // feDeleteData(file_id, async (results) => {
@@ -631,6 +650,15 @@ const dateTimeFormats = [
   "Y/D/M hh:mm:ss",
   "Y-M-D hh:mm:ss",
   "Y/M/D hh:mm:ss",
+
+  "D-M-Y HH:mm:ss",
+  "D/M/Y HH:mm:ss",
+  "M-D-Y HH:mm:ss",
+  "M/D/Y HH:mm:ss",
+  "Y-D-M HH:mm:ss",
+  "Y/D/M HH:mm:ss",
+  "Y-M-D HH:mm:ss",
+  "Y/M/D HH:mm:ss",
 ];
 
 const convertDateTimeToUnixTimestamp = (stringDateTime, format) => {
@@ -662,6 +690,37 @@ const checkDateTime = (stringDateTime) => {
     }
   }
   return null;
+};
+
+const dateTimeFormatChecker = (entries) => {
+  console.log(entries);
+  for (const id in entries) {
+    if (id.toLowerCase() === "fileid") continue;
+    const currentDateTimeFormat = checkDateTime(entries[id]);
+    if (!!currentDateTimeFormat) {
+      currentDateFormats[id] = currentDateTimeFormat;
+    }
+  }
+  const dateTimeFormatParentEls = document.getElementsByClassName(
+    "fe-datetime-format-update"
+  );
+  if (!!currentDateFormats && Object.keys(currentDateFormats).length > 0) {
+    Object.values(dateTimeFormatParentEls).forEach((element) => {
+      element.setAttribute("style", "display:true");
+    });
+    document.getElementById("fe-datetime-format-update").value = Object.values(
+      currentDateFormats
+    )
+      .reduce((results, value) => {
+        if (!!value) results.push(value);
+        return results;
+      }, [])
+      .join(",");
+  } else {
+    Object.values(dateTimeFormatParentEls).forEach((element) => {
+      element.setAttribute("style", "display:none");
+    });
+  }
 };
 
 const loopThroughKeys = (entry) => {
