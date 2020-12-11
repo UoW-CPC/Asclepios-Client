@@ -373,8 +373,10 @@
 		<div class="form-group row">
 
 			<!-- <div class="fe-datetime-format-update" class="col-sm-12" style="display: none;"> -->
-				<label for="fe-datetime-format-update" class="fe-datetime-format-update col-sm-10 col-form-label"  style="display: none;">Date format found(for FE only):</label>
-				<input type="text" class="fe-datetime-format-update form-control" id="fe-datetime-format-update" name="fe-datetime-format-update"  style="display: none;">
+			<label for="fe-datetime-format-update" class="fe-datetime-format-update col-sm-10 col-form-label"
+				style="display: none;">Date format found(for FE only):</label>
+			<input type="text" class="fe-datetime-format-update form-control" id="fe-datetime-format-update"
+				name="fe-datetime-format-update" style="display: none;">
 			<!-- </div> -->
 			<label for="fileid2" class="col-sm-10 col-form-label">Unique file id</label>
 			<div class="col-sm-12">
@@ -532,11 +534,7 @@
 					<input type="text" class="form-control" id="fe-passphrase" placeholder="Please enter passphrase"
 						name="fe-passphrase">
 				</div>
-				<label for="fe-keyid" class="col-sm-10 col-form-label">KeyId</label>
-				<div class="col-sm-12">
-					<input type="text" class="form-control" id="fe-keyid" placeholder="Please enter keyId"
-						name='fe-keyid'>
-				</div>
+
 			</div>
 
 		</div>
@@ -549,14 +547,17 @@
 						  <div class="col-sm-12">
 							  <input placeholder="Please enter file ids" class="form-control" type="text" id="fe-analyst-fileIDs" name="fe-analyst-fileIDs">
 						  </div> -->
-
-			<label for="fe-analyst-field">Field:</label>
+			<label for="fe-keyid" class="col-sm-10 col-form-label">KeyId</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="fe-keyid" placeholder="Please enter keyId" name='fe-keyid'>
+			</div>
+			<label for="fe-analyst-field" class="col-sm-10 col-form-label">Field:</label>
 			<div class="col-sm-12">
 				<input placeholder="Please enter field name (age, height, weight, ....)" class="form-control"
 					type="text" id="fe-analyst-field" name="fe-analyst-field">
 			</div>
 
-			<label for="fe-analyst-function">Function:</label>
+			<label for="fe-analyst-function" class="col-sm-10 col-form-label">Function:</label>
 			<div class="col-sm-12">
 				<select class="form-control" name="fe-analyst-function" id="fe-analyst-function">
 					<option value="sum">Sum</option>

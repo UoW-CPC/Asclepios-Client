@@ -219,7 +219,7 @@ const buildCheckBoxesFromInputFile = (jsonString) => {
     console.log("Invalid data" + e);
   }
 };
-const parseInput = (jsonString, checkedField) => {
+const parseInput = (jsonString, checkedField, keyId) => {
   try {
     /*
                   [
@@ -260,7 +260,7 @@ const parseInput = (jsonString, checkedField) => {
         if (id.toLowerCase() === "fileid") continue;
         if (!checkedField.includes(id)) continue;
         currentFeKeyRowRequestBody["fields"].push(id);
-        dataWithIDs[`${fileID}@${id}`] = entry[id];
+        dataWithIDs[`${keyId}#${fileID}@${id}`] = entry[id];
 
         // dataWithIDs[json["fileID"]][id] = json[id];
       }
@@ -372,10 +372,15 @@ function handleFeSearchFileLoad(event) {
   const operator = encodeURIComponent(
     document.getElementById("fe-analyst-function").value
   );
-  const fileIDs = feFileIDs();
+  let fileIDs = feFileIDs();
+
   if (!fileIDs || fileIDs.length === 0 || field == "" || operator == "") {
     notifyAnalyst("Please enter your details.");
   } else {
+    fileIDs = fileIDs.sort().reduce((results, value) => {
+      results.push(`${keyid}#${value}`);
+      return results;
+    }, []);
     computeFE(fileIDs.sort(), field, operator, notifyAnalyst);
   }
   retriveFileIDsEnabled = false;
@@ -394,18 +399,21 @@ const fePostComputeData = (formsubmission) => {
       reader.readAsText(feFileElement.files[0]);
     }
   } else {
-    const fileIDs = document.getElementById("fe-analyst-fileIDs").value;
+    let fileIDs = document.getElementById("fe-analyst-fileIDs").value;
 
     const field = document.getElementById("fe-analyst-field").value;
     const operator = encodeURIComponent(
       document.getElementById("fe-analyst-function").value
     );
-    computeFE(
-      fileIDs.replace(" ", "").split(","),
-      field,
-      operator,
-      notifyAnalyst
-    );
+    const keyId = document.getElementById("fe-keyid").value;
+    fileIDs = fileIDs
+      .replace(" ", "")
+      .split(",")
+      .reduce((results, value) => {
+        results.push(`${keyId}#${value}`);
+        return results;
+      }, []);
+    computeFE(fileIDs, field, operator, notifyAnalyst);
   }
 
   // formsubmission.preventDefault();
@@ -495,53 +503,13 @@ const feDeleteData = (fileIDs, deleteCallback) => {
 
   window.deleteData = (function (_super) {
     return function () {
-      // Extend it to log the value for example that is passed
-      // console.log(arguments[0]);
-      // arguments[0] = arguments[0] - 1;
-      // const te=arguments[1];
-      // delete arguments[1];
-      // arguments[1] = (data) => {
-      //   te(data);
-      //   console.log(`2:${data}`);
-      // };
-      //(file_id, sharedKey, Kenc, keyid, callback)
       const file_id = arguments[0];
-      const origCallback = arguments[4];
-      if (!!origCallback) {
-        delete arguments[4];
-      }
-      arguments[4] = (data) => {
-        if (!!origCallback) origCallback(data);
-        console.log(`fe-->callback:${file_id}`);
-        feDeleteData(file_id);
-      };
-      arguments.length = arguments.length + 1;
-
-      // var current_del, current_objects, current_deleted_objects;
-      // [current_del, current_objects, current_deleted_objects] = updateFileNo(
-      //   Lw,
-      //   LfileNoUri,
-      //   LfileNo,
-      //   -1,
-      //   keyid
-      // );
-
-      // const sseUpdateFileNo = updateFileNo; //(sseConfig.base_url_ta + "/api/v1/fileno/", data, callback);;
-      // updateFileNo = (Lhash, LfileNoUri, LfileNo, offset, keyid) => {
-      //   let current_del, current_objects, current_deleted_objects;
-      //   [
-      //     current_del,
-      //     current_objects,
-      //     current_deleted_objects,
-      //   ] = sseUpdateFileNo(Lhash, LfileNoUri, LfileNo, offset, keyid);
-      //   currentLhash = Lhash;
-      //   return [current_del, current_objects, current_deleted_objects];
-      // };
+      const keyid = arguments[3];
 
       const returnDeleteData = _super.apply(this, arguments);
-
-      // console.log(`fe:returnDeleteData:${returnDeleteData}`);
-      // updateFileNo = sseUpdateFileNo;
+      if (!!returnDeleteData) {
+        feDeleteData(`${keyid}#${file_id}`);
+      }
       return returnDeleteData;
     };
   })(window.deleteData);
@@ -578,51 +546,24 @@ const feDeleteData = (fileIDs, deleteCallback) => {
     return function () {
       try {
         let data = [];
-        // Extend it to log the value for example that is passed
-        // console.log(arguments[0]);
-        // arguments[0] = arguments[0] - 1;
-        // const te=arguments[1];
-        // delete arguments[1];
-        // arguments[1] = (data) => {
-        //   te(data);
-        //   console.log(`2:${data}`);
-        // };
-        //(file_id, sharedKey, Kenc, keyid, callback)
         const rawData = arguments[0];
         const file_id = arguments[1];
-        const origCallback = arguments[5];
-        if (!!origCallback) {
-          delete arguments[5];
-        }
-        arguments[5] = (data) => {
-          if (!!origCallback) origCallback(data);
-          console.log(`fe-->callback:update:${data}`);
-          // feDeleteData(file_id);
+        const keyId = arguments[4];
 
+        const returnUpdateData = _super.apply(this, arguments);
+        if (returnUpdateData) {
           const updateDataDateFormat = document.getElementById(
             "fe-datetime-format-update"
           ).value;
-          feUpdateData(rawData, file_id, updateDataDateFormat, (message) =>
-            notify(message, "update-fe-notify")
-          );
-          // feDeleteData(file_id, async (results) => {
-          //   const keys = Object.keys(rawData);
-          //   const values = Object.values(rawData);
-          //   const dataWithIDs = {};
-          //   for (let index = 0; index < keys.length; index++) {
-          //     const key = keys[index];
-          //     const value = values[index][1];
-          //     dataWithIDs[`${file_id}@${key}`] = value;
-          //   }
-          //   if (!!dataWithIDs && Object.keys(dataWithIDs).length > 0) {
-          //     encryptDataAndSendFE(dataWithIDs);
-          //   }
-          // });
-        };
-        arguments.length = arguments.length + 1;
 
-        const returnDeleteData = _super.apply(this, arguments);
-        return returnDeleteData;
+          feUpdateData(
+            rawData,
+            `${keyId}#${file_id}`,
+            updateDataDateFormat,
+            (message) => notify(message, "update-fe-notify")
+          );
+        }
+        return returnUpdateData;
       } catch (e) {
         console.log(e);
       }
@@ -633,7 +574,9 @@ const feDeleteData = (fileIDs, deleteCallback) => {
 const submitFEData = (e) => {
   resetNotify();
   console.log(currentDATA);
-  parseInput(currentDATA, getFeFieldChooses());
+  const keyId = document.getElementById("keyid1").value;
+
+  parseInput(currentDATA, getFeFieldChooses(), keyId);
   console.log(feKeysBodyRequest);
   console.log(dataWithIDs);
   const currentDateFormat = document.getElementById("fe-datetime-format").value;

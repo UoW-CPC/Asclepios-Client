@@ -1124,7 +1124,7 @@ function deleteData(file_id, sharedKey, Kenc, keyid, callback) {
     result = postRequest(
       sseConfig.base_url_sse_server + "/api/v1/delete/",
       data,
-      function (response) {
+      (response) => {
         return true;
       },
       (async_feat = false)
