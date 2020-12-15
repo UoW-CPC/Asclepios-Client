@@ -1,6 +1,9 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+backup/
+autorun.sh
+db.sqlite3
 
 # OSX artifacts
 .DS_Store
