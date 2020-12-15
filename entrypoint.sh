@@ -10,7 +10,7 @@
 echo "Apply database migrations"
 python3 manage.py makemigrations
 python3 manage.py migrate
-python3 manage.py collectstatic
+python3 manage.py collectstatic --noinput
 
 # configure sseConfig
 sed -i -e "s|ta_url|$TA_URL|" sse/static/js/sse.js
