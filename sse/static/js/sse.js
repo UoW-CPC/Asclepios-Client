@@ -25,7 +25,9 @@ var sseConfig={
 	 'iter' : 10000,
 	 'ks' : 128,
 	 'ts' : 64,
-	 'hash_length' : 256
+	 'hash_length' : 256,
+	 'chunk_size' : 32768,//size of 1 slice/ chunk for encryption (in uint8 items), 32768=1024^32
+	 'no_chunks_per_upload' :30 //number of chunks to be packed in 1 upload
 }
 
 /// REQUESTS: Get, Post, Put
@@ -940,34 +942,9 @@ function encryptBlob(blobData,ftype, Kenc){
 	}
  }
 
-//https://stackoverflow.com/questions/40848757/cryptojs-decrypt-an-encrypted-file
-function getCipherInfo (ciphers) {
-	  const sigBytesMap = []
-	  const sigBytes = ciphers.reduce((tmp, cipher) => {
-	    tmp += cipher.sigBytes || cipher.ciphertext.sigBytes
-	    sigBytesMap.push(tmp)
-	    return tmp
-	  }, 0)
-
-	  const words = ciphers.reduce((tmp, cipher) => {
-	    return tmp.concat(cipher.words || cipher.ciphertext.words)
-	  }, [])
-
-	  return {sigBytes, sigBytesMap, words}
-}
-
-function getBlob (sigBytes, words) {
-	 const bytes = new Uint8Array(sigBytes)
-	 for (var i = 0; i < sigBytes; i++) {
-	    const byte = (words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff
-	    bytes[i] = byte
-	 }
-
-	 return new Blob([ new Uint8Array(bytes) ])
-}
-
+// Encrypt and upload blob data to minio
 // Approach: File -> divide into chunks -> encrypt each chunk -> upload -> (loop) -> until finish
-function encryptProgressBlob(blobData,ftype, Kenc){
+function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId){
 	console.log("Progress Encrypt Blob")
 	console.log("blob content:",blobData)
 	return function(resolve) {
@@ -976,33 +953,25 @@ function encryptProgressBlob(blobData,ftype, Kenc){
 			var imageData = new Uint8Array(e.target.result);
 			console.log("Blob content:",imageData);    	    
 			
-			h = sjcl.codec.hex;
-			var iv = [-16119071, -276457509, 2001133657, 474172955];//sjcl.random.randomWords(4, 0);
-			console.log("iv:",iv)
-			//iv = h.toBits(sseConfig.iv);
-		    var keyString = "2d73c1dd2f6a3c981afc7c0d49d7b58f";
-			console.log("keystring:",keyString);
-		    var key = sjcl.codec.base64.toBits(keyString);
-			aes = new sjcl.cipher.aes(key);
-			console.log("key:",key);
+			var iv = sjcl.hash.sha1.hash(sseConfig.iv).slice(0,4); // IV should be an array of 4 words. Get 4 words to create iv
+
+			var key = sjcl.hash.sha256.hash(Kenc); //key is an array of 4,6 or 8 words
+			var aes = new sjcl.cipher.aes(key);
 			//adata = "";
 			var enc = sjcl.mode.ocb2progressive.createEncryptor(aes, iv);
 
 		    var result = [];
-		    var sliceSizeRange = 1024*32;//1024*1024; // size of 1 slice/ chunk for encryption (in uint8 items)
-		    var slice = [0, sliceSizeRange];//data will be sliced/ chunked/ read between slice[0] and slice[1]
+		    var sliceSizeRange = sseConfig.chunk_size;// size of 1 slice/ chunk for encryption (in uint8 items)
+		    var slice = [0, sseConfig.chunk_size];//data will be sliced/ chunked/ read between slice[0] and slice[1]
 		    var count = 0;
 		    console.log("length of data:",imageData.length);
 		    
-		    var fragment =30; //number of chunks to be packed in 1 upload
-		       
 		    var cipherpart, outputname;
 		    var idx=0;
 		    var tb=[];
 		    
 		    while (slice[0] < imageData.length) {
-		    	result = result.concat(enc.process(toBitArrayCodec(imageData.slice(slice[0], slice[1]))));
-		    	//result = result.concat(enc.process(sjcl.codec.bytes.toBits(imageData.slice(slice[0], slice[1]))));
+		    	result = result.concat(enc.process(sjcl.codec.bytes.toBits(imageData.slice(slice[0], slice[1]))));
 		        slice[0] = slice[1];
 		        slice[1] = slice[0] + sliceSizeRange;
 		        if(slice[1]>imageData.length)
@@ -1010,7 +979,7 @@ function encryptProgressBlob(blobData,ftype, Kenc){
 		        
 		        count = count +1 ;		        
 		        
-		        if((count % fragment)==0){ //upload each part of #fragment chunks/ slices.
+		        if((count % sseConfig.no_chunks_per_upload)==0){ //upload each part of #fragment chunks/ slices.
 		        	console.log("upload part:",count);
 		        	console.log("ciphertext type:",typeof result);
 
@@ -1020,7 +989,7 @@ function encryptProgressBlob(blobData,ftype, Kenc){
 		        	
 					cipherpart = new Blob([result], { type: ftype });//upload as 1 whole part
 		        	result = [];
-		        	outputname= "part" + idx;
+		        	outputname= fname + "_part" + idx + keyId;
 		        	console.log("blob cipher:",cipherpart);
 		        	uploadMinio(cipherpart,outputname);
 		        }
@@ -1032,12 +1001,16 @@ function encryptProgressBlob(blobData,ftype, Kenc){
 	    	idx = idx+1;
 		    
 		    cipherpart = new Blob([result], { type: ftype });
-        	outputname= "final_part";
+        	outputname= fname + "_part" + idx  + keyId;
         	uploadMinio(cipherpart,outputname);
         	
+        	outputname= fname + "_meta" + keyId;
+        	cipherpart = new Blob([idx], { type: ftype });
+        	uploadMinio(cipherpart,outputname);
         	
-        	//decryption - for testing only
         	/*
+        	//decryption - for testing only
+        	
 		    try {
 		    	console.log("Decrypting")
 		        var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
@@ -1060,7 +1033,7 @@ function encryptProgressBlob(blobData,ftype, Kenc){
 		        	imageByte = new Uint8Array(dresult); // create byte array from base64 string
 					console.log("plaintext in bytes:",imageByte);	
 					imageDecryptBlob = new Blob([imageByte], { type: ftype });
-					uploadMinio(imageDecryptBlob,"plaintext" + idx + ".mp4");
+					uploadMinio(imageDecryptBlob,"plaintext" + idx);
 		        }
 		        dresult = dresult.concat(dec.finalize());
 		        console.log("plaintext:",dresult)
@@ -1068,14 +1041,13 @@ function encryptProgressBlob(blobData,ftype, Kenc){
 				console.log("plaintext in bytes:",imageByte);
 		
 				imageDecryptBlob = new Blob([imageByte], { type: ftype });//{ type: ftype });
-				uploadMinio(imageDecryptBlob,"plaintext_final.mp4");
+				uploadMinio(imageDecryptBlob,"plaintext");
 				
 				console.log("complete decrypting and sending to minio");
 		    } catch (e) {
 		        console.log("Error:" + e);
-		    }*/
-		    
-			//var cipherBlob = new Blob([result], { type: ftype });
+		    }
+		    */
 			resolve(cipherpart);
 
 		};
@@ -1091,7 +1063,6 @@ function downloadWithPresignUrl(presignedUrl,fname,callback){
               responseType: 'blob' //download as blob data
           },
 		  success: function(data, status) {
-			  //console.log("data:",data)
 			  callback(data,fname) //decrypt data
 			  return true; 
 		  },
@@ -1150,8 +1121,6 @@ function putPresignUrl(fname){
 //Input: - fname: filename, - blob: data to upload
 function uploadMinio(blob,fname,callback=undefined){
 	var presigned_url = putPresignUrl(fname) // request for a presigned url
-	//console.log("put presign url:",presigned_url)
-	//uploadToMinio(url,blob) // upload to Minio
     
 	$.ajax({
 		url: presigned_url,
@@ -1170,19 +1139,29 @@ function uploadMinio(blob,fname,callback=undefined){
 	})
 }
 
-//Encrypt blob data and upload to Minio along with its searchable metadata (json format)
-function encryptUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,callback=undefined){
+//Encrypt blob data (<=10MB) and upload to Minio along with its searchable metadata (json format)
+function encryptUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,keyId,callback=undefined){
 	//append filename to metadata
 	jsonObj.filename = fname;
 	console.log("metadata after appending filename:{}",jsonObj);
-	encryptUploadBlob(blob,fname,Kenc);
-	uploadData(jsonObj,file_id,KeyG,Kenc);
+	encryptUploadBlob(blob,fname,Kenc,keyId);
+	uploadData(jsonObj,file_id,KeyG,Kenc,keyId);
 }
+
+
+//Encrypt large blob data and upload to Minio along with its searchable metadata (json format)
+function encryptProgressUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,keyId, callback=undefined){
+	//append filename to metadata
+	jsonObj.filename = fname;
+	console.log("metadata after appending filename:{}",jsonObj);
+	encryptProgressUploadBlob(blob,fname,Kenc,keyId);
+	uploadData(jsonObj,file_id,KeyG,Kenc,keyId);
+}
+
 //Encrypt blob data and upload to Minio
-function encryptUploadBlob(blob,fname,Kenc,callback=undefined){
+function encryptUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
     var ftype = blob.type;
-  //  var outputname = fname.split(".")[0];// + "_encrypted";
-    var outputname = fname;
+    var outputname = fname + keyId;
     var promise = new Promise(encryptBlob(blob,ftype,Kenc));
 
     // Wait for promise to be resolved, or log error.
@@ -1197,13 +1176,13 @@ function encryptUploadBlob(blob,fname,Kenc,callback=undefined){
     return promise;
 }
 
-//Encrypt blob data and upload to Minio
-function encryptProgressUploadBlob(blob,fname,Kenc,callback=undefined){
+
+//Encrypt large blob data and upload to Minio
+function encryptProgressUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
     var ftype = blob.type;
     console.log("blob type:",ftype);
 
-    var outputname = fname;
-    var promise = new Promise(encryptProgressBlob(blob,ftype,Kenc));
+    var promise = new Promise(encryptProgressBlob(blob,fname,ftype,Kenc,keyId));
 
     // Wait for promise to be resolved, or log error.
     promise.then(function(cipherBlob) {
@@ -1214,13 +1193,12 @@ function encryptProgressUploadBlob(blob,fname,Kenc,callback=undefined){
     return promise;
 }
 
-//Download file from Minio, decrypt and save it to local host
+//Download file from Minio, decrypt and save it to local host (blob file <=10MB)
 //Input: - fname: filename, - callback: function to decrypt and save file
 //function downloadMinio(fname,callback){
-function downloadDecryptBlob(fname,Kenc,callback=undefined){
+function downloadDecryptBlob(fname,Kenc,keyId,callback=undefined){
 	console.log("Download blob")
-	var presigned_url = getPresignUrl(fname) // request for a presigned url 
-	//downloadWithPresignUrl(url,fname,callback); // download the file and decrypt it with a callback function, which is "handleBlobDecrypt" function
+	var presigned_url = getPresignUrl(fname+keyId) // request for a presigned url 
 	$.ajax({
 		  url: presigned_url, // the presigned URL
 		  type: 'GET',
@@ -1228,11 +1206,8 @@ function downloadDecryptBlob(fname,Kenc,callback=undefined){
 	            responseType: 'blob' //download as blob data
 	      },
 		  success: function(data, status) {
-			  //console.log("data:",data)
-			  //callback(data,fname) //decrypt data
 			  console.log("Decrypt and save blob")
 			  decryptSaveBlob(data,fname,Kenc,callback) //decrypt data
-			 // return true; 
 		  },
 		  error: function(erro){
 			  console.error("Download from Minio Error");
@@ -1241,17 +1216,7 @@ function downloadDecryptBlob(fname,Kenc,callback=undefined){
 	})
 }
 
-function readFileAsync(file) {
-	return new Promise((resolve, reject) => {
-	    var fr = new FileReader();  
-		fr.onload = () => {
-	      resolve(fr.result)
-	    };
-	    fr.readAsText(file);
-	});
-}
-
-//Decrypt blob data
+//Decrypt and save blob data (<=10MB)
 //Input: - data: blob data, - fname: file name. Output: - save file to local host
 function decryptSaveBlob(blob,fname,Kenc,callback=undefined){
 	 var outputname = fname;//fname.split(".")[0];// + "_decrypted";
@@ -1271,27 +1236,7 @@ function decryptSaveBlob(blob,fname,Kenc,callback=undefined){
 	 return promise;
 }
 
-function decryptProgressSaveBlob(blob,fname,Kenc,callback=undefined){
-	 var outputname = fname;//fname.split(".")[0];// + "_decrypted";
-	 console.log("Filename to be saved: " +  outputname);
-	 var ftype = blob.type; //identify filetype from blob
-	 
-	 var promise = new Promise(decryptProgressBlob(blob,ftype,Kenc));
-	 //var promise = decryptBlob(blob,ftype,Kenc);
-	 
-	 promise.then((plainBlob) => {
-		 console.log("Save file to disk");
-		 saveBlob(plainBlob,outputname);
-		 if(callback!=undefined){
-			callback(true); // for jest
-		}
-	 })
-	 
-	 return promise;
-}
-
-
-
+// Decrypt a blob file (<=10MB)
 function decryptBlob(blobCipher,ftype,Kenc){
 	return function(resolve) {
 		var reader = new FileReader();
@@ -1323,42 +1268,58 @@ function decryptBlob(blobCipher,ftype,Kenc){
 	}
 }
 
-
-function downloadProgressDecryptBlob(fname,Kenc,callback=undefined){
+//Decrypt chunks of ciphertext and save as multiple files. 
+//A concatenation script is saved as concat_script.txt which contains a script to merge the multiple downloaded files into plaintext file.
+function downloadProgressDecryptBlob(fname,Kenc,keyId,callback=undefined){
     console.log("Download blob")
-    var n = 900; //number of parts except final_part
-    var fragments = [];
-    var i;
-    for (i = 1; i <= n; i++) {
-    	fragments.push("part"+i);
-    }
-    fragments.push("final_part");
-    console.log("file names:",fragments);
-    
     try {
-        h = sjcl.codec.hex;
-        var iv = [-16119071, -276457509, 2001133657, 474172955];
-        var keyString = "2d73c1dd2f6a3c981afc7c0d49d7b58f";
-        var key = sjcl.codec.base64.toBits(keyString);
+    	var metafile = fname + "_meta" + keyId;
+    	var presigned_url = getPresignUrl(metafile);  
+    	var fragments = [];
+        $.ajax({
+        	url: presigned_url,
+            type: 'GET',
+            async: false,
+            success: function(blob, status) { 
+            	//create a list which contains names of ciphertext chunks
+                console.log("meta data:",blob);
+                var i;
+                for (i = 1; i <= blob; i++) {
+                	fragments.push(fname + "_part"+i + keyId);
+                }
+                console.log("file names:",fragments);
+                
+                //create a concatenation script for users to merge multiple chunks of plaintext into a complete plaintext
+                var script_data="cat $(for((i=1;i<="+blob+";i++)); do echo -n \""+fname +"${i} \"; done) > "+fname;
+                console.log("script:",script_data);
+               	var outputname= fname + "_script" + keyId;
+                var blob = new Blob([script_data]);
+                saveBlob(blob,"concat_script");
+
+       		},
+            error: function(erro){
+                 console.log("Download from Minio Error");
+                 console.log(erro);
+             }
+         })	            
+        var iv = sjcl.hash.sha1.hash(sseConfig.iv).slice(0,4); // IV should be an array of 4 words. Get 4 words to create iv
+		var key = sjcl.hash.sha256.hash(Kenc); //key is an array of 4,6 or 8 words
+
         var aes = new sjcl.cipher.aes(key);
         var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
-        var ftype = "video/mp4";//"video/mp4";//"application/pdf";//"image/jpeg";
-        var fext = ".mp4";//".pdf";//".mp4";//".pdf";//".jpg";
-        
-        var h = sjcl.codec.bytes;
         
         for (var i=0; i<fragments.length; i++) {
-            var presigned_url = getPresignUrl(fragments[i]);          
+            presigned_url = getPresignUrl(fragments[i]);          
             $.ajax({
             	url: presigned_url,
                 type: 'GET',
                 async: false,
                 success: function(blob, status) {
-                 	console.log("blob:",blob);                    	
+                    var ftype = blob.type;
                    	var imageJson = JSON.parse("[" +blob+"]");//string->json
            			console.log("ciphertext in json - imageJson:",imageJson);
             			
-           			var dresult = h.fromBits(dec.process(imageJson));            			
+           			var dresult = sjcl.codec.bytes.fromBits(dec.process(imageJson));            			
          		    if(i==fragments.length-1){
    	     		    	dresult = dresult.concat(dec.finalize());
    	     		    }
@@ -1366,7 +1327,8 @@ function downloadProgressDecryptBlob(fname,Kenc,callback=undefined){
            			var imageByte = new Uint8Array(dresult); // create byte array from base64 string
      				console.log("plaintext in bytes - imageByte:",imageByte);
      				var imageDecryptBlob = new Blob([imageByte], { type: ftype });
-           			saveBlob(imageDecryptBlob,"plaintext"+i+fext);
+     				var j = i+1;
+           			saveBlob(imageDecryptBlob,fname+j);
            		},
                 error: function(erro){
                      console.log("Download from Minio Error");
@@ -1377,38 +1339,6 @@ function downloadProgressDecryptBlob(fname,Kenc,callback=undefined){
     } catch (e) {
         console.log("Error:" + e);
     }    
-}
-
-function decryptProgressBlob(blobCipher,Kenc,dec,name){
-	return function(resolve) {
-		var reader = new FileReader();
-		console.log("Decrypt blob")
-		reader.onload = function(e){
-			var imagecipher = new Uint8Array(e.target.result);
-			console.log("input array:",imagecipher);
-			
-			var bitarray = toBitArrayCodec(imagecipher);
-			console.log("bit array:",bitarray);
-	
-			var imageBase = sjcl.codec.base64.fromBits(bitarray); // byte array->base64
-			console.log("image ciphertext in base64:",imageBase);
-			var imageString = atob(imageBase); //base64 -> string
-			console.log("image ciphertext in string:",imageString);
-			var imageJson = JSON.parse("[" +imageString+"]");//string->json
-			console.log("ciphertext in json:",imageJson);
-			
-			try {
-		       // var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
-		        var dresult = fromBitArrayCodec(dec.process(imageJson));
-		       	console.log("dresult:",dresult);
-		    } catch (e) {
-		        console.log("Error:" + e);
-		    }		
-			
-			resolve({name:name,result:dresult});
-		};	
-		reader.readAsArrayBuffer(blobCipher);
-	}
 }
 
 //referenced from internet
@@ -1457,25 +1387,4 @@ function saveBlob(blob, fileName) {
 	 window.URL.revokeObjectURL(url);
 	 document.body.removeChild(a);
 	 blob=null;
-};
-
-function sleep(milliseconds) { 
-    let timeStart = new Date().getTime(); 
-    while (true) { 
-      let elapsedTime = new Date().getTime() - timeStart; 
-      if (elapsedTime > milliseconds) { 
-        break; 
-      } 
-    } 
- } 
-
-
-function handleProgressBlob(fname,ftype,Kenc){
-	var reader = new FileReader();
-	reader.onload = function(event){
-		console.log("data:",event.target.result);
-		var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype }); 
-		encryptProgressUploadBlob(blobData,fname,Kenc);
-	};
-	reader.readAsArrayBuffer(fname);
-}
+}; 

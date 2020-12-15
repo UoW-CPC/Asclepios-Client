@@ -147,24 +147,24 @@ function handleDeleteFile(){
 	$('#deletetime').html("<div class='alert-primary alert'> Delete time: " +  diff + " </div>");
 }
 
-function handleBlobDecrypt(fname){
+function handleBlobDecrypt(fname,keyId){
 	var Kenc = $("#passphrase6").val();
 	
 	var st_date = new Date();
     var st_time = st_date.getTime();
-    downloadDecryptBlob(fname,Kenc);
+    downloadDecryptBlob(fname,Kenc,keyId);
     
     var end_date = new Date();
     var end_time = end_date.getTime();
     var diff = end_time - st_time;
 }
 
-function handleProgressBlobDecrypt(fname){
+function handleProgressBlobDecrypt(fname,keyId){
 	var Kenc = $("#passphrase6").val();
 	
 	var st_date = new Date();
     var st_time = st_date.getTime();
-    downloadProgressDecryptBlob(fname,Kenc);
+    downloadProgressDecryptBlob(fname,Kenc,keyId);
     
     var end_date = new Date();
     var end_time = end_date.getTime();
@@ -186,7 +186,8 @@ function handleBlobUpload(event){
 
     var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
     
-    encryptUploadBlob(blobData,fname,Kenc);
+    var keyId = $("#keyid5").val();
+    encryptUploadBlob(blobData,fname,Kenc,keyId);
 
     var end_date = new Date();
     var end_time = end_date.getTime();
@@ -196,19 +197,22 @@ function handleBlobUpload(event){
 
 function handleBlobProgressUpload(event){
 	var Kenc = $("#passphrase5").val();
+	var keyId = $("#keyid5").val();
 	
 	var st_date = new Date();
     var st_time = st_date.getTime();
 
     var fname = $("#filename").val();
     var ftype = $("#filetype").val();
+   
     var outputname = fname.split(".")[0];// + "_encrypted";
     console.log("Filename: " + typeof  fname);
     console.log("Type: " +  ftype);
+    
 
     var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
     
-    encryptProgressUploadBlob(blobData,fname,Kenc);
+    encryptProgressUploadBlob(blobData,fname,Kenc,keyId);
 
     var end_date = new Date();
     var end_time = end_date.getTime();
@@ -219,6 +223,8 @@ function handleBlobSSEUpload(jsonObj){
 	return function(event){
 		var Kenc = $("#passphrase7").val();
 		var KeyG = Kenc;
+		
+		var keyId = $("#keyid7").val();
 		
 		var st_date = new Date();
 	    var st_time = st_date.getTime();
@@ -231,13 +237,39 @@ function handleBlobSSEUpload(jsonObj){
 	
 	    var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
 	    
-	    encryptUploadSearchableBlob(blobData,fname,jsonObj,fname,KeyG,Kenc);
+	    encryptUploadSearchableBlob(blobData,fname,jsonObj,fname,KeyG,Kenc,keyId);
 	
 	    var end_date = new Date();
 	    var end_time = end_date.getTime();
 	    var diff = end_time - st_time;
 	}
 }
+
+function handleProgressBlobSSEUpload(jsonObj){
+	return function(event){
+		var Kenc = $("#passphrase7").val();
+		var KeyG = Kenc;
+		var keyId = $("#keyid7").val();
+		
+		var st_date = new Date();
+	    var st_time = st_date.getTime();
+	
+	    var fname = $("#filename").val();
+	    var ftype = $("#filetype").val();
+	    var outputname = fname.split(".")[0];// + "_encrypted";
+	    console.log("Filename: " + typeof  fname);
+	    console.log("Type: " +  ftype);
+	
+	    var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
+	    
+	    encryptProgressUploadSearchableBlob(blobData,fname,jsonObj,fname,KeyG,Kenc,keyId);
+	
+	    var end_date = new Date();
+	    var end_time = end_date.getTime();
+	    var diff = end_time - st_time;
+	}
+}
+
 
 /// HANDLERS - END
 
@@ -452,7 +484,6 @@ $(document).ready(
 			$('#btnProgressUploadBlob').click(function(){
 				$('#resultUploadBlob').empty();
 				$('#resultUploadBlob').html("<div class='alert-primary alert'> Progressive Encrypting </div>");
-				//progressEncryptBlob("test","test","123");
 				if ($('#blobUpload').get(0).files.length === 0) {
 					console.log("No files selected.");
 				}
@@ -472,15 +503,15 @@ $(document).ready(
 			$('#btnDownload').click(function(){
 				console.log("Downloading")
 				fname = $("#filename1").val()
-				//downloadMinio(fname,handleBlobDecrypt) //download and decrypt file
-				handleBlobDecrypt(fname);
+				keyId = $("#keyid6").val()
+				handleBlobDecrypt(fname,keyId);
 			});	
 			
 			$('#btnProgressDownloadBlob').click(function(){
 				console.log("Progressive Downloading")
 				fname = $("#filename1").val()
-				//downloadMinio(fname,handleBlobDecrypt) //download and decrypt file
-				handleProgressBlobDecrypt(fname);
+				keyId = $("#keyid6").val()
+				handleProgressBlobDecrypt(fname,keyId);
 			});	
 			
 			/// ENCRYPT BLOB with METADATA by submitting blob file and metadata file
@@ -495,6 +526,27 @@ $(document).ready(
 					var reader = new FileReader()
 					var jsonObj = {"size":"unknown"}
 					reader.onload = handleBlobSSEUpload(jsonObj);
+					var file = $('#blobSSEUpload').get(0).files[0];
+					var filename = file.name;
+					var filetype = file.type;
+					 $("#filename").val(filename);
+					 $("#filetype").val(filetype);
+					console.log("name:",filename,",type:",filetype);
+					reader.readAsArrayBuffer(file);
+				}
+			});
+			
+			$('#btnProgressUploadBlobSSE').click(function(){
+				$('#uploadblobsse').empty();
+				$('#uploadblobsse').html("<div class='alert-primary alert'> Uploading </div>");
+				
+				if ($('#blobSSEUpload').get(0).files.length == 0) {
+					console.log("No files selected.");
+				}
+				else{
+					var reader = new FileReader()
+					var jsonObj = {"size":"unknown"}
+					reader.onload = handleProgressBlobSSEUpload(jsonObj);
 					var file = $('#blobSSEUpload').get(0).files[0];
 					var filename = file.name;
 					var filetype = file.type;

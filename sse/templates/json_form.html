@@ -420,15 +420,15 @@
 		<div class="form-group row">
 			<input type="file" class="form-control" id="blobUpload" placeholder="Please enter URL of blob data" name='blobUpload'>
 			<img id='output'>
-			<!--  <label for="fileid3" class="col-sm-10 col-form-label">Unique file id</label>
-			<div class="col-sm-12">
-			<input type="text" class="form-control" id="fileid4"
-				placeholder="Please enter file id" name='file_id'>
-			</div>-->
 			<label for="passphrase5" class="col-sm-10 col-form-label">Passphrase</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="passphrase5"
 					placeholder="Please enter passphrase" name='passphrase5'>
+			</div>
+			<label for="keyid5" class="col-sm-10 col-form-label">Key Id</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="keyid5"
+					placeholder="Please enter key Id" name='keyid5'>
 			</div>
 		</div>
 	</div>
@@ -456,6 +456,11 @@
 				<input type="text" class="form-control" id="passphrase6"
 					placeholder="Please enter passphrase" name='passphrase6'>
 			</div>
+			<label for="keyid6" class="col-sm-10 col-form-label">Key Id</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="keyid6"
+					placeholder="Please enter key Id" name='keyid6'>
+			</div>
 		</div>
 	</div>
 	<!--  <button type="button" class="btn btn-primary" id="btnUpload">Encrypt and Upload</button>-->
@@ -476,9 +481,15 @@
 				<input type="text" class="form-control" id="passphrase7"
 					placeholder="Please enter passphrase" name='passphrase7'>
 			</div>
+			<label for="keyid7" class="col-sm-10 col-form-label">Key Id</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="keyid7"
+					placeholder="Please enter key Id" name='keyid7'>
+			</div>
 		</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnUploadBlobSSE">Encrypt and Upload</button>
+	<button type="button" class="btn btn-primary" id="btnProgressUploadBlobSSE">Progressive Encrypt and Upload</button>
 </form>
 
 <div id='uploadblobsse'></div>
