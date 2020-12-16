@@ -25,9 +25,7 @@ var sseConfig={
 	 'iter' : 10000,
 	 'ks' : 128,
 	 'ts' : 64,
-	 'hash_length' : 256,
-	 'chunk_size' : 32768,//size of 1 slice/ chunk for encryption (in uint8 items), 32768=1024^32
-	 'no_chunks_per_upload' :30 //number of chunks to be packed in 1 upload
+	 'hash_length' : 256
 }
 
 /// REQUESTS: Get, Post, Put
@@ -122,8 +120,9 @@ function hash(input){
 // Encrypt data
 // Parameters: input - data, key - symmetric key
 function encrypt(key, input){
-	var salt = btoa(sseConfig.salt);
-	var iv = btoa(sseConfig.iv);
+	var salt = btoa(sseConfig.salt);//btoa("abc123!?");
+	var iv = btoa(sseConfig.iv);//btoa("abcdefg");
+	//console.log("salt:",salt)
 	var options = {mode:"ccm",iter:sseConfig.iter,ks:sseConfig.ks,ts:sseConfig.ts,v:1,cipher:"aes",adata:"",salt:salt, iv:iv}; //define salt, mode for encryption
 
 	var res = sjcl.encrypt(key, input, options);
@@ -143,10 +142,55 @@ function decrypt(key, cipherObj){
 	return res;	
 }
 
+//// Retrieve file numbers of a list of keywords
+//// Params: Lw - list of hashed keywords
+//function getMultiFileNo(Lw){
+//	LfileNo = [];
+//	LfileNoUri = [];
+//	listW = [];
+//	
+//	var obj = getRequest(sseConfig.base_url_ta + "/api/v1/fileno/?w=" + Lw);
+//	//var obj = getRequest(sseConfig.base_url_ta + "/api/v1/fileno/?limit=0&w=" + Lw);//limit=0 allows to get all items
+//	//console.log("request for fileno:",sseConfig.base_url_ta + "/api/v1/fileno/?w=" + Lw);
+//	console.log("response:",obj);
+//	var count = obj.meta.total_count;
+//	
+//	console.log("number of items:",count);
+//	
+//	for(i=0; i<count;i++){
+//		console.log("Push item of index:",i);
+//		LfileNo.push(obj.objects[i].fileno);
+//		LfileNoUri.push(sseConfig.base_url_ta + obj.objects[i].resource_uri);
+//		listW.push(obj.objects[i].w);
+//	}
+//	return [LfileNo, LfileNoUri,listW];
+//}
+//
+////Retrieve search numbers of a list of keywords
+////Params: Lw - list of keywords
+//function getMultiSearchNo(Lw){	
+//	var obj = getRequest(sseConfig.base_url_ta + "/api/v1/searchno/?w=" + Lw);
+//	//var obj = getRequest(sseConfig.base_url_ta + "/api/v1/searchno/?limit=0&w=" + Lw);
+//
+//	LsearchNo = [];
+//	LsearchNoUri = [];
+//	listW = [];
+//	
+//	var count = obj.meta.total_count;
+//	for(i=0; i<count;i++){
+//		LsearchNo.push(obj.objects[i].searchno);
+//		LsearchNoUri.push(sseConfig.base_url_ta +  obj.objects[i].resource_uri);
+//		listW.push(obj.objects[i].w); //list of keyword, which No.Search exists
+//	}
+//	
+//	console.log('List of search no:',LsearchNo)
+//	return [LsearchNo, LsearchNoUri,listW];
+//}
+
 //Retrieve file numbers/ search numbers of a list of keywords
 //Params: requestType - searchno or fileno, Lw - list of keywords
-function getMultiFileOrSearchNo(requestType,Lw,keyid){	
-	var data_ta = JSON.stringify({"requestType": requestType,"Lw":Lw,"keyId":keyid});
+function getMultiFileOrSearchNo(requestType,Lw){	
+	var data_ta = JSON.stringify({"requestType": requestType,"Lw":Lw});
 	console.log("Invoke longrequest")
 	console.log(data_ta)
 	var ret = postRequest(sseConfig.base_url_ta + "/api/v1/longrequest/",data_ta,callback=undefined,async_feat=false);
@@ -175,13 +219,9 @@ function getMultiFileOrSearchNo(requestType,Lw,keyid){
 
 //Upload data (json object)
 //Input: data - data as json object, file_id - file identifier which must be unique, KeyG, Kenc - symmetric keys
-function uploadData(data, file_id, sharedKey, Kenc, keyid, callback){
-	if(data=={} || file_id=="" || sharedKey=="" || Kenc=="" || keyid==""){
-		console.log("Lack of parameter of uploadData function")
-		return false;
-	}
+function uploadData(data, file_id, sharedKey, Kenc,callback){
 	// verify if file_id existed
-	var ret = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?limit=1&jsonId="+file_id+"&keyId="+keyid);
+	var ret = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?limit=1&jsonId="+file_id);
 	if (ret.meta['total_count']>0){
 		console.log("Existed file id")
 		return false;
@@ -191,6 +231,7 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, callback){
 	console.log("KeyG in upload:",KeyG);
 	var key = hash(Kenc); //generate encryption key from inputed passphrase Kenc
 
+	//console.log("New file id")
 	console.log("URL TA:",sseConfig.base_url_ta)
 	
 	console.log("json object:",data);
@@ -212,7 +253,8 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, callback){
 	console.log("list of uploaded keywords:",arrW);
 	console.log("list of hashed keywords:",listHw);
 	
-	var data_ta = JSON.stringify({"Lw":listHw,"keyId":keyid});
+	//console.log("Invoke upload rest api");
+	var data_ta = JSON.stringify({"Lw":listHw});
 	console.log("Data sent to TA:",data_ta);
 	
 	// Request meta data fileNo and searchNo from TA, and increase fileNo for uploaded keywords
@@ -232,6 +274,8 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, callback){
 	var searchno, fileno, item, kw;
 	for(i=0; i<l; i++){ // For all keywords
 		hw = listHw[i]; // hashed of keyword
+		//console.log("i:",i);
+		//item = Lfileno.find(element => element.w=hw);
 		var len = Lfileno.length;
 		var item,element;
 		for(j=0; j<len; j++){
@@ -241,12 +285,15 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, callback){
 				j=len;
 			}
 		}
-
+//		item =  Lfileno.filter(function(element) {
+//			return element.w == hw;
+//		})[0]; //retrieve fileNo of the keyword
 		console.log("found item:",item);
 		fileno  = item.fileno;
 		console.log("found fileno:",fileno);
 		
 		// retrieve searchNo of the keyword
+		//try{
 		len = Lsearchno.length;
 		for(j=0; j<len; j++){
 			element = Lsearchno[j];
@@ -258,7 +305,12 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, callback){
 		}
 		if(j==len) // not found searchno
 			searchno = 0;
-
+		
+//		catch(err){
+//			console.log("not found searchno")
+//			searchno = 0;
+//		}
+		
 		// Compute the key KeyW
 		KeyW = encrypt(KeyG,hw + searchno);	
 		console.log(" - Hash of keyword:",hw," -Search number:",searchno)
@@ -271,7 +323,7 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, callback){
 		//Encrypt keyword
 		kw = arrW[i];
 		var c = encrypt(key, kw);
-		Lcipher += '{ "jsonId" : "' + file_id + '","data" : ' + c + ',"keyId":"' + keyid + '"},'; // List of ciphertexts of keywords
+		Lcipher += '{ "jsonId" : "' + file_id + '","data" : ' + c + '},'; // List of ciphertexts of keywords
 		
 		// Compute the address in the dictionary
 		var input = KeyW_ciphertext + fileno + "0";
@@ -283,7 +335,7 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, callback){
 		// Compute value of entry in the dictionary (Map)
 		var val = file_id; //Do not encrypt json_id anymore
 		console.log("json_id:", val, " - file number:", fileno, " - value of entry in the dictionary:",val);
-		Laddress += '{ "address" : "' + addr + '","value" : "' + val + '","keyId":"' + keyid + '"},'; // the dictionary (Map)
+		Laddress += '{ "address" : "' + addr + '","value" : "' + val + '"},'; // the dictionary (Map)
 		
 	}
 	
@@ -310,11 +362,11 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, callback){
 //Decrypt data retrieved from CSP
 //Input: response - data retrieved from CSP, Kenc - symmeric key, keyword - the searched keyword
 //Output: json object containing count (number of data objects), and objects (list of data objects)
-function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid){
+function retrieveData(response, Kenc, searchNo, searchNoUri,keyword){
 	console.log("response of search:",response)
 	var data;
 	var msg = "";
-	if(response == undefined ){//found 0 results
+	if(response == undefined ){//|| response.Cfw.length==0 ){ //found 0 results
 		found = 0
 		data = '{"count":' + found + ',"objects":[]}'
 	}
@@ -330,6 +382,7 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid){
 	
 		data = '"objects":' + '[';
 
+		//var key = hash(Kenc); // generate key from inputted passphrase Kenc;
 		for(var j=0; j<found; j++){
 			var objs_data = response.Cfw[j]
 			var length = objs_data.length;
@@ -340,7 +393,7 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid){
 				console.log("encrypted data:",ct)
 				var ct_reformat =ct.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
 				var text = decrypt(Kenc,ct_reformat)
-
+				//var text = decrypt(key,ct_reformat)
 				var pair = text.split("|")
 				console.log("decrypted data:",text)
 				data =  data + '"' + pair[0] + '":"' + pair[1] + '",'
@@ -360,7 +413,7 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid){
 	if(msg!="error"){ // if found 0 is not due to wrong key
 		// Update search number to TA in both cases: found, and not found
 		if(searchNo==1){ // If the keyword is new, create searchNo in TA
-			var jsonData = '{ "w" : "' + hash(keyword) + '","searchno" : ' + searchNo + ',"keyId":"' + keyid + '"}';
+			var jsonData = '{ "w" : "' + hash(keyword) + '","searchno" : ' + searchNo + '}';
 			console.log('Create new entry in searchNo: ',jsonData);
 			postRequest(sseConfig.base_url_ta + "/api/v1/searchno/", jsonData, undefined, async_feat = false);	//async_feat=true to searve jest automatic testing				
 		}
@@ -380,11 +433,13 @@ function decryptData(cipherList, Kenc){
 	
 	var data=[];
 	
+	//var key = hash(Kenc); //generate key from passphrase
 	for(var j=0; j<found; j++){
 		var ct = cipherList[j].data
 		console.log("encrypted data:",ct)
 		var ct_reformat =ct.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
 		var text = decrypt(Kenc,ct_reformat)
+		//var text = decrypt(key,ct_reformat)
 		console.log("decrypted data:",text)
 		data.push(text);
 	}
@@ -395,8 +450,9 @@ function decryptData(cipherList, Kenc){
 
 //Search keyword function
 //Input: keyword (string) - keyword, KeyG, Kenc - symmetric keys
-function findKeyword(keyword, sharedKey, Kenc,keyid){
+function findKeyword(keyword, sharedKey, Kenc){
 	console.log("Search keyword function");
+	//console.log("In search keyword function: KeyG, Kenc:",sharedKey, Kenc);
 	
 	var KeyG = computeKeyG(sharedKey);
 	var key = hash(Kenc);
@@ -404,7 +460,8 @@ function findKeyword(keyword, sharedKey, Kenc,keyid){
 	var fileNo, fileNoUri;
 	
 	// Get file number
-	[LfileNo, LfileNoUri,listW] = getMultiFileOrSearchNo("fileno",[hash(keyword)],keyid); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+	//[LfileNo, LfileNoUri,listW] = getMultiFileNo([hash(keyword)]); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+	[LfileNo, LfileNoUri,listW] = getMultiFileOrSearchNo("fileno",[hash(keyword)]); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
 	console.log("Lfileno:",LfileNo)
 	if(LfileNo.length>0){
 		fileNo = LfileNo[0]
@@ -419,7 +476,8 @@ function findKeyword(keyword, sharedKey, Kenc,keyid){
 	
 	// Get search number
 	var searchNo, searchNoUri;
-	[LsearchNo, LsearchNoUri,tempListWord] = getMultiFileOrSearchNo("searchno",[hash(keyword)],keyid); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+	//[LsearchNo, LsearchNoUri,tempListWord] = getMultiSearchNo([hash(keyword)]); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+	[LsearchNo, LsearchNoUri,tempListWord] = getMultiFileOrSearchNo("searchno",[hash(keyword)]); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
 	console.log("List of search number:",LsearchNo)
 	if(LsearchNo.length>0){
 		searchNo = LsearchNo[0]
@@ -456,7 +514,7 @@ function findKeyword(keyword, sharedKey, Kenc,keyid){
 		arrayAddr.push(newAddr);
 	} //end for
 	
-	var data = '{ "KeyW" : ' + KeyW + ',"fileno" : ' + fileNo + ',"Lu" :[' + arrayAddr + '],"keyId":"' + keyid + '"}';
+	var data = '{ "KeyW" : ' + KeyW + ',"fileno" : ' + fileNo + ',"Lu" :[' + arrayAddr + ']}';
 	console.log("Data sent to CSP:", data);
 	
 	hashChars = sseConfig.hash_length/4; //number of chars of hash output: 64
@@ -468,7 +526,7 @@ function findKeyword(keyword, sharedKey, Kenc,keyid){
 	
 	console.log("Results from post request after returned:",result.responseJSON);
 	
-	data = retrieveData(result.responseJSON,key,searchNo,searchNoUri,keyword,keyid);
+	data = retrieveData(result.responseJSON,key,searchNo,searchNoUri,keyword);
 	console.log("Results from retrieveData:",data);
 	
 	return data;
@@ -476,11 +534,7 @@ function findKeyword(keyword, sharedKey, Kenc,keyid){
 
 //Search data
 //Input: data - json object of search content, KeyG, Kenc - symmetric keys
-function search(data, KeyG, Kenc,keyid){
-	if(data=={} || KeyG=="" || Kenc=="" || keyid==""){
-		console.log("Lack of parameter of search function")
-		return {};
-	}
+function search(data, KeyG, Kenc){
 	console.log("json object:",data);
 	var keyword = data['keyword'];
 	if(keyword==undefined){
@@ -488,7 +542,7 @@ function search(data, KeyG, Kenc,keyid){
 		return null;
 	}
 	console.log("keyword: ",keyword);
-	var results = findKeyword(keyword,KeyG,Kenc,keyid);
+	var results = findKeyword(keyword,KeyG,Kenc);
 	return results;
 }
 
@@ -568,7 +622,7 @@ function encryptList(Lkeyword,Kenc){
 }
 
 //offset: the amount of addition or subtraction from the current fileno
-function updateFileNo(Lhash,LfileNoUri,LfileNo,offset,keyid){
+function updateFileNo(Lhash,LfileNoUri,LfileNo,offset){
 	var objects = '';
 	var length = Lhash.length;
 	
@@ -590,15 +644,15 @@ function updateFileNo(Lhash,LfileNoUri,LfileNo,offset,keyid){
 			del=true
 			deleted_objects +='"' + LfileNoUri[i] + '",';
 		}	
-		else if(fileno==0){ //&& fileno+offset>0, Addition: if after update, there exists file containing the keyword
+		else if(fileno==0){ //&& fileno+offset>0, Addition: if after update, there exists file conatining the keyword
 			update = true
 			console.log('Add new entry in fileNo:',w);
-			objects += '{ "w" : "' + w + '","fileno" : ' + new_fileno + ',"keyId":"' + keyid + '"},';
+			objects += '{ "w" : "' + w + '","fileno" : ' + new_fileno + '},';
 		}
 		else { // Update an existed entry in fileno
 			update = true
 			console.log('Update existed entry in fileNo:',w);
-			objects += '{ "w" : "' + w + '","fileno" : ' + new_fileno +  ',"keyId":"' + keyid + '","resource_uri" : "' + LfileNoUri[i] + '"},';	
+			objects += '{ "w" : "' + w + '","fileno" : ' + new_fileno + ',"resource_uri" : "' + LfileNoUri[i] + '"},';	
 		}
 	}
 	
@@ -643,15 +697,9 @@ function createFullList(Lhash,Lexisted_hash,Lfound){
 
 //Update data:
 // Data = { att1:[current_value,new_value], att2:[current_value,new_value] }
-function updateData(data, file_id, sharedKey, Kenc, keyid, callback){
-	if(data=={} || file_id=="" || sharedKey=="" || Kenc=="" || keyid==""){
-		console.log("Lack of parameter of updateData function")
-		return false;
-	}
-	
+function updateData(data, file_id, sharedKey, Kenc, callback){
 	// Based on {att:current_value}, request for No.Files, No.Search
 	console.log("Updating data")
-	console.log("key id:",keyid)
 	var keys =Object.keys(data)
 	console.log("key:",keys)
 	var length = keys.length; // number of update fields
@@ -686,7 +734,8 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, callback){
 	Lcurrent_fileNo = [];
 	Lcurrent_fileNoUri = [];
 	current_listW = [];
-	[Lcurrent_fileNo, Lcurrent_fileNoUri,current_listW] = getMultiFileOrSearchNo("fileno",Lcurrent_hash,keyid);
+	//[Lcurrent_fileNo, Lcurrent_fileNoUri,current_listW] = getMultiFileNo(Lcurrent_hash);
+	[Lcurrent_fileNo, Lcurrent_fileNoUri,current_listW] = getMultiFileOrSearchNo("fileno",Lcurrent_hash);
 	
 	if(Lcurrent_fileNo.length<length){ //at least 1 keyword is not found in No.Files
 		console.log("At least one of update field does not exist in database")
@@ -700,7 +749,8 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, callback){
 	Lall_searchNoUri = [];
 	all_tempListWord = [];
 	Lall_hash = Lcurrent_hash.concat(Lnew_hash); //combine Lcurrent_hash and Lnew_hash
-	[Lall_found_searchNo,Lall_searchNoUri,all_tempListWord]=getMultiFileOrSearchNo("searchno",Lall_hash,keyid);
+	//[Lall_found_searchNo,Lall_searchNoUri,all_tempListWord]=getMultiSearchNo(Lall_hash);
+	[Lall_found_searchNo,Lall_searchNoUri,all_tempListWord]=getMultiFileOrSearchNo("searchno",Lall_hash);
 	console.log("Lall_found_searchNo:",Lall_found_searchNo);
 	console.log("all_tempListWord:",all_tempListWord);
 	console.log("Lcurrent_hash:",Lcurrent_hash);
@@ -723,7 +773,8 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, callback){
 	Lnew_fileNo = [];
 	Lnew_fileNoUri = [];
 	new_listW = [];
-	[Lnew_found_fileNo, Lnew_fileNoUri,new_listW] = getMultiFileOrSearchNo("fileno",Lnew_hash,keyid); 
+	//[Lnew_found_fileNo, Lnew_fileNoUri,new_listW] = getMultiFileNo(Lnew_hash); 
+	[Lnew_found_fileNo, Lnew_fileNoUri,new_listW] = getMultiFileOrSearchNo("fileno",Lnew_hash); 
 
 	// Build full list of No.File of every keyword
 	Lnew_fileNo = createFullList(Lnew_hash,new_listW,Lnew_found_fileNo)
@@ -738,10 +789,12 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, callback){
 	console.log("List of new address lists:",Lnew_addr);
 
 	// Encrypt new values
+	//Lcurrent_cipher = encryptList(Lcurrent_value,Kenc);
+	//Lnew_cipher = encryptList(Lnew_value,Kenc);
 	Lcurrent_cipher = encryptList(Lcurrent_value,key);
 	Lnew_cipher = encryptList(Lnew_value,key);
 
-	var data = '{"file_id":"' + file_id + '","LkeyW" :[' + Lcurrent_keyW + '],"Lfileno" :[' + Lcurrent_fileNo + '],"Ltemp" :[' + Ltemp_addr + '],"Lnew" :[' + Lnew_addr + '],"Lcurrentcipher" :['+ Lcurrent_cipher + '],"Lnewcipher" :['+ Lnew_cipher +'],"keyId":"'+keyid+'"}';
+	var data = '{"file_id":"' + file_id + '","LkeyW" :[' + Lcurrent_keyW + '],"Lfileno" :[' + Lcurrent_fileNo + '],"Ltemp" :[' + Ltemp_addr + '],"Lnew" :[' + Lnew_addr + '],"Lcurrentcipher" :['+ Lcurrent_cipher + '],"Lnewcipher" :['+ Lnew_cipher +']}';
 	console.log("Data sent to CSP:", data);
 
 	console.log("Sent update request:",sseConfig.base_url_sse_server + "/api/v1/update/")
@@ -758,12 +811,12 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, callback){
 		var current_del,current_objects,current_deleted_objects,delete_current_searchno;
 		
 		// not yet: check if remove delete_current_searchno is fine or not
-		[current_del,current_objects,current_deleted_objects,delete_current_searchno]=updateFileNo(Lcurrent_hash,Lcurrent_fileNoUri,Lcurrent_fileNo,-1,keyid);
+		[current_del,current_objects,current_deleted_objects,delete_current_searchno]=updateFileNo(Lcurrent_hash,Lcurrent_fileNoUri,Lcurrent_fileNo,-1);
 
 		console.log("Increase new No.Files at TA")
 		var new_del,new_objects,new_deleted_objects,delete_new_searchno;
 		// not yet: check if remove delete_new_searchno is fine or not
-		[new_del,new_objects,new_deleted_objects,delete_new_searchno]=updateFileNo(Lnew_hash,Lnew_fileNoUri,Lnew_fileNo,1,keyid);
+		[new_del,new_objects,new_deleted_objects,delete_new_searchno]=updateFileNo(Lnew_hash,Lnew_fileNoUri,Lnew_fileNo,1);
 
 		// update No.Files
 		objects = '"objects":[';
@@ -787,26 +840,23 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, callback){
 }
 
 //Delete data
-function deleteData(file_id, sharedKey, Kenc, keyid, callback){
-	if(file_id=="" || sharedKey=="" || Kenc=="" || keyid==""){
-		console.log("Lack of parameter of deleteData function")
-		return false;
-	}
+function deleteData(file_id, sharedKey, Kenc, callback){
 	// Send GET request to CSP to retrieve ciphertext of data belonging to file_id
-	var obj = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?limit=0&jsonId=" + file_id + "&keyId=" + keyid); //limit=0 allows to get all items
+	var obj = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?limit=0&jsonId=" + file_id); //limit=0 allows to get all items
 	console.log("response:",obj);
 	var length = obj.meta.total_count;
 	if(length==0){
-		console.log("File_id and/ or key id does not exist");
+		console.log("File_id does not exist");
 		return false;
 	}
 	else{
-		console.log("File_id and key id exist");
+		console.log("File_id exists");
 		var KeyG = computeKeyG(sharedKey);
 		console.log("KeyG:",KeyG);
 		var key = hash(Kenc);
 		
 		// Decrypt data
+		//var pt = decryptData(obj.objects,Kenc);
 		var pt = decryptData(obj.objects,key);
 		
 		// Send GET request to TA to retrieve fileno
@@ -815,7 +865,7 @@ function deleteData(file_id, sharedKey, Kenc, keyid, callback){
 		var Lcipher=[];
 		
 		// retrieve data from Map table by file_id
-		var objMap = getRequest(sseConfig.base_url_sse_server + "/api/v1/map/?limit=0&value=" + file_id + "&keyId=" + keyid);
+		var objMap = getRequest(sseConfig.base_url_sse_server + "/api/v1/map/?limit=0&value=" + file_id);
 		console.log("objects in map table:",objMap);
 		for(i=0; i< length; i++){
 			w = pt[i];
@@ -826,12 +876,14 @@ function deleteData(file_id, sharedKey, Kenc, keyid, callback){
 		console.log("list of hashed keywords:",Lw);
 		
 		// Retrieve list of file number
-		[LfileNo, LfileNoUri,listW] = getMultiFileOrSearchNo("fileno",Lw,keyid);
+		//[LfileNo, LfileNoUri,listW] = getMultiFileNo(Lw); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+		[LfileNo, LfileNoUri,listW] = getMultiFileOrSearchNo("fileno",Lw);
 		console.log("keyword string input:",Lw);
 		console.log("List of file numbers: ", LfileNo);
 		console.log("List of Url:", LfileNoUri);
 		console.log("List of retrieved keywords:",listW);
 
+		//var arrLw = Lw.split(",");
 		var listFileNo;
 		if(Lw.length > listW.length)
 			listFileNo=createFullList(Lw,listW,LfileNo);
@@ -841,11 +893,13 @@ function deleteData(file_id, sharedKey, Kenc, keyid, callback){
 		console.log("full list of file no of keywords:",listFileNo);
 		// Retrieve search number
 		
-		[LsearchNo, LsearchNoUri,tempListWord] = getMultiFileOrSearchNo("searchno",Lw,keyid); //"tempListWord" can be empty if all keywords has been never searched
+		//[LsearchNo, LsearchNoUri,tempListWord] = getMultiSearchNo(Lw); //"tempListWord" can be empty if all keywords has been never searched
+		[LsearchNo, LsearchNoUri,tempListWord] = getMultiFileOrSearchNo("searchno",Lw); //"tempListWord" can be empty if all keywords has been never searched
 
 		console.log("Search numbers: ", LsearchNo);
 		console.log("Urls: ", LsearchNoUri);
 		console.log("list of words in searchno:",tempListWord);
+		//getMultiSearchNo1(Lw);// test
 
 		var listSearchNo;
 		if(Lw.length > tempListWord.length)
@@ -862,7 +916,7 @@ function deleteData(file_id, sharedKey, Kenc, keyid, callback){
 		Laddr = computeAddr(Lw,Ltemp_keyW,listFileNo); // compute addresses
 		console.log("List of address:",Laddr);
 		
-		var data = '{"file_id":"' + file_id + '","LkeyW" :[' + LkeyW + '],"Lfileno" :[' + LfileNo + '],"Ltemp" :['+ Laddr +'],"Lcipher" :['+ Lcipher +'],"keyId":"'+ keyid + '"}';
+		var data = '{"file_id":"' + file_id + '","LkeyW" :[' + LkeyW + '],"Lfileno" :[' + LfileNo + '],"Ltemp" :['+ Laddr +'],"Lcipher" :['+ Lcipher +']}';
 		console.log("Data sent to CSP:", data);
 
 		console.log("Sent delete request:",sseConfig.base_url_sse_server + "/api/v1/delete/")
@@ -872,7 +926,7 @@ function deleteData(file_id, sharedKey, Kenc, keyid, callback){
 		
 		// Send PATCH request to TA to update/delete entries in fileno table
 		var current_del,current_objects,current_deleted_objects;
-		[current_del,current_objects,current_deleted_objects]=updateFileNo(Lw,LfileNoUri,LfileNo,-1,keyid);
+		[current_del,current_objects,current_deleted_objects]=updateFileNo(Lw,LfileNoUri,LfileNo,-1);
 
 		console.log("deleted objects in fileno table:",current_deleted_objects);
 		// update No.Files
@@ -898,14 +952,11 @@ function computeKeyG(pwdphrase){
 	return hash(pwdphrase + "keyg");
 }
 // Upload hash of key
-function uploadKeyG(pwdphrase,keyid){
-	if(pwdphrase=="" || keyid==""){
-		console.log("Lack of passphrase or keyid");
-		return false;
-	}
+function uploadKeyG(pwdphrase){
+	// hash
 	console.log("passphrase to compute keyg:",pwdphrase);
 	var keyg = computeKeyG(pwdphrase);
-	var jsonData = '{ "key" : "' + keyg + '","keyId":"' + keyid + '"}';
+	var jsonData = '{ "key" : "' + keyg + '"}';
 	console.log("uploaded KeyG:",keyg)
 	postRequest(sseConfig.base_url_ta + "/api/v1/key/", jsonData, undefined, async_feat = false);
 	return true;
@@ -942,118 +993,20 @@ function encryptBlob(blobData,ftype, Kenc){
 	}
  }
 
-// Encrypt and upload blob data to minio
-// Approach: File -> divide into chunks -> encrypt each chunk -> upload -> (loop) -> until finish
-function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId){
-	console.log("Progress Encrypt Blob")
-	console.log("blob content:",blobData)
-	return function(resolve) {
-		var reader = new FileReader()
-		reader.onload = function(e){
-			var imageData = new Uint8Array(e.target.result);
-			console.log("Blob content:",imageData);    	    
-			
-			var iv = sjcl.hash.sha1.hash(sseConfig.iv).slice(0,4); // IV should be an array of 4 words. Get 4 words to create iv
 
-			var key = sjcl.hash.sha256.hash(Kenc); //key is an array of 4,6 or 8 words
-			var aes = new sjcl.cipher.aes(key);
-			//adata = "";
-			var enc = sjcl.mode.ocb2progressive.createEncryptor(aes, iv);
-
-		    var result = [];
-		    var sliceSizeRange = sseConfig.chunk_size;// size of 1 slice/ chunk for encryption (in uint8 items)
-		    var slice = [0, sseConfig.chunk_size];//data will be sliced/ chunked/ read between slice[0] and slice[1]
-		    var count = 0;
-		    console.log("length of data:",imageData.length);
-		    
-		    var cipherpart, outputname;
-		    var idx=0;
-		    var tb=[];
-		    
-		    while (slice[0] < imageData.length) {
-		    	result = result.concat(enc.process(sjcl.codec.bytes.toBits(imageData.slice(slice[0], slice[1]))));
-		        slice[0] = slice[1];
-		        slice[1] = slice[0] + sliceSizeRange;
-		        if(slice[1]>imageData.length)
-		        	slice[1] = imageData.length;
-		        
-		        count = count +1 ;		        
-		        
-		        if((count % sseConfig.no_chunks_per_upload)==0){ //upload each part of #fragment chunks/ slices.
-		        	console.log("upload part:",count);
-		        	console.log("ciphertext type:",typeof result);
-
-		        	tb[idx]=result;
-		        	console.log("tb[idx]:",tb[idx])
-		        	idx = idx+1;        	
-		        	
-					cipherpart = new Blob([result], { type: ftype });//upload as 1 whole part
-		        	result = [];
-		        	outputname= fname + "_part" + idx + keyId;
-		        	console.log("blob cipher:",cipherpart);
-		        	uploadMinio(cipherpart,outputname);
-		        }
-		    }
-		    result = result.concat(enc.finalize());
-		    console.log("Last part ciphertext:",result)
-		    tb[idx]=result;
-		    console.log("tb[idx]:",tb[idx])
-	    	idx = idx+1;
-		    
-		    cipherpart = new Blob([result], { type: ftype });
-        	outputname= fname + "_part" + idx  + keyId;
-        	uploadMinio(cipherpart,outputname);
-        	
-        	outputname= fname + "_meta" + keyId;
-        	cipherpart = new Blob([idx], { type: ftype });
-        	uploadMinio(cipherpart,outputname);
-        	
-        	/*
-        	//decryption - for testing only
-        	
-		    try {
-		    	console.log("Decrypting")
-		        var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
-		        var dresult = [];
-		        console.log("idx",idx);
-		       
-		        var i;
-		        var imageByte, imageDecryptBlob;
-		        
-		        for (i = 0; i < idx; i++) {
-		        	console.log("decrypting block:",i)
-		        	console.log("type of ciphertext:",typeof tb[i]);
-		        	console.log("ciphertext:",tb[i]);
-		        	//dresult = dresult.concat(fromBitArrayCodec(dec.process(tb[i])));
-		        	
-		        	dresult = fromBitArrayCodec(dec.process(tb[i])); // testing only
-		        	console.log("plaintext:",dresult);
-		        	
-		        	//for testing
-		        	imageByte = new Uint8Array(dresult); // create byte array from base64 string
-					console.log("plaintext in bytes:",imageByte);	
-					imageDecryptBlob = new Blob([imageByte], { type: ftype });
-					uploadMinio(imageDecryptBlob,"plaintext" + idx);
-		        }
-		        dresult = dresult.concat(dec.finalize());
-		        console.log("plaintext:",dresult)
-		        imageByte = new Uint8Array(dresult); // create byte array from base64 string
-				console.log("plaintext in bytes:",imageByte);
-		
-				imageDecryptBlob = new Blob([imageByte], { type: ftype });//{ type: ftype });
-				uploadMinio(imageDecryptBlob,"plaintext");
-				
-				console.log("complete decrypting and sending to minio");
-		    } catch (e) {
-		        console.log("Error:" + e);
-		    }
-		    */
-			resolve(cipherpart);
-
-		};
-		reader.readAsArrayBuffer(blobData);	
-	}
-}
+//function uploadToAwsS3(presignedUrl,blob){
+//	$.ajax({
+//		  url: presignedUrl, // the presigned URL
+//		  type: 'PUT',
+//		  data: blob,
+//		  success: function() { 
+//			  return true; 
+//		  },
+//		  error: function(erro){
+//				console.error("Upload to AWS S3 Error");
+//		  }
+//	})
+//}
 
 function downloadWithPresignUrl(presignedUrl,fname,callback){
 	$.ajax({
@@ -1063,6 +1016,7 @@ function downloadWithPresignUrl(presignedUrl,fname,callback){
               responseType: 'blob' //download as blob data
           },
 		  success: function(data, status) {
+			  //console.log("data:",data)
 			  callback(data,fname) //decrypt data
 			  return true; 
 		  },
@@ -1117,10 +1071,24 @@ function putPresignUrl(fname){
 	return ret;
 }
 
+//function uploadToMinio(presignedUrl,file){
+//    fetch(presignedUrl, {
+//        method: 'PUT',
+//        body: file
+//    }).then(() => {
+//        // If multiple files are uploaded, append upload status on the next line.
+//        //document.querySelector('#status').innerHTML += `<br>Uploaded ${file.name}.`;
+//    }).catch((e) => {
+//        console.error(e);
+//    });
+//}
+
 //Upload file to Minio
 //Input: - fname: filename, - blob: data to upload
 function uploadMinio(blob,fname,callback=undefined){
 	var presigned_url = putPresignUrl(fname) // request for a presigned url
+	//console.log("put presign url:",presigned_url)
+	//uploadToMinio(url,blob) // upload to Minio
     
 	$.ajax({
 		url: presigned_url,
@@ -1137,31 +1105,41 @@ function uploadMinio(blob,fname,callback=undefined){
 			console.error("Put Request Error");
 		}
 	})
+//    fetch(presigned_url, {
+//        method: 'PUT',
+//        body: blob
+//    }).then(function(response) {
+//    	console.log("response status:",response.status)
+//    	console.log("response:",response)
+//    	if(callback!=undefined)
+//    		callback(true)
+////    	if (response.status !== 200) {
+////    		console.log('Looks like there was a problem. Status Code: ' +
+////    		response.status);
+////    		return;
+////    	}
+//    		//() => {
+//        // If multiple files are uploaded, append upload status on the next line.
+//        //document.querySelector('#status').innerHTML += `<br>Uploaded ${file.name}.`;
+//    	return true;//for jest testing
+//    }).catch((e) => {
+//        console.error(e);
+//    });
 }
 
-//Encrypt blob data (<=10MB) and upload to Minio along with its searchable metadata (json format)
-function encryptUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,keyId,callback=undefined){
+//Encrypt blob data and upload to Minio along with its searchable metadata (json format)
+function encryptUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,callback=undefined){
 	//append filename to metadata
 	jsonObj.filename = fname;
 	console.log("metadata after appending filename:{}",jsonObj);
-	encryptUploadBlob(blob,fname,Kenc,keyId);
-	uploadData(jsonObj,file_id,KeyG,Kenc,keyId);
+	encryptUploadBlob(blob,fname,Kenc);
+	uploadData(jsonObj,file_id,KeyG,Kenc);
 }
-
-
-//Encrypt large blob data and upload to Minio along with its searchable metadata (json format)
-function encryptProgressUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,keyId, callback=undefined){
-	//append filename to metadata
-	jsonObj.filename = fname;
-	console.log("metadata after appending filename:{}",jsonObj);
-	encryptProgressUploadBlob(blob,fname,Kenc,keyId);
-	uploadData(jsonObj,file_id,KeyG,Kenc,keyId);
-}
-
 //Encrypt blob data and upload to Minio
-function encryptUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
+function encryptUploadBlob(blob,fname,Kenc,callback=undefined){
     var ftype = blob.type;
-    var outputname = fname + keyId;
+  //  var outputname = fname.split(".")[0];// + "_encrypted";
+    var outputname = fname;
     var promise = new Promise(encryptBlob(blob,ftype,Kenc));
 
     // Wait for promise to be resolved, or log error.
@@ -1176,29 +1154,13 @@ function encryptUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
     return promise;
 }
 
-
-//Encrypt large blob data and upload to Minio
-function encryptProgressUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
-    var ftype = blob.type;
-    console.log("blob type:",ftype);
-
-    var promise = new Promise(encryptProgressBlob(blob,fname,ftype,Kenc,keyId));
-
-    // Wait for promise to be resolved, or log error.
-    promise.then(function(cipherBlob) {
-    	console.log("Completed encrypting blob. Now send data to server.")
-    }).catch(function(err) {
-    	console.log('Error: ',err);
-    });
-    return promise;
-}
-
-//Download file from Minio, decrypt and save it to local host (blob file <=10MB)
+//Download file from Minio, decrypt and save it to local host
 //Input: - fname: filename, - callback: function to decrypt and save file
 //function downloadMinio(fname,callback){
-function downloadDecryptBlob(fname,Kenc,keyId,callback=undefined){
+function downloadDecryptBlob(fname,Kenc,callback=undefined){
 	console.log("Download blob")
-	var presigned_url = getPresignUrl(fname+keyId) // request for a presigned url 
+	var presigned_url = getPresignUrl(fname) // request for a presigned url 
+	//downloadWithPresignUrl(url,fname,callback); // download the file and decrypt it with a callback function, which is "handleBlobDecrypt" function
 	$.ajax({
 		  url: presigned_url, // the presigned URL
 		  type: 'GET',
@@ -1206,17 +1168,61 @@ function downloadDecryptBlob(fname,Kenc,keyId,callback=undefined){
 	            responseType: 'blob' //download as blob data
 	      },
 		  success: function(data, status) {
+			  //console.log("data:",data)
+			  //callback(data,fname) //decrypt data
 			  console.log("Decrypt and save blob")
 			  decryptSaveBlob(data,fname,Kenc,callback) //decrypt data
+			 // return true; 
 		  },
 		  error: function(erro){
 			  console.error("Download from Minio Error");
 			  console.error(erro);
 		  }
 	})
+	
+//    var promise = new Promise((resolve, reject) => {
+//        $.ajax({
+//        	url: presigned_url, // the presigned URL
+//        	type: 'GET',
+//        	xhrFields:{
+//	            responseType: 'blob' //download as blob data
+//        	},
+//            success: function (data) {
+//              resolve(data)
+//            },
+//            error: function (error) {
+//              reject(error)
+//            },
+//          })
+//     })
+//
+//    // Wait for promise to be resolved, or log error.
+//    promise.then(async function(data) {
+//    	console.log("Decrypt and save blob")
+//    	console.log("data:",data)
+//    	//var myBlob = new Blob(['hello blob'], {type : 'text/plain'});
+//    	//saveBlob(data,fname);
+//    	var output = await readFileAsync(data)
+//		console.log(output)
+//    	//return myBlob;
+//		//decryptSaveBlob(data,fname,Kenc,callback) //decrypt data
+//    }).catch(function(err) {
+//    	console.log('Error: ',err);
+//    });
+//    return promise;
 }
 
-//Decrypt and save blob data (<=10MB)
+function readFileAsync(file) {
+	return new Promise((resolve, reject) => {
+	    var fr = new FileReader();  
+		fr.onload = () => {
+	      resolve(fr.result)
+	    };
+	    fr.readAsText(file);
+	});
+}
+
+//Decrypt blob data
 //Input: - data: blob data, - fname: file name. Output: - save file to local host
 function decryptSaveBlob(blob,fname,Kenc,callback=undefined){
 	 var outputname = fname;//fname.split(".")[0];// + "_decrypted";
@@ -1233,12 +1239,24 @@ function decryptSaveBlob(blob,fname,Kenc,callback=undefined){
 			callback(true); // for jest
 		}
 	 })
+//	 var promise = new Promise(decryptBlob(blob,ftype,Kenc));
+//	 // Wait for promise to be resolved, or log error.
+//	 promise.then(function(plainBlob) {
+//		console.log("Save file to disk");
+//	 	saveBlob(plainBlob,outputname);
+//	 	if(callback!=undefined){
+//			callback(true); // for jest
+//		}
+//	 }).catch(function(err) {
+//	 	console.log('Error: ',err);
+//	 });
+	 
 	 return promise;
 }
 
-// Decrypt a blob file (<=10MB)
 function decryptBlob(blobCipher,ftype,Kenc){
 	return function(resolve) {
+//	var promise = new Promise((resolve, reject) => {
 		var reader = new FileReader();
 		console.log("Decrypt blob")
 		reader.onload = function(e){
@@ -1266,80 +1284,36 @@ function decryptBlob(blobCipher,ftype,Kenc){
 		};	
 		reader.readAsArrayBuffer(blobCipher);
 	}
+	//return promise;
 }
-
-//Decrypt chunks of ciphertext and save as multiple files. 
-//A concatenation script is saved as concat_script.txt which contains a script to merge the multiple downloaded files into plaintext file.
-function downloadProgressDecryptBlob(fname,Kenc,keyId,callback=undefined){
-    console.log("Download blob")
-    try {
-    	var metafile = fname + "_meta" + keyId;
-    	var presigned_url = getPresignUrl(metafile);  
-    	var fragments = [];
-        $.ajax({
-        	url: presigned_url,
-            type: 'GET',
-            async: false,
-            success: function(blob, status) { 
-            	//create a list which contains names of ciphertext chunks
-                console.log("meta data:",blob);
-                var i;
-                for (i = 1; i <= blob; i++) {
-                	fragments.push(fname + "_part"+i + keyId);
-                }
-                console.log("file names:",fragments);
-                
-                //create a concatenation script for users to merge multiple chunks of plaintext into a complete plaintext
-                var script_data="cat $(for((i=1;i<="+blob+";i++)); do echo -n \""+fname +"${i} \"; done) > "+fname;
-                console.log("script:",script_data);
-               	var outputname= fname + "_script" + keyId;
-                var blob = new Blob([script_data]);
-                saveBlob(blob,"concat_script");
-
-       		},
-            error: function(erro){
-                 console.log("Download from Minio Error");
-                 console.log(erro);
-             }
-         })	            
-        var iv = sjcl.hash.sha1.hash(sseConfig.iv).slice(0,4); // IV should be an array of 4 words. Get 4 words to create iv
-		var key = sjcl.hash.sha256.hash(Kenc); //key is an array of 4,6 or 8 words
-
-        var aes = new sjcl.cipher.aes(key);
-        var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
-        
-        for (var i=0; i<fragments.length; i++) {
-            presigned_url = getPresignUrl(fragments[i]);          
-            $.ajax({
-            	url: presigned_url,
-                type: 'GET',
-                async: false,
-                success: function(blob, status) {
-                    var ftype = blob.type;
-                   	var imageJson = JSON.parse("[" +blob+"]");//string->json
-           			console.log("ciphertext in json - imageJson:",imageJson);
-            			
-           			var dresult = sjcl.codec.bytes.fromBits(dec.process(imageJson));            			
-         		    if(i==fragments.length-1){
-   	     		    	dresult = dresult.concat(dec.finalize());
-   	     		    }
-    	     		    
-           			var imageByte = new Uint8Array(dresult); // create byte array from base64 string
-     				console.log("plaintext in bytes - imageByte:",imageByte);
-     				var imageDecryptBlob = new Blob([imageByte], { type: ftype });
-     				var j = i+1;
-           			saveBlob(imageDecryptBlob,fname+j);
-           		},
-                error: function(erro){
-                     console.log("Download from Minio Error");
-                     console.log(erro);
-                 }
-                })	
-        }
-    } catch (e) {
-        console.log("Error:" + e);
-    }    
-}
+//	return function(resolve) {
+//		var reader = new FileReader();
+//		reader.onload = function(e){
+//			var imagecipher = new Uint8Array(e.target.result);
+//			console.log("input array:",imagecipher);
+//
+//			var bitarray = toBitArrayCodec(imagecipher);
+//			console.log("bit array:",bitarray);
+//
+//			var imageBase = sjcl.codec.base64.fromBits(bitarray); // byte array->base64
+//			console.log("image ciphertext in base64:",imageBase);
+//			var imageString = atob(imageBase); //base64 -> string
+//			console.log("image ciphertext in string:",imageString);
+//			var imageJson = JSON.parse(imageString);//string->json
+//			console.log("ciphertext in json:",imageJson);
+//
+//			var imagept = decrypt(Kenc,imageJson);
+//			console.log("decrypt image in string:",imagept);
+//
+//			var imageByte = new Uint8Array(sjcl.codec.base64.toBits(imagept)); // create byte array from base64 string
+//			console.log("plaintext in bytes:",imageByte);
+//
+//			var imageDecryptBlob = new Blob([imageByte], { type: ftype });
+//			resolve(imageDecryptBlob);
+//		};
+//		reader.readAsArrayBuffer(blobCipher);	
+//	}
+//}
 
 //referenced from internet
 /** Convert from an array of bytes to a bitArray. */
@@ -1385,6 +1359,14 @@ function saveBlob(blob, fileName) {
 	 a.click();
 	 console.log("click")
 	 window.URL.revokeObjectURL(url);
-	 document.body.removeChild(a);
-	 blob=null;
-}; 
+};
+
+function sleep(milliseconds) { 
+    let timeStart = new Date().getTime(); 
+    while (true) { 
+      let elapsedTime = new Date().getTime() - timeStart; 
+      if (elapsedTime > milliseconds) { 
+        break; 
+      } 
+    } 
+ } 
