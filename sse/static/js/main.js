@@ -1,7 +1,5 @@
 /// APPLICATION CONFIGURATION
 var appConfig={
-	 //'KeyG' : '123', //Key shared with TA
-	 //'key_encrypt': 'key encrypt',  //Key for encrypting/ decrypting json object
 	 'used_fields' : 2, // number of active fields in json_form.html
 	 'all_fields' : 24 // total number of fields in json_form.html
 }
@@ -11,13 +9,12 @@ var appConfig={
 /// HANDLERS
 // Handle event of data upload data
 function handleFileLoad(event){
-//	  var KeyG = appConfig.KeyG;
-//	  var Kenc = appConfig.key_encrypt; //Key for encrypting json object
 	  var Kenc = $("#passphrase1").val()
 	  var KeyG = Kenc;
-	  //console.log("shared passphrase:",KeyG)
       
 	  var file_id = $("#fileid1").val()
+	  var keyid = $("#keyid1").val()
+	  
 	  if(file_id==""){
 		  file_id=hash(Math.random().toString(36).substring(7)); // generate unique file_id. This should be changed in production
 	  }
@@ -27,7 +24,7 @@ function handleFileLoad(event){
       var st_date = new Date();
       var st_time = st_date.getTime();
       
-	  var ret = uploadData(jsonObj,file_id,KeyG,Kenc); // Upload data to CSP
+	  var ret = uploadData(jsonObj,file_id,KeyG,Kenc,keyid); // Upload data to CSP
 	  
       var end_date = new Date();
       var end_time = end_date.getTime();
@@ -47,17 +44,16 @@ function handleFileLoad(event){
 
 // Handle search data event
 function handleSearchFileLoad(event){
-	//var KeyG = appConfig.KeyG;	//shared key with TA
-	//var Kenc = appConfig.key_encrypt; //symmetric key which is used for decryption
 	var Kenc = $("#passphrase2").val();
 	var KeyG = Kenc;
-		
+	var keyid = $("#keyid2").val()
+	
 	var jsonObj = JSON.parse(event.target.result);
 	
 	var st_date = new Date();
     var st_time = st_date.getTime();
    
-	var results=search(jsonObj,KeyG,Kenc);
+	var results=search(jsonObj,KeyG,Kenc,keyid);
 	
 	if(results==null){
 		message = "Invalid input file"
@@ -86,22 +82,21 @@ function dynamicallyLoadScript(url) {
 
 //Handle update data event
 function handleUpdateFileLoad(event){
-	//var KeyG = appConfig.KeyG;	//shared key with TA
-	//var Kenc = appConfig.key_encrypt; //symmetric key which is used for decryption
 	var Kenc = $("#passphrase3").val();
 	var KeyG = Kenc;
+	
+	var keyid =$("#keyid3").val();
 	
 	var jsonObj = JSON.parse(event.target.result);
 	
 	var st_date = new Date();
     var st_time = st_date.getTime();
     var file_id = $("#fileid2").val() 
-    if(file_id==""){
-    	message = "Please provide file id"
-    	//file_id=hash(Math.random().toString(36).substring(7)); // generate unique file_id. This should be changed in production
+    if(file_id==""||keyid==""){
+    	message = "Please provide file id and/ or key id"
 	}
     else{
-    	var result=updateData(jsonObj,file_id,KeyG,Kenc);
+    	var result=updateData(jsonObj,file_id,KeyG,Kenc,keyid);
     	console.log("Update result:",result)
     	if(result==true){
     		message = "Updated"
@@ -122,21 +117,19 @@ function handleUpdateFileLoad(event){
 
 //Handle update data event
 function handleDeleteFile(){
-	//var KeyG = appConfig.KeyG;	//shared key with TA
-	//var Kenc = appConfig.key_encrypt; //symmetric key which is used for decryption
 	var Kenc = $("#passphrase4").val();
 	var KeyG = Kenc;
 	
 	var st_date = new Date();
     var st_time = st_date.getTime();
     var file_id = $("#fileid3").val() 
-    if(file_id==""){
-    	message = "Please provide file id"
-    	//file_id=hash(Math.random().toString(36).substring(7)); // generate unique file_id. This should be changed in production
-	}
+    var keyid = $("#keyid4").val() 
+    if(file_id=="" || keyid==""){
+    	message = "Please provide file id and key id"
+ 	}
     else{
     	console.log("Delete data")
-    	var result=deleteData(file_id,KeyG,Kenc);
+    	var result=deleteData(file_id,KeyG,Kenc,keyid);
     	console.log("Delete result:",result)
     	if(result==true){
     		message = "Deleted"
@@ -154,123 +147,24 @@ function handleDeleteFile(){
 	$('#deletetime').html("<div class='alert-primary alert'> Delete time: " +  diff + " </div>");
 }
 
-
-//// encrypt and save to localhost
-//function handleBlobUpload1(event){
-//	var Kenc = $("#passphrase5").val();
-//	
-//	var st_date = new Date();
-//    var st_time = st_date.getTime();
-//
-//    var fname = $("#filename").val();
-//    var ftype = $("#filetype").val();
-//    var outputname = fname.split(".")[0] + "_encrypted";
-//    console.log("Filename: " + typeof  fname);
-//    console.log("Type: " +  ftype);
-//
-//    var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
-//    console.log(blobData);
-//    var promise = new Promise(encryptBlob(blobData,ftype,Kenc));
-//
-//    // Wait for promise to be resolved, or log error.
-//    promise.then(function(cipherBlob) {
-//    	saveBlob(cipherBlob,outputname);
-//    }).catch(function(err) {
-//    	console.log('Error: ',err);
-//    });
-//
-//    var end_date = new Date();
-//    var end_time = end_date.getTime();
-//    var diff = end_time - st_time;
-//}
-//
-
-
-//// decrypt and save to localhost
-//function handleBlobDecrypt1(event){
-//	var Kenc = $("#passphrase5").val();
-//	
-//	var st_date = new Date();
-//    var st_time = st_date.getTime();
-//
-//    var fname = $("#filename").val();
-//    var ftype = $("#filetype").val();
-//    var outputname = fname.split(".")[0] + "_decrypted";
-//    console.log("Filename: " + typeof  fname);
-//    console.log("Type: " +  ftype);
-//
-//    var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
-//    console.log(blobData);
-//
-//    var promise = new Promise(decryptBlob(blobData,ftype,Kenc));
-//    // Wait for promise to be resolved, or log error.
-//    promise.then(function(plainBlob) {
-//    	saveBlob(plainBlob,outputname);
-//    }).catch(function(err) {
-//    	console.log('Error: ',err);
-//    });
-//    
-//    var end_date = new Date();
-//    var end_time = end_date.getTime();
-//    var diff = end_time - st_time;
-//}
-
-// Decrypt blob data
-// Input: - data: blob data, - fname: file name. Output: - save file to local host
-//function handleBlobDecrypt(data,fname){
-//	var Kenc = $("#passphrase6").val();
-//	
-//	var st_date = new Date();
-//    var st_time = st_date.getTime();
-//
-//    var ftype = data.type; //identify filetype from blob
-//    console.log("filetype:",ftype);
-//    var outputname = fname.split(".")[0];// + "_decrypted";
-//    console.log("Filename: " + typeof  fname);
-//    console.log("Type: " +  ftype);
-//    
-//    console.log("encrypted data:",data)
-//
-//    var blobData = new Blob([data], {type: ftype });
-//    console.log(blobData);
-//
-//    var promise = new Promise(decryptBlob(blobData,ftype,Kenc));
-//    // Wait for promise to be resolved, or log error.
-//    promise.then(function(plainBlob) {
-//    	saveBlob(plainBlob,outputname);
-//    }).catch(function(err) {
-//    	console.log('Error: ',err);
-//    });
-//    
-//    var end_date = new Date();
-//    var end_time = end_date.getTime();
-//    var diff = end_time - st_time;
-//}
-
-function handleBlobDecrypt(fname){
+function handleBlobDecrypt(fname,keyId){
 	var Kenc = $("#passphrase6").val();
 	
 	var st_date = new Date();
     var st_time = st_date.getTime();
-    downloadDecryptBlob(fname,Kenc);
-//    var ftype = data.type; //identify filetype from blob
-//    console.log("filetype:",ftype);
-//    var outputname = fname.split(".")[0];// + "_decrypted";
-//    console.log("Filename: " + typeof  fname);
-//    console.log("Type: " +  ftype);
-//    
-//    console.log("encrypted data:",data)
-//
-//    var blobData = new Blob([data], {type: ftype });
-//    console.log(blobData);
-//
-//    var promise = new Promise(decryptBlob(blobData,ftype,Kenc));
-//    // Wait for promise to be resolved, or log error.
-//    promise.then(function(plainBlob) {
-//    	saveBlob(plainBlob,outputname);
-//    }).catch(function(err) {
-//    	console.log('Error: ',err);
-//    });
+    downloadDecryptBlob(fname,Kenc,keyId);
+    
+    var end_date = new Date();
+    var end_time = end_date.getTime();
+    var diff = end_time - st_time;
+}
+
+function handleProgressBlobDecrypt(fname,keyId){
+	var Kenc = $("#passphrase6").val();
+	
+	var st_date = new Date();
+    var st_time = st_date.getTime();
+    downloadProgressDecryptBlob(fname,Kenc,keyId);
     
     var end_date = new Date();
     var end_time = end_date.getTime();
@@ -292,17 +186,33 @@ function handleBlobUpload(event){
 
     var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
     
-    encryptUploadBlob(blobData,fname,Kenc);
-//    console.log(blobData);
-//    var promise = new Promise(encryptBlob(blobData,ftype,Kenc));
-//
-//    // Wait for promise to be resolved, or log error.
-//    promise.then(function(cipherBlob) {
-//    	uploadMinio(cipherBlob,outputname)
-//    	//saveBlob(cipherBlob,outputname);
-//    }).catch(function(err) {
-//    	console.log('Error: ',err);
-//    });
+    var keyId = $("#keyid5").val();
+    encryptUploadBlob(blobData,fname,Kenc,keyId);
+
+    var end_date = new Date();
+    var end_time = end_date.getTime();
+    var diff = end_time - st_time;
+}
+
+
+function handleBlobProgressUpload(event){
+	var Kenc = $("#passphrase5").val();
+	var keyId = $("#keyid5").val();
+	
+	var st_date = new Date();
+    var st_time = st_date.getTime();
+
+    var fname = $("#filename").val();
+    var ftype = $("#filetype").val();
+   
+    var outputname = fname.split(".")[0];// + "_encrypted";
+    console.log("Filename: " + typeof  fname);
+    console.log("Type: " +  ftype);
+    
+
+    var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
+    
+    encryptProgressUploadBlob(blobData,fname,Kenc,keyId);
 
     var end_date = new Date();
     var end_time = end_date.getTime();
@@ -313,6 +223,8 @@ function handleBlobSSEUpload(jsonObj){
 	return function(event){
 		var Kenc = $("#passphrase7").val();
 		var KeyG = Kenc;
+		
+		var keyId = $("#keyid7").val();
 		
 		var st_date = new Date();
 	    var st_time = st_date.getTime();
@@ -325,13 +237,39 @@ function handleBlobSSEUpload(jsonObj){
 	
 	    var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
 	    
-	    encryptUploadSearchableBlob(blobData,fname,jsonObj,fname,KeyG,Kenc);
+	    encryptUploadSearchableBlob(blobData,fname,jsonObj,fname,KeyG,Kenc,keyId);
 	
 	    var end_date = new Date();
 	    var end_time = end_date.getTime();
 	    var diff = end_time - st_time;
 	}
 }
+
+function handleProgressBlobSSEUpload(jsonObj){
+	return function(event){
+		var Kenc = $("#passphrase7").val();
+		var KeyG = Kenc;
+		var keyId = $("#keyid7").val();
+		
+		var st_date = new Date();
+	    var st_time = st_date.getTime();
+	
+	    var fname = $("#filename").val();
+	    var ftype = $("#filetype").val();
+	    var outputname = fname.split(".")[0];// + "_encrypted";
+	    console.log("Filename: " + typeof  fname);
+	    console.log("Type: " +  ftype);
+	
+	    var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
+	    
+	    encryptProgressUploadSearchableBlob(blobData,fname,jsonObj,fname,KeyG,Kenc,keyId);
+	
+	    var end_date = new Date();
+	    var end_time = end_date.getTime();
+	    var diff = end_time - st_time;
+	}
+}
+
 
 /// HANDLERS - END
 
@@ -376,7 +314,8 @@ $(document).ready(
 				console.log("Send hashed key to TA")
 				$('#uploadkeyg').empty();
 				var key = $("#passphrase").val();
-				uploadKeyG(key); // Upload data to CSP
+				var keyid = $("#keyid").val();
+				uploadKeyG(key,keyid); // Upload data to CSP
 				$('#passphrase').val("");
 				$('#uploadkeyg').html("<div class='alert-primary alert'> Submitted </div>");
 			});
@@ -542,31 +481,37 @@ $(document).ready(
 				}
 			});
 			
-//			$('#btnDecryptBlob').click(function(){
-//				$('#resultUploadBlob').empty();
-//				$('#resultUploadBlob').html("<div class='alert-primary alert'> Uploading </div>");
-//				
-//				if ($('#blobUpload').get(0).files.length === 0) {
-//					console.log("No files selected.");
-//				}
-//				else{
-//					var reader = new FileReader()
-//					reader.onload = handleBlobDecrypt;
-//					var file = $('#blobUpload').get(0).files[0];
-//					var filename = file.name;
-//					var filetype = file.type;
-//					 $("#filename").val(filename);
-//					 $("#filetype").val(filetype);
-//					console.log("name:",filename,",type:",filetype);
-//					reader.readAsArrayBuffer(file);
-//				}
-//			});
-			
+			$('#btnProgressUploadBlob').click(function(){
+				$('#resultUploadBlob').empty();
+				$('#resultUploadBlob').html("<div class='alert-primary alert'> Progressive Encrypting </div>");
+				if ($('#blobUpload').get(0).files.length === 0) {
+					console.log("No files selected.");
+				}
+				else{
+					var reader = new FileReader()
+					reader.onload = handleBlobProgressUpload;
+					var file = $('#blobUpload').get(0).files[0];
+					var filename = file.name;
+					var filetype = file.type;
+					 $("#filename").val(filename);
+					 $("#filetype").val(filetype);
+					console.log("name:",filename,",type:",filetype);
+					reader.readAsArrayBuffer(file);
+				}
+			});
+
 			$('#btnDownload').click(function(){
 				console.log("Downloading")
 				fname = $("#filename1").val()
-				//downloadMinio(fname,handleBlobDecrypt) //download and decrypt file
-				handleBlobDecrypt(fname);
+				keyId = $("#keyid6").val()
+				handleBlobDecrypt(fname,keyId);
+			});	
+			
+			$('#btnProgressDownloadBlob').click(function(){
+				console.log("Progressive Downloading")
+				fname = $("#filename1").val()
+				keyId = $("#keyid6").val()
+				handleProgressBlobDecrypt(fname,keyId);
 			});	
 			
 			/// ENCRYPT BLOB with METADATA by submitting blob file and metadata file
@@ -590,10 +535,25 @@ $(document).ready(
 					reader.readAsArrayBuffer(file);
 				}
 			});
-//			
-//			$('#btnUpload').click(function(){
-//				console.log("Uploading")
-//				fname = $("#filename1").val()
-//				uploadMinio(fname)
-//			});	
+			
+			$('#btnProgressUploadBlobSSE').click(function(){
+				$('#uploadblobsse').empty();
+				$('#uploadblobsse').html("<div class='alert-primary alert'> Uploading </div>");
+				
+				if ($('#blobSSEUpload').get(0).files.length == 0) {
+					console.log("No files selected.");
+				}
+				else{
+					var reader = new FileReader()
+					var jsonObj = {"size":"unknown"}
+					reader.onload = handleProgressBlobSSEUpload(jsonObj);
+					var file = $('#blobSSEUpload').get(0).files[0];
+					var filename = file.name;
+					var filetype = file.type;
+					 $("#filename").val(filename);
+					 $("#filetype").val(filetype);
+					console.log("name:",filename,",type:",filetype);
+					reader.readAsArrayBuffer(file);
+				}
+			});
 		});

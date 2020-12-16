@@ -35,6 +35,11 @@
 				<input type="text" class="form-control" id="passphrase"
 					placeholder="Please enter passphrase" name='passphrase'>
 			</div>
+			<label for="keyid" class="col-sm-10 col-form-label">Key ID</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="keyid"
+					placeholder="Please enter key Id" name='keyid'>
+			</div>
 		</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnSendHashKey">Send</button>
@@ -60,6 +65,12 @@
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="passphrase1"
 					placeholder="Please enter passphrase" name='passphrase1'>
+			</div>
+			<label for="keyid1" class="col-sm-10 col-form-label">Unique key id</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="keyid1"
+					placeholder="Please enter the unique key id"
+					name='keyid'>
 			</div>
 		</div>
 	</div>
@@ -334,6 +345,11 @@
 				<input type="text" class="form-control" id="passphrase2"
 					placeholder="Please enter passphrase" name='passphrase2'>
 			</div>
+			<label for="keyid2" class="col-sm-10 col-form-label">KeyId</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="keyid2"
+					placeholder="Please enter keyId" name='keyid2'>
+			</div>
 		</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnSearchFile">Search</button>
@@ -356,6 +372,11 @@
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="passphrase3"
 					placeholder="Please enter passphrase" name='passphrase3'>
+			</div>
+			<label for="keyid3" class="col-sm-10 col-form-label">Key Id</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="keyid3"
+					placeholder="Please enter key Id" name='keyid3'>
 			</div>
 		</div>
 	</div>
@@ -380,6 +401,11 @@
 				<input type="text" class="form-control" id="passphrase4"
 					placeholder="Please enter passphrase" name='passphrase4'>
 			</div>
+			<label for="keyid4" class="col-sm-10 col-form-label">Key Id</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="keyid4"
+					placeholder="Please enter key Id" name='keyid4'>
+			</div>
 		</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnDeleteFile">Delete</button>
@@ -394,20 +420,20 @@
 		<div class="form-group row">
 			<input type="file" class="form-control" id="blobUpload" placeholder="Please enter URL of blob data" name='blobUpload'>
 			<img id='output'>
-			<!--  <label for="fileid3" class="col-sm-10 col-form-label">Unique file id</label>
-			<div class="col-sm-12">
-			<input type="text" class="form-control" id="fileid4"
-				placeholder="Please enter file id" name='file_id'>
-			</div>-->
 			<label for="passphrase5" class="col-sm-10 col-form-label">Passphrase</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="passphrase5"
 					placeholder="Please enter passphrase" name='passphrase5'>
 			</div>
+			<label for="keyid5" class="col-sm-10 col-form-label">Key Id</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="keyid5"
+					placeholder="Please enter key Id" name='keyid5'>
+			</div>
 		</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnUploadBlob">Encrypt and Upload</button>
-	<!--  <button type="button" class="btn btn-primary" id="btnDecryptBlob">Decrypt</button>-->
+	<button type="button" class="btn btn-primary" id="btnProgressUploadBlob">Progressive encrypt</button>
 </form>
 
 <div id='uploadblob'></div>
@@ -430,10 +456,16 @@
 				<input type="text" class="form-control" id="passphrase6"
 					placeholder="Please enter passphrase" name='passphrase6'>
 			</div>
+			<label for="keyid6" class="col-sm-10 col-form-label">Key Id</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="keyid6"
+					placeholder="Please enter key Id" name='keyid6'>
+			</div>
 		</div>
 	</div>
 	<!--  <button type="button" class="btn btn-primary" id="btnUpload">Encrypt and Upload</button>-->
 	<button type="button" class="btn btn-primary" id="btnDownload">Download and Decrypt</button>
+	<button type="button" class="btn btn-primary" id="btnProgressDownloadBlob">Progressive decrypt</button>
 </form>
 
 <label for="upload-blob-metadata"><b>ENCRYPT BLOB WITH METADATA</b></label>
@@ -449,9 +481,15 @@
 				<input type="text" class="form-control" id="passphrase7"
 					placeholder="Please enter passphrase" name='passphrase7'>
 			</div>
+			<label for="keyid7" class="col-sm-10 col-form-label">Key Id</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="keyid7"
+					placeholder="Please enter key Id" name='keyid7'>
+			</div>
 		</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnUploadBlobSSE">Encrypt and Upload</button>
+	<button type="button" class="btn btn-primary" id="btnProgressUploadBlobSSE">Progressive Encrypt and Upload</button>
 </form>
 
 <div id='uploadblobsse'></div>
