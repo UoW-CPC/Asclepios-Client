@@ -83,7 +83,37 @@ const getFeFieldChooses = () => {
   return checkedField;
 };
 
-const encryptDataAndSendFE = (dataWithIDs, currentDateTime, encryptNotify) => {
+const hashingMappingKeys = (dataWithIDs) => {
+  const encryptedKeys = {};
+  for (const key in dataWithIDs) {
+    if (Object.hasOwnProperty.call(dataWithIDs, key)) {
+      const value = dataWithIDs[key];
+      const splitKey = key.split("@");
+      const encryptedKey = `${splitKey[0]}@${hash(splitKey[1])}`;
+      encryptedKeys[encryptedKey] = value;
+    }
+  }
+  if (!!encryptedKeys && Object.keys(encryptedKeys).length > 0) {
+    return encryptedKeys;
+  }
+  return dataWithIDs;
+};
+
+const hashingList = (items) => {
+  const encryptedList = [];
+  for (const item of items) {
+    encryptedList.push(hash(item));
+  }
+  if (!!encryptedList && encryptedList.length > 0) {
+    return encryptedList;
+  }
+  return items;
+};
+const encryptDataAndSendFE = (
+  dataWithIDs,
+  currentDateTimeFormat,
+  encryptNotify
+) => {
   fetch(`http://${feConfig.url_ta}/get-keys`, {
     method: "post",
     headers: {
@@ -124,17 +154,18 @@ const encryptDataAndSendFE = (dataWithIDs, currentDateTime, encryptNotify) => {
               //   Object.keys(currentDateFormats).indexOf(currentField) >= 0
               //     ? currentDateFormats[currentField]
               //     : null;
-              dataWithIDs[id] =
+              if (
                 !Number.isInteger(dataWithIDs[id]) &&
-                !!convertDateTimeToUnixTimestamp(
+                !!currentDateTimeFormat
+              ) {
+                const datetimeFormatConv = convertDateTimeToUnixTimestamp(
                   dataWithIDs[id],
-                  currentDateTime
-                )
-                  ? convertDateTimeToUnixTimestamp(
-                      dataWithIDs[id],
-                      currentDateTime
-                    )
-                  : dataWithIDs[id];
+                  currentDateTimeFormat
+                );
+                if (!!datetimeFormatConv) {
+                  dataWithIDs[id] = datetimeFormatConv;
+                }
+              }
 
               if (!!Number.isInteger(dataWithIDs[id])) {
                 encryptedData[id] = dataWithIDs[id] + feKeys[id];
@@ -254,7 +285,6 @@ const parseInput = (jsonString, checkedField, keyId) => {
       currentFeKeyRowRequestBody["fields"] = new Array();
       // dataWithIDs[json["fileID"]] = {};
       let fileID = tmpGlobalFileIDs.shift();
-      feKeysBodyRequest;
       currentFeKeyRowRequestBody["fileID"] = fileID;
       for (const id in entry) {
         if (id.toLowerCase() === "fileid") continue;
@@ -283,7 +313,7 @@ const computeFE = (fileIDs, field, operator, notifyAnalyst) => {
     if (!!notifyAnalyst) notifyAnalyst(`${operator}=0`);
     return 0;
   }
-
+  field = hashingList(field.split(",")).join(",");
   const computeBodyRequest = {
     fileIDs: fileIDs,
     field,
@@ -451,6 +481,7 @@ const feDeleteData = (fileIDs, deleteCallback) => {
       console.error(error);
     });
 };
+
 (function () {
   // your page initialization code here
   // the DOM will be available here
@@ -491,28 +522,11 @@ const feDeleteData = (fileIDs, deleteCallback) => {
       }
     });
 
-  // document
-  //   .getElementById("btnSubmitFile")
-  //   .addEventListener("click", function (e) {
-  //     submitFEData(e);
-  //   });
-
   document
     .getElementById("fe-analyst-compute")
     .addEventListener("click", fePostComputeData);
 
-  window.deleteData = (function (_super) {
-    return function () {
-      const file_id = arguments[0];
-      const keyid = arguments[3];
-
-      const returnDeleteData = _super.apply(this, arguments);
-      if (!!returnDeleteData) {
-        feDeleteData(`${keyid}#${file_id}`);
-      }
-      return returnDeleteData;
-    };
-  })(window.deleteData);
+  // inject SSE's deleteData
 
   const feUpdateData = (jsonObj, file_id, dateTimeFormat, updateNotify) => {
     const keys = Object.keys(jsonObj);
@@ -521,8 +535,9 @@ const feDeleteData = (fileIDs, deleteCallback) => {
     for (let index = 0; index < keys.length; index++) {
       const key = keys[index];
       const value = values[index][1];
-      dataWithIDs[`${file_id}@${key}`] = value;
+      dataWithIDs[`${file_id}@${hash(key)}`] = value;
     }
+
     feDeleteData(Object.keys(dataWithIDs), async (results) => {
       const { deletedList } = results;
       if (!!deletedList && deletedList.length > 0) {
@@ -542,33 +557,61 @@ const feDeleteData = (fileIDs, deleteCallback) => {
     });
   };
 
-  window.updateData = (function (_super, updateData) {
-    return function () {
-      try {
-        let data = [];
-        const rawData = arguments[0];
-        const file_id = arguments[1];
-        const keyId = arguments[4];
+  const injectSSEFunctions = () => {
+    if (
+      typeof window.updateData !== "function" ||
+      typeof window.deleteData !== "function"
+    ) {
+      setTimeout(injectSSEFunctions, 1000);
+      return;
+    }
 
-        const returnUpdateData = _super.apply(this, arguments);
-        if (returnUpdateData) {
-          const updateDataDateFormat = document.getElementById(
-            "fe-datetime-format-update"
-          ).value;
+    alert("FE functionality is enabled!!");
+    // inject SSE's updateData
+    window.updateData = (function (_super, updateData) {
+      return function () {
+        try {
+          let data = [];
+          const rawData = arguments[0];
+          const file_id = arguments[1];
+          const keyId = arguments[4];
 
-          feUpdateData(
-            rawData,
-            `${keyId}#${file_id}`,
-            updateDataDateFormat,
-            (message) => notify(message, "update-fe-notify")
-          );
+          const returnUpdateData = _super.apply(this, arguments);
+          if (returnUpdateData) {
+            const updateDataDateFormat = document.getElementById(
+              "fe-datetime-format-update"
+            ).value;
+
+            feUpdateData(
+              rawData,
+              `${keyId}#${file_id}`,
+              updateDataDateFormat,
+              (message) => notify(message, "update-fe-notify")
+            );
+          }
+          return returnUpdateData;
+        } catch (e) {
+          console.log(e);
         }
-        return returnUpdateData;
-      } catch (e) {
-        console.log(e);
-      }
-    };
-  })(window.updateData);
+      };
+    })(window.updateData);
+
+    // inject SSE's deleteData
+    window.deleteData = (function (_super) {
+      return function () {
+        const file_id = arguments[0];
+        const keyid = arguments[3];
+
+        const returnDeleteData = _super.apply(this, arguments);
+        if (!!returnDeleteData) {
+          feDeleteData(`${keyid}#${file_id}`);
+        }
+        return returnDeleteData;
+      };
+    })(window.deleteData);
+  };
+
+  injectSSEFunctions();
 })();
 
 const submitFEData = (e) => {
@@ -580,7 +623,11 @@ const submitFEData = (e) => {
   console.log(feKeysBodyRequest);
   console.log(dataWithIDs);
   const currentDateFormat = document.getElementById("fe-datetime-format").value;
-  encryptDataAndSendFE(dataWithIDs, currentDateFormat, notify);
+  encryptDataAndSendFE(
+    hashingMappingKeys(dataWithIDs),
+    currentDateFormat,
+    notify
+  );
 };
 
 let currentDateFormats = {};
@@ -653,12 +700,10 @@ const dateTimeFormatChecker = (entries) => {
     });
     document.getElementById("fe-datetime-format-update").value = Object.values(
       currentDateFormats
-    )
-      .reduce((results, value) => {
-        if (!!value) results.push(value);
-        return results;
-      }, [])
-      .join(",");
+    ).reduce((results, value) => {
+      if (!!value) results = value;
+      return results;
+    }, "");
   } else {
     Object.values(dateTimeFormatParentEls).forEach((element) => {
       element.setAttribute("style", "display:none");
@@ -682,12 +727,10 @@ const loopThroughKeys = (entry) => {
     dateTimeFormatEl.setAttribute("style", "display:true");
     document.getElementById("fe-datetime-format").value = Object.values(
       currentDateFormats
-    )
-      .reduce((results, value) => {
-        if (!!value) results.push(value);
-        return results;
-      }, [])
-      .join(",");
+    ).reduce((results, value) => {
+      if (!!value) results = value;
+      return results;
+    }, "");
   } else {
     dateTimeFormatEl.setAttribute("style", "display:none");
   }
