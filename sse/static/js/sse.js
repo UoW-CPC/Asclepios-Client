@@ -1388,3 +1388,35 @@ function saveBlob(blob, fileName) {
 	 document.body.removeChild(a);
 	 blob=null;
 }; 
+
+// RSA PKCSv1.5
+async function uploadKeyGsgx(pwdphrase,keyid){
+	if(pwdphrase=="" || keyid==""){
+		console.log("Lack of passphrase or keyid");
+		return false;
+	}
+	console.log("passphrase to compute keyg:",pwdphrase);
+	var keyg = computeKeyG(pwdphrase);
+	console.log("keyg:",keyg);
+	
+	console.log("URL TA:",sseConfig.base_url_ta)
+	
+	var ret = getRequest(sseConfig.base_url_ta + "/api/v1/pubkey/pk/");
+	var pk=ret['pubkey'].replace(/(\r\n|\n|\r)/gm, ""); //remove all line breaks inside PEM format of the key
+	console.log("public key from TA SGX:",pk)
+	
+	//console.log("private key from TA:",ret['report'])
+	
+	var encryptor = new JSEncrypt();
+	encryptor.setPublicKey(pk);
+	var ct = encryptor.encrypt(keyg);
+	console.log("ciphertext:",ct);
+	
+	
+	var jsonData = '{ "pubkey" : "' + ct + '","keyId":"' + keyid + '","enclaveId":"' + ret['enclaveId'] + '"}';
+	console.log("uploaded data:",jsonData)
+	postRequest(sseConfig.base_url_ta + "/api/v1/pubkey/", jsonData, undefined, async_feat = false);
+	return true;
+}
+
+

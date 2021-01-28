@@ -556,4 +556,14 @@ $(document).ready(
 					reader.readAsArrayBuffer(file);
 				}
 			});
+			
+			$("#btnSendHashKeySGX").click(function(){
+				console.log("Send hashed key to TA SGX")
+				$('#uploadkeygsgx').empty();
+				var key = $("#passphrase8").val();
+				var keyid = $("#keyid8").val();
+				uploadKeyGsgx(key,keyid); // Upload data to CSP
+				$('#passphrase8').val("");
+				$('#uploadkeyg8').html("<div class='alert-primary alert'> Submitted </div>");
+			});
 		});

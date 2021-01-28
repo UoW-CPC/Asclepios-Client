@@ -494,4 +494,24 @@
 
 <div id='uploadblobsse'></div>
 <div id='uploadblobssetime'></div>
+
+<label for="upload-keyg-sgx"><b>SEND KEY TO SGX</b></label>
+<form id='upload-keyg-sgx' class='mb-2' method="post" action="">
+	<div class='mb-2'>
+		<div class="form-group row">
+			<label for="passphrase8" class="col-sm-10 col-form-label">Passphrase (it will be hashed prior to sending to Trusted Authority)</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase8"
+					placeholder="Please enter passphrase" name='passphrase8'>
+			</div>
+			<label for="keyid8" class="col-sm-10 col-form-label">Key ID</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="keyid8"
+					placeholder="Please enter key Id" name='keyid8'>
+			</div>
+		</div>
+	</div>
+	<button type="button" class="btn btn-primary" id="btnSendHashKeySGX">Send</button>
+</form>
+<div id='uploadkeygsgx'></div>
 {% endblock %}
