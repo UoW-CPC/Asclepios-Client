@@ -23,11 +23,21 @@ var sseConfig={
 	 'salt' : 'salt_value', // salt value for encryption. This will be replaced with correct value at runtime at the web server
 	 'iv' : 'iv_value', // iv for encryption. This will be replaced with correct value at runtime at the web server 
 	 'iter' : 10000,
-	 'ks' : 128,
+	 'ks' : 256,
 	 'ts' : 64,
+	 'mode' : 'ccm',
+	 'adata':'',
+	 'adata_len' : 0,
+	 'cipher' : 'aes',
 	 'hash_length' : 256,
 	 'chunk_size' : 32768,//size of 1 slice/ chunk for encryption (in uint8 items), 32768=1024^32
-	 'no_chunks_per_upload' :30 //number of chunks to be packed in 1 upload
+	 'no_chunks_per_upload' :30, //number of chunks to be packed in 1 upload
+	 'salt_sgx' : 'ZRVja4LFrFY=', // {base64, 8 bytes} salt value for encryption. This will be replaced with correct value at runtime at the web server
+	 'iv_sgx' : 'n2JUTJ0/yrI=', // {base64, 8 bytes} iv for encryption. This will be replaced with correct value at runtime at the web server 
+	 'iter_sgx' : 10000,
+	 'ks_sgx' : 128, //{128 bits} it is set 128 bits to be compatible with AES encryption in SGX
+	 'ts_sgx' : 64,
+	 'mode_sgx' : 'ccm',
 }
 
 /// REQUESTS: Get, Post, Put
@@ -1389,34 +1399,103 @@ function saveBlob(blob, fileName) {
 	 blob=null;
 }; 
 
-// RSA PKCSv1.5
+/**
+ * Generate a key from a passphrase with Pbkdf2 function, 
+ * then encrypt the key with RSA PKCSv1.5 using the public key retrieved from the TA, 
+ * and upload it to SSE TA
+ *
+ * @param {string} pwdphrase The passphrase to generate a key.
+ * @param {string} keyid The unique key identification
+ */
 async function uploadKeyGsgx(pwdphrase,keyid){
 	if(pwdphrase=="" || keyid==""){
 		console.log("Lack of passphrase or keyid");
 		return false;
 	}
-	console.log("passphrase to compute keyg:",pwdphrase);
-	var keyg = computeKeyG(pwdphrase);
+	//console.log("passphrase to compute keyg:",pwdphrase);
+	var keyg = computeKeyG_Pbkdf2(pwdphrase,sseConfig.salt_sgx,sseConfig.iter_sgx,sseConfig.ks_sgx); //generate key from a passphrase
+
 	console.log("keyg:",keyg);
-	
 	console.log("URL TA:",sseConfig.base_url_ta)
 	
-	var ret = getRequest(sseConfig.base_url_ta + "/api/v1/pubkey/pk/");
+	var ret = getRequest(sseConfig.base_url_ta + "/api/v1/pubkey/pk/"); //get public key from SSE TA
 	var pk=ret['pubkey'].replace(/(\r\n|\n|\r)/gm, ""); //remove all line breaks inside PEM format of the key
-	console.log("public key from TA SGX:",pk)
-	
-	//console.log("private key from TA:",ret['report'])
+	console.log("public key from TA SGX:",pk);
 	
 	var encryptor = new JSEncrypt();
 	encryptor.setPublicKey(pk);
-	var ct = encryptor.encrypt(keyg);
+	var ct = encryptor.encrypt(keyg); // encrypt with RSA PKCSv1.5
 	console.log("ciphertext:",ct);
 	
-	
-	var jsonData = '{ "pubkey" : "' + ct + '","keyId":"' + keyid + '","enclaveId":"' + ret['enclaveId'] + '"}';
+	var jsonData = '{ "pubkey" : "' + ct + '","keyId":"' + keyid + '"}';
 	console.log("uploaded data:",jsonData)
 	postRequest(sseConfig.base_url_ta + "/api/v1/pubkey/", jsonData, undefined, async_feat = false);
+	
 	return true;
 }
 
+// test: 
+function sendkeyW(keyword, pwdphrase, keyid){
+	console.log("Search keyword function");
+	
+	
+	var KeyW = encrypt_sgx(pwdphrase,keyword);
+	
+	var data = '{ "KeyW" : "' + KeyW + '","keyId":"' + keyid + '"}';
+	console.log("Data sent to TA:", data);
+	
+	result = postRequest(sseConfig.base_url_ta + "/api/v1/search/", data);
+	
+	console.log("Response from TA:",result);
+	
+	return data;
+}
 
+/**
+ * Generate a key from a passphrase with Pbkdf2 function, 
+ *
+ * @param {string} pwdphrase The passphrase to generate a key.
+ * @param {base64 or hexa string} salt The salt value to generate a key
+ * @param {number} iter The number of iteration in the Pbkdf2 function
+ * @param {number} keysize The size of the generated key. It could be 128, 192, or 256.
+ * @return {hexa string} key The generated key
+ */
+function computeKeyG_Pbkdf2(pwdphrase,salt,iter,keysize) {
+  var key, options={};
+  
+  options.iter = iter;
+  options.salt = sjcl.codec.base64.toBits(salt);
+
+  options = sjcl.misc.cachedPbkdf2(pwdphrase, options);
+  var key = options.key.slice(0, keysize/32); // @return: list of item which is 4 bytes
+  var key_hexa = sjcl.codec.hex.fromBits(key);  // convert to hex string
+  console.log("key as hex string:",key_hexa)
+  return key_hexa; 
+}
+
+/**
+ * Encrypt with AES-CCM 
+ * 128 bits (defined in sseConfig.ks_sgx) if sgx is enabled at SSE TA (due to the restriction of mbedtls in SGX, we only use 128 bits for encryption) 
+ * 256 bits otherwise (defined in sseConfig.ks)
+ * 
+ * @param {string} key The AES key (base64) or pwdphrase (string).
+ * @param {string} input Plaintext
+ * @param {boolean} sgx_enable True if encryption needs to be compatible with decryption inside SGX at TA, false if it does not need to be compatible
+ * @return {string} ct Ciphertext
+ */
+function encrypt_sgx(key, input, sgx_enable=true){
+	var options = {};
+	if(sgx_enable)
+		options = {mode:sseConfig.mode_sgx,iter:sseConfig.iter_sgx,
+			ks:sseConfig.ks_sgx,ts:sseConfig.ts_sgx,v:1,
+			cipher:sseConfig.cipher,
+			adata:"",salt:sseConfig.salt_sgx, iv:sseConfig.iv_sgx}; //salt, iv are base64 string
+	else
+		options = {mode:sseConfig.mode_sgx,iter:sseConfig.iter,
+			ks:sseConfig.ks,ts:sseConfig.ts,v:1,
+			cipher:sseConfig.cipher,
+			adata:"",salt:sseConfig.salt, iv:sseConfig.iv}; 
+	var res = sjcl.encrypt(key, input, options);
+	var ct = JSON.parse(res).ct;
+	return ct;
+}
