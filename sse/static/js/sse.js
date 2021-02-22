@@ -1,7 +1,7 @@
 /////////////////////// CONFIGURATION FOR AUTOMATIC TESTS WITH JEST- Start ///////////////////////
-//const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
-//const sjcl = require('./sjcl.js') // for jest automatic testing
-//module.exports = [uploadData,search,updateData,deleteData,uploadKeyG,encryptUploadBlob,downloadDecryptBlob]; // for jest automatic testing
+const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
+const sjcl = require('./sjcl.js') // for jest automatic testing
+module.exports = [uploadData,search,updateData,deleteData,uploadKeyG,encryptUploadBlob,downloadDecryptBlob]; // for jest automatic testing
 /////////////////////// CONFIGURATION FOR AUTOMATIC TESTS WITH JEST- End ///////////////////////
 
 
@@ -22,30 +22,32 @@
 HTTP_CODE_CREATED = 201
 
 var sseConfig={
-	 'base_url_ta' : 'ta_url', //This will be replaced with correct value at runtime at the web server
-	 'base_url_sse_server' : 'sse_url',//This will be replaced with correct value at runtime at the web server
-	 'salt' : 'ZRVja4LFrFY=', // salt value for encryption. This will be replaced with correct value at runtime at the web server
-	 'iv' : 'n2JUTJ0/yrI=', // iv for encryption. This will be replaced with correct value at runtime at the web server 
-	 'iter' : 10000, // number of iteration for generating key from passphrase
-	 'ks' : 128, // key size
-	 'ts' : 64, // tag size
-	 'mode' : 'ccm', // encryption mode
-	 'adata':'',
-	 'adata_len' : 0,
-	 'cipher' : 'aes',
-	 'hash_length' : 256,
-	 'chunk_size' : 32768,//size of 1 slice/ chunk for encryption (in uint8 items), 32768=1024^32
-	 'no_chunks_per_upload' :30, //number of chunks to be packed in 1 upload
-	 'salt_sgx' : 'ZRVja4LFrFY=', // {base64, 8 bytes} salt value for encryption. This will be replaced with correct value at runtime at the web server
-	 'iv_sgx' : 'n2JUTJ0/yrI=', // {base64, 8 bytes} iv for encryption. This will be replaced with correct value at runtime at the web server 
-	 'iter_sgx' : 10000,
-	 'ks_sgx' : 128, //{128 bits} it is set 128 bits to be compatible with AES encryption in SGX
-	 'ts_sgx' : 64,
-	 'mode_sgx' : 'ccm',
-	 'adata_sgx':'',
-	 'adata_len_sgx' : 0,
-	 'cipher_sgx' : 'aes',
+        'base_url_ta' : 'ta_url', //{url} URL of SSE TA. Example: http://127.0.0.1:8000
+        'base_url_sse_server' : 'sse_url',//{url} URL of SSE Server
+        'salt' : 'salt_value', //{string} Salt value which is used for key generation from a passphrase
+        'iv' : 'iv_value', //{string} Initial vector value which is used for encryption
+        'iter' : iter_value, //{number} Number of iteration for generating key from passphrase
+        'ks' : ks_value, // {number} key size. Example: 128, 256
+        'ts' : ts_value, // {number} tag size. Example: 64
+        'mode' : 'mode_value', // {string} Encryption mode. Example: ccm
+        'adata':'adata_value',
+        'adata_len' : adata_len_value, //{number}
+        'cipher' : 'cipher_type', //{string} cipher type. Example: aes
+        'hash_length' : hash_length_value, // {number} length of hash value
+        'chunk_size' : chunk_size_value,// {number} Size of 1 slice/ chunk for encryption (in uint8 items). Example: 32768=1024^32
+        'no_chunks_per_upload' : no_chunks_per_upload_value, // {number} Number of chunks to be packed in 1 upload
+        'salt_sgx' : 'salt_sgx_value', // {base64, 8 bytes} salt value for encryption. This will be replaced with correct value at runtime at the web server
+        'iv_sgx' : 'iv_sgx_value', // {base64, 8 bytes} iv for encryption. This will be replaced with correct value at runtime at the web server
+        'iter_sgx' : iter_sgx_value, //{number} Number of iteration for generating key from passphrase. Example: 1000
+        'ks_sgx' : ks_sgx_value, //{128} it is set 128 bits to be compatible with AES encryption in SGX
+        'ts_sgx' : ts_sgx_value, // {number} tag size. Example: 64
+        'mode_sgx' : 'mode_sgx_value', // {string} Encryption mode. Example: ccm
+        'adata_sgx':'adata_sgx_value',
+        'adata_len_sgx' : adata_len_sgx_value, //{number}
+        'cipher_sgx' : 'cipher_sgx_type' //{string} cipher type. Example: aes
 }
+
+
 /////////////////////// SSE CONFIGURATION - End ///////////////////////
 
 /////////////////////// REQUESTS - Start ///////////////////////
@@ -176,7 +178,7 @@ function hash(input){
  * 
  * @param {string} key Key or passphrase // needed test
  * @param {string} input Plaintext
- * @return {object} res Ciphertext object
+ * @return {object} res Ciphertext object. For example:{"iv":"IjJ65qTj+uwKJnrTfRW2hw==","v":1,"iter":1000,"ks":128,"ts":64,"mode":"ccm","adata":"","cipher":"aes","salt":"+lSbfNMnwP8=","ct":"0ARVIuwmi1IrtGT3k1NHF6w0rXfD0w=="}
  */
 function encrypt(key, input){
 	var salt = btoa(sseConfig.salt);
