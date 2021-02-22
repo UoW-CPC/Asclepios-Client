@@ -1,7 +1,7 @@
 /////////////////////// CONFIGURATION FOR AUTOMATIC TESTS WITH JEST- Start ///////////////////////
-const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
-const sjcl = require('./sjcl.js') // for jest automatic testing
-module.exports = [uploadData,search,updateData,deleteData,uploadKeyG,encryptUploadBlob,downloadDecryptBlob]; // for jest automatic testing
+//const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
+//const sjcl = require('./sjcl.js') // for jest automatic testing
+//module.exports = [uploadData,search,updateData,deleteData,uploadKeyG,encryptUploadBlob,downloadDecryptBlob]; // for jest automatic testing
 /////////////////////// CONFIGURATION FOR AUTOMATIC TESTS WITH JEST- End ///////////////////////
 
 
