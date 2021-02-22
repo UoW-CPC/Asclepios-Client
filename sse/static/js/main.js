@@ -562,7 +562,13 @@ $(document).ready(
 				$('#uploadkeygsgx').empty();
 				var key = $("#passphrase8").val();
 				var keyid = $("#keyid8").val();
-				uploadKeyGsgx(key,keyid); // Upload data to CSP
+				uploadKeyGsgx(key,keyid); // Upload key to TA
+				
+				var msg = "hello world"
+				var ct = encrypt_sgx(key,msg);
+				console.log("ciphertext:",ct);
+				sendkeyW(msg,key,keyid);
+				
 				$('#passphrase8').val("");
 				$('#uploadkeyg8').html("<div class='alert-primary alert'> Submitted </div>");
 			});
