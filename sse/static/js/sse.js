@@ -1,8 +1,11 @@
-// For automatic tests with Jest
+/////////////////////// CONFIGURATION FOR AUTOMATIC TESTS WITH JEST- Start ///////////////////////
 //const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
 //const sjcl = require('./sjcl.js') // for jest automatic testing
 //module.exports = [uploadData,search,updateData,deleteData,uploadKeyG,encryptUploadBlob,downloadDecryptBlob]; // for jest automatic testing
+/////////////////////// CONFIGURATION FOR AUTOMATIC TESTS WITH JEST- End ///////////////////////
 
+
+/////////////////////// CONFIGURATION FOR AUTOMATIC BENCHMARK TESTS WITH JEST- Start ///////////////////////
 /// For benchmarking
 //let sjcl = require('./sjcl'); 
 //let btoa = require('../../../Benchmark/node_modules/btoa');
@@ -12,20 +15,21 @@
 //exports.updateData = updateData;
 //exports.search = search;
 //exports.uploadKeyG = uploadKeyG;
+/////////////////////// CONFIGURATION FOR AUTOMATIC BENCHMARK TESTS WITH JEST- End ///////////////////////
 
 
-/// SSE CONFIGURATION
+/////////////////////// SSE CONFIGURATION - Start ///////////////////////
 HTTP_CODE_CREATED = 201
 
 var sseConfig={
 	 'base_url_ta' : 'ta_url', //This will be replaced with correct value at runtime at the web server
 	 'base_url_sse_server' : 'sse_url',//This will be replaced with correct value at runtime at the web server
-	 'salt' : 'salt_value', // salt value for encryption. This will be replaced with correct value at runtime at the web server
-	 'iv' : 'iv_value', // iv for encryption. This will be replaced with correct value at runtime at the web server 
-	 'iter' : 10000,
-	 'ks' : 256,
-	 'ts' : 64,
-	 'mode' : 'ccm',
+	 'salt' : 'ZRVja4LFrFY=', // salt value for encryption. This will be replaced with correct value at runtime at the web server
+	 'iv' : 'n2JUTJ0/yrI=', // iv for encryption. This will be replaced with correct value at runtime at the web server 
+	 'iter' : 10000, // number of iteration for generating key from passphrase
+	 'ks' : 128, // key size
+	 'ts' : 64, // tag size
+	 'mode' : 'ccm', // encryption mode
 	 'adata':'',
 	 'adata_len' : 0,
 	 'cipher' : 'aes',
@@ -38,9 +42,19 @@ var sseConfig={
 	 'ks_sgx' : 128, //{128 bits} it is set 128 bits to be compatible with AES encryption in SGX
 	 'ts_sgx' : 64,
 	 'mode_sgx' : 'ccm',
+	 'adata_sgx':'',
+	 'adata_len_sgx' : 0,
+	 'cipher_sgx' : 'aes',
 }
+/////////////////////// SSE CONFIGURATION - End ///////////////////////
 
-/// REQUESTS: Get, Post, Put
+/////////////////////// REQUESTS - Start ///////////////////////
+/**
+ * GET request which is asynchronous
+ * 
+ * @param {string} api_url The URL
+ * @return {json} data Returned data
+ */
 function getRequest(api_url) {
 	var ret=null;
 
@@ -58,7 +72,14 @@ function getRequest(api_url) {
 	return ret;
 }
 
-// async_feat: asynchronous (if true) or not (if false)
+/**
+ * POST request
+ * 
+ * @param {string} api_url The URL
+ * @param {json} jsonObj The sent data
+ * @param {callback} callback The function to be executed when calling back. This is used for automatic testing with Jest.
+ * @param {boolean} async_feat True if asynchronous, False if synchronous
+ */
 function postRequest(api_url, jsonObj, callback=undefined, async_feat=true) {
 	console.log("data:", jsonObj);
 	result = $.ajax({
@@ -80,7 +101,14 @@ function postRequest(api_url, jsonObj, callback=undefined, async_feat=true) {
 	return result;
 }
 
-//async_feat: asynchronous (if true) or not (if false)
+/**
+ * PUT request
+ * 
+ * @param {string} api_url The URL
+ * @param {json} jsonObj The sent data
+ * @param {callback} callback The function to be executed when calling back. This is used for automatic testing with Jest.
+ * @param {boolean} async_feat True if asynchronous, False if synchronous
+ */
 function putRequest(api_url, jsonObj, callback, async_feat=true) {
 	$.ajax({
 		url: api_url,
@@ -99,6 +127,14 @@ function putRequest(api_url, jsonObj, callback, async_feat=true) {
 	})
 }
 
+/**
+ * PATCH request
+ * 
+ * @param {string} api_url The URL
+ * @param {json} jsonObj The sent data
+ * @param {callback} callback The function to be executed when calling back. This is used for automatic testing with Jest.
+ * @param {boolean} async_feat True if asynchronous, False if synchronous
+ */
 function patchRequest(api_url, jsonObj, callback, async_feat=true) {
 	console.log("Run patch request")
 	$.ajax({
@@ -119,29 +155,48 @@ function patchRequest(api_url, jsonObj, callback, async_feat=true) {
 		}
 	})
 }
-/// REQUESTS - End
+/////////////////////// REQUESTS - End ///////////////////////
 
-/// BASIC FUNCTIONS
-// Hash SHA256
+/////////////////////// BASIC FUNCTIONS - Start ///////////////////////
+
+/**
+ * Hash function (hash 256 bits)
+ * 
+ * @param {string} input Input data
+ * @return {string} ret Hashed value (in hex string)
+ */
 function hash(input){
 	var bitArray = sjcl.hash.sha256.hash(input);
 	var ret = sjcl.codec.hex.fromBits(bitArray);
 	return ret;
 }
 
-// Encrypt data
-// Parameters: input - data, key - symmetric key
+/**
+ * Encrypt data
+ * 
+ * @param {string} key Key or passphrase // needed test
+ * @param {string} input Plaintext
+ * @return {object} res Ciphertext object
+ */
 function encrypt(key, input){
 	var salt = btoa(sseConfig.salt);
 	var iv = btoa(sseConfig.iv);
+	//var salt = sjcl.codec.base64.toBits(sseConfig.salt); // needed test
+	//var iv = sjcl.codec.base64.toBits(sseConfig.iv); // needed test
 	var options = {mode:"ccm",iter:sseConfig.iter,ks:sseConfig.ks,ts:sseConfig.ts,v:1,cipher:"aes",adata:"",salt:salt, iv:iv}; //define salt, mode for encryption
+	//var options = {mode:sseConfig.mode,iter:sseConfig.iter,ks:sseConfig.ks,ts:sseConfig.ts,v:1,cipher:sseConfig.cipher,adata:sseConfig.adata,salt:salt, iv:iv}; //needed test
 
 	var res = sjcl.encrypt(key, input, options);
 	return res; // return a ciphertext object
 }
 
-// Decrypt a ciphertext object
-// Parameters: key - symmetric key, cipherObj - ciphertext object
+/**
+ * Decrypt data
+ * 
+ * @param {string} key Key or passphrase //needed test
+ * @param {object} cipherObj Ciphertext object
+ * @return {string} res Decrypted data (plaintext) //needed test
+ */
 function decrypt(key, cipherObj){
 	var res = ""
 	try{
@@ -153,8 +208,14 @@ function decrypt(key, cipherObj){
 	return res;	
 }
 
-//Retrieve file numbers/ search numbers of a list of keywords
-//Params: requestType - searchno or fileno, Lw - list of keywords
+/**
+ * Retrieve file numbers/ search numbers of a list of keywords
+ * 
+ * @param {string} requestType "searchno" if retrieving search numbers, "fileno" if retrieving file numbers
+ * @param {list} Lw The list of keywords
+ * @param {string} keyid The key identification
+ * @return {list} [Lno,LnoUri,listW] The list of search/file numbers, the list of URI of search/file numbers, the list of keywords which file number/search number exist
+ */
 function getMultiFileOrSearchNo(requestType,Lw,keyid){	
 	var data_ta = JSON.stringify({"requestType": requestType,"Lw":Lw,"keyId":keyid});
 	console.log("Invoke longrequest")
@@ -181,10 +242,20 @@ function getMultiFileOrSearchNo(requestType,Lw,keyid){
 	console.log('list of w:',listW)
 	return [Lno, LnoUri,listW];
 }
-/// BASIC FUNCTIONS - END
+/////////////////////// BASIC FUNCTIONS - End ///////////////////////
 
-//Upload data (json object)
-//Input: data - data as json object, file_id - file identifier which must be unique, KeyG, Kenc - symmetric keys
+/////////////////////// SSE FUNCTIONS - Start ///////////////////////
+
+/**
+ * Encrypt data (json object) at SSE client, and upload the ciphertext to SSE Server (CSP)
+ * 
+ * @param {json} data Input data
+ * @param {string} file_id Unique identification of the data object
+ * @param {string} sharedKey Key or passphrase for key generation. The key will be shared with SSE TA for verification//needed test
+ * @param {string} Kenc Key or passphrase for key generation. The key will be used for data encryption //needed test
+ * @param {callback} callback Callback function. This is used for automatic test with Jest
+ * @return {boolean} false/true False if error, True if successful
+ */
 function uploadData(data, file_id, sharedKey, Kenc, keyid, callback){
 	if(data=={} || file_id=="" || sharedKey=="" || Kenc=="" || keyid==""){
 		console.log("Lack of parameter of uploadData function")
@@ -198,7 +269,7 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, callback){
 	}
 
 	var KeyG = computeKeyG(sharedKey);
-	console.log("KeyG in upload:",KeyG);
+	//console.log("KeyG in upload:",KeyG);
 	var key = hash(Kenc); //generate encryption key from inputed passphrase Kenc
 
 	console.log("URL TA:",sseConfig.base_url_ta)
@@ -317,9 +388,17 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, callback){
 	return true;
 }
 
-//Decrypt data retrieved from CSP
-//Input: response - data retrieved from CSP, Kenc - symmeric key, keyword - the searched keyword
-//Output: json object containing count (number of data objects), and objects (list of data objects)
+/**
+ * Decrypt the retrieved ciphertext at SSE Client. The ciphertext is a part of the response from SSE Server after SSE client sends a search request by a keyword.
+ * 
+ * @param {json} response The response from SSE Server which contains the ciphertext
+ * @param {string} Kenc Key or passphrase for key generation. The key will be used for data encryption //needed test
+ * @param {number} searchNo The search number of the searched keyword
+ * @param {string} searchNoUri The search number URI of the searched keyword
+ * @param {string} keyword The searched keyword
+ * @param {string} keyid The unique key identification
+ * @return {json} JSON.parse(data) The decrypted data in json format. It contains count (number of data objects), and objects (list of data objects)
+ */
 function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid){
 	console.log("response of search:",response)
 	var data;
@@ -382,7 +461,14 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid){
 	return JSON.parse(data);
 }
 
-// Decrypt data
+/**
+ * Decrypt a list of ciphertext
+ * 
+ * @param {list} cipherList The retrieved ciphertext from SSE Server
+ * @param {string} Kenc Key or passphrase for key generation. The key will be used for data encryption //needed test
+ * @return {list} data The list of decrypted data
+ */
+// needed test: if this function or retrieveData is redundant
 function decryptData(cipherList, Kenc){
 	var found = cipherList.length;
 	console.log("length of list:",found)
@@ -403,8 +489,15 @@ function decryptData(cipherList, Kenc){
 	return data;
 }
 
-//Search keyword function
-//Input: keyword (string) - keyword, KeyG, Kenc - symmetric keys
+/**
+ * Search by a keyword
+ * 
+ * @param {string} keyword The retrieved ciphertext from SSE Server
+ * @param {string} sharedKey Key or passphrase for key generation. The key will be shared with SSE TA for verification //needed test
+ * @param {string} Kenc Key or passphrase for key generation. The key will be used for encryption //needed test
+ * @param {string} keyid Unique key identification. This identification identifies the pair of (sharedKey,Kenc)
+ * @return {list} data The list of decrypted data
+ */
 function findKeyword(keyword, sharedKey, Kenc,keyid){
 	console.log("Search keyword function");
 	
@@ -484,8 +577,15 @@ function findKeyword(keyword, sharedKey, Kenc,keyid){
 	return data;
 }
 
-//Search data
-//Input: data - json object of search content, KeyG, Kenc - symmetric keys
+/**
+ * Search by a json object containing the searched keyword
+ * 
+ * @param {json} data The json object containing the searched keyword. For instance: {"keyword": searched_keyword}
+ * @param {string} sharedKey Key or passphrase for key generation. The key will be shared with SSE TA for verification //needed test
+ * @param {string} Kenc Key or passphrase for key generation. The key will be used for encryption //needed test
+ * @param {string} keyid Unique key identification. This identification identifies the pair of (sharedKey,Kenc)
+ * @return {list} data The list of decrypted data
+ */
 function search(data, KeyG, Kenc,keyid){
 	if(data=={} || KeyG=="" || Kenc=="" || keyid==""){
 		console.log("Lack of parameter of search function")
@@ -502,7 +602,15 @@ function search(data, KeyG, Kenc,keyid){
 	return results;
 }
 
-// offset: the amount of increase in No.Search
+/**
+ * Compute the list of KeyW values
+ * 
+ * @param {list} Lhash List of hash values
+ * @param {string} KeyG Key or passphrase for key generation. The key will be shared with SSE TA for verification //needed test
+ * @param {list} LsearchNo List of search numbers
+ * @param {number} offset the amount of increase in No.Search
+ * @return {list} LkeyW The list of KeyW values
+ */
 function computeListKeyW(Lhash,KeyG,LsearchNo,offset=0){
 	//Compute list of KeyW
 	var input, addr;
@@ -524,7 +632,15 @@ function computeListKeyW(Lhash,KeyG,LsearchNo,offset=0){
 	return LkeyW;
 }
 
-// offset = 0 if computeAddr without changing No.File, offset = 1 if computeAddr with No.File = No.File + 1
+/**
+ * Compute the list of address values
+ * 
+ * @param {list} Lhash List of hash values
+ * @param {list} LkeyW The list of KeyW values
+ * @param {list} LfileNo The list of file numbers
+ * @param {number} offset offset = 0 if computeAddr without changing No.File, offset = 1 if computeAddr with No.File = No.File + 1
+ * @return {list} Laddr The list of address values
+ */
 function computeAddr(Lhash,LkeyW,LfileNo,offset=0){
 	var input, addr;
 	var Laddr=[], L;
@@ -565,6 +681,13 @@ function computeAddr(Lhash,LkeyW,LfileNo,offset=0){
 	return Laddr;
 }
 
+/**
+ * Encrypt the list of keywords
+ * 
+ * @param {list} Lkeyword List of keywords
+ * @param {string} Kenc Key or passphrase for key generation. The key will be used for encryption //needed test
+ * @return {list} Lcipher The list of ciphertext objects
+ */
 function encryptList(Lkeyword,Kenc){
 	var length = Lkeyword.length;
 	
@@ -577,7 +700,15 @@ function encryptList(Lkeyword,Kenc){
 	return Lcipher
 }
 
-//offset: the amount of addition or subtraction from the current fileno
+/**
+ * Objects to update file numbers at SSE TA
+ * 
+ * @param {list} Lhash List of hash values
+ * @param {list} LfileNoUri List of file number URI
+ * @param {list} LfileNo List of file number
+ * @param {number} offset The amount of addition or subtraction from the current fileno
+ * @return {list} [del,objects,deleted_objects] del=true if delete file number, del=false otherwise. Objects is the list of updated entries for file numbers. deleted_objects is the list of deleted entries for file numbers.
+ */
 function updateFileNo(Lhash,LfileNoUri,LfileNo,offset,keyid){
 	var objects = '';
 	var length = Lhash.length;
@@ -627,6 +758,15 @@ function updateFileNo(Lhash,LfileNoUri,LfileNo,offset,keyid){
 	return [del,objects,deleted_objects]
 }
 
+/**
+ * Objects to update file numbers at SSE TA
+ * 
+ * @param {list} Lhash List of hash values
+ * @param {list} LfileNoUri List of file number URI
+ * @param {list} LfileNo List of file number
+ * @param {number} offset The amount of addition or subtraction from the current fileno
+ * @return {list} [del,objects,deleted_objects] del=true if delete file number, del=false otherwise. Objects is the list of updated entries for file numbers. deleted_objects is the list of deleted entries for file numbers.
+ */
 // Lexisted is equal or subset of Lhash
 function createFullList(Lhash,Lexisted_hash,Lfound){
 	console.log("createFullList function")
@@ -651,8 +791,16 @@ function createFullList(Lhash,Lexisted_hash,Lfound){
 	return Lfull;
 }
 
-//Update data:
-// Data = { att1:[current_value,new_value], att2:[current_value,new_value] }
+/**
+ * Update data
+ * 
+ * @param {json} data The updated data in json format. For example,  { att1:[current_value,new_value], att2:[current_value,new_value] }
+ * @param {string} file_id The unique identification of data object
+ * @param {string} sharedKey Key or passphrase for key generation. The key will be shared with SSE TA for verification //needed test
+ * @param {string} Kenc Key or passphrase for key generation. The key will be used for encryption //needed test
+ * @param {string} keyid Unique key identification. This identification identifies the pair of (sharedKey,Kenc)
+ * @return {boolean} True if updated successfully, False if otherwise
+ */
 function updateData(data, file_id, sharedKey, Kenc, keyid, callback){
 	if(data=={} || file_id=="" || sharedKey=="" || Kenc=="" || keyid==""){
 		console.log("Lack of parameter of updateData function")
@@ -796,7 +944,15 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, callback){
 	return true;
 }
 
-//Delete data
+/**
+ * Delete data
+ * 
+ * @param {string} file_id The unique identification of data object
+ * @param {string} sharedKey Key or passphrase for key generation. The key will be shared with SSE TA for verification //needed test
+ * @param {string} Kenc Key or passphrase for key generation. The key will be used for encryption //needed test
+ * @param {string} keyid Unique key identification. This identification identifies the pair of (sharedKey,Kenc)
+ * @return {boolean} True if deleted successfully, False if otherwise
+ */
 function deleteData(file_id, sharedKey, Kenc, keyid, callback){
 	if(file_id=="" || sharedKey=="" || Kenc=="" || keyid==""){
 		console.log("Lack of parameter of deleteData function")
@@ -903,11 +1059,23 @@ function deleteData(file_id, sharedKey, Kenc, keyid, callback){
 	return true;
 }
 
-// Compute KeyG from passphrase
+/**
+ * Generate key from passphrase using hash function
+ * 
+ * @param {string} pwdphrase The passphrase which is used for key generation
+ * @return {string} Hash value of (pwdphrase + "keyg")
+ */
 function computeKeyG(pwdphrase){
 	return hash(pwdphrase + "keyg");
 }
-// Upload hash of key
+
+/**
+ * Generate key from passphrase, and upload it to SSE TA
+ * 
+ * @param {string} pwdphrase The passphrase which is used for key generation
+ * @param {string} keyid The unique key identification
+ * @return {boolean} True if uploading the generated key to SSE TA, false otherwise
+ */
 function uploadKeyG(pwdphrase,keyid){
 	if(pwdphrase=="" || keyid==""){
 		console.log("Lack of passphrase or keyid");
@@ -921,6 +1089,14 @@ function uploadKeyG(pwdphrase,keyid){
 	return true;
 }
 
+/**
+ * Encrypt blob data of small size (<=10MB)
+ * 
+ * @param {blob} blobData The blob data
+ * @param {string} ftype File type
+ * @param {string} Kenc Key or passphrase for key generation. The key will be used for encryption //needed test
+ * @return {promise} A promise to create blob of encrypted data
+ */
 function encryptBlob(blobData,ftype, Kenc){
 	return function(resolve) {
 		var reader = new FileReader()
@@ -952,8 +1128,18 @@ function encryptBlob(blobData,ftype, Kenc){
 	}
  }
 
-// Encrypt and upload blob data to minio
-// Approach: File -> divide into chunks -> encrypt each chunk -> upload -> (loop) -> until finish
+/**
+ * Encrypt blob data progressively, and upload them to MinIO server
+ * It can support large files (~800MB)
+ * Approach: File -> divide into chunks -> encrypt each chunk -> upload -> (loop) -> until finish
+ * 
+ * @param {blob} blobData The blob data
+ * @param {string} fname File name
+ * @param {string} ftype File type
+ * @param {string} Kenc Key or passphrase for key generation. The key will be used for encryption //needed test
+ * @param {string} keyId The unique key identification
+ * @return {promise} A promise to upload ciphertext chunks to MinIO server
+ */
 function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId){
 	console.log("Progress Encrypt Blob")
 	console.log("blob content:",blobData)
@@ -1065,6 +1251,14 @@ function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId){
 	}
 }
 
+/**
+ * Download file from MinIO server using a pre-signed URL
+ * 
+ * @param {url} presignedUrl The presigned URL which is generated by MinIO Server
+ * @param {string} fname File name
+ * @param {callback} callback Callback function
+ * @return {} True
+ */
 function downloadWithPresignUrl(presignedUrl,fname,callback){
 	$.ajax({
 		  url: presignedUrl, // the presigned URL
@@ -1082,6 +1276,12 @@ function downloadWithPresignUrl(presignedUrl,fname,callback){
 	})
 }
 
+/**
+ * Retrieve a presigned URL (generated by MinIO server) which can be used for getting data from MinIO server
+ *
+ * @param {string} fname File name
+ * @return {url} A presigned URL which can be used for retrieving data from MinIO server
+ */
 function getPresignUrl(fname){
 	url = sseConfig.base_url_sse_server + "/api/v1/presign/"+ fname + "/";
 	console.log("Rest API to get presign url:",url)
@@ -1101,6 +1301,12 @@ function getPresignUrl(fname){
 	return ret;
 }
 
+/**
+ * Retrieve a presigned URL (generated by MinIO server) which can be used for uploading/ updating data to MinIO server
+ *
+ * @param {string} fname File name
+ * @return {url} A presigned URL which can be used for uploading/ updating data to MinIO server
+ */
 function putPresignUrl(fname){
 	url = sseConfig.base_url_sse_server + "/api/v1/presign/";
 	console.log("Rest API to put presign url:",url)
@@ -1127,6 +1333,14 @@ function putPresignUrl(fname){
 	return ret;
 }
 
+/**
+ * Upload file to MinIO server using a presigned URL
+ * 
+ * @param {blob} blob The blob data
+ * @param {string} fname File name
+ * @param {callback} callback Callback function
+ * @return {} Blob data is uploaded to MinIO server
+ */
 //Upload file to Minio
 //Input: - fname: filename, - blob: data to upload
 function uploadMinio(blob,fname,callback=undefined){
@@ -1149,7 +1363,20 @@ function uploadMinio(blob,fname,callback=undefined){
 	})
 }
 
-//Encrypt blob data (<=10MB) and upload to Minio along with its searchable metadata (json format)
+/**
+ * Encrypt blob data (<=10MB) and upload to MinIO along with its searchable encrypted metadata (json format)
+ * It can only support small data (<=10MB)
+ * 
+ * @param {blob} blob Blob data
+ * @param {string} fname File name
+ * @param {json} jsonObj Metatdata in the format of json object. The uploaded blob data will be searchable by any keyword in its metadata
+ * @param {string} file_id The unique key identification
+ * @param {string} KeyG Key or passphrase for key generation. The key is used to encrypt data // needed test
+ * @param {string} Kenc Key or passphrase for key generation. The key is shared with SSE TA for verification // needed test
+ * @param {callback} callback Callback function
+ * @return {} The encrypted blob data is sent to MinIO, and its encrypted metadata is sent to SSE Server
+ */
+// test to remove callback function
 function encryptUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,keyId,callback=undefined){
 	//append filename to metadata
 	jsonObj.filename = fname;
@@ -1159,7 +1386,19 @@ function encryptUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,keyI
 }
 
 
-//Encrypt large blob data and upload to Minio along with its searchable metadata (json format)
+/**
+ * Encrypt large blob data and upload to MinIO along with its searchable encrypted metadata (json format)
+ * It can support large data (~800MB)
+ * 
+ * @param {blob} blob Blob data
+ * @param {string} fname File name
+ * @param {json} jsonObj Metatdata in the format of json object. The uploaded blob data will be searchable by any keyword in its metadata
+ * @param {string} file_id The unique key identification
+ * @param {string} KeyG Key or passphrase for key generation. The key is used to encrypt data // needed test
+ * @param {string} Kenc Key or passphrase for key generation. The key is shared with SSE TA for verification // needed test
+ * @param {callback} callback Callback function
+ * @return {} The encrypted blob data is sent to MinIO, and its encrypted metadata is sent to SSE Server
+ */
 function encryptProgressUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,keyId, callback=undefined){
 	//append filename to metadata
 	jsonObj.filename = fname;
@@ -1168,7 +1407,17 @@ function encryptProgressUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, K
 	uploadData(jsonObj,file_id,KeyG,Kenc,keyId);
 }
 
-//Encrypt blob data and upload to Minio
+/**
+ * Encrypt blob data and upload to MinIO
+ * It can support only small data (<=10MB)
+ * 
+ * @param {blob} blob Blob data
+ * @param {string} fname File name
+ * @param {string} KeyG Key or passphrase for key generation. The key is used to encrypt data // needed test
+ * @param {string} Kenc Key or passphrase for key generation. The key is shared with SSE TA for verification // needed test
+ * @param {callback} callback Callback function
+ * @return {promise} promise A promise to upload encrypted blob data
+ */
 function encryptUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
     var ftype = blob.type;
     var outputname = fname + keyId;
@@ -1187,6 +1436,17 @@ function encryptUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
 }
 
 
+/**
+ * Encrypt large blob data progressively, and upload chunks of ciphertext to MinIO
+ * It can support large data (~800MB)
+ * 
+ * @param {blob} blob Blob data
+ * @param {string} fname File name
+ * @param {string} KeyG Key or passphrase for key generation. The key is used to encrypt data // needed test
+ * @param {string} Kenc Key or passphrase for key generation. The key is shared with SSE TA for verification // needed test
+ * @param {callback} callback Callback function
+ * @return {promise} promise A promise to upload the ciphertext chunks to MinIO server
+ */
 //Encrypt large blob data and upload to Minio
 function encryptProgressUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
     var ftype = blob.type;
@@ -1203,9 +1463,17 @@ function encryptProgressUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
     return promise;
 }
 
-//Download file from Minio, decrypt and save it to local host (blob file <=10MB)
-//Input: - fname: filename, - callback: function to decrypt and save file
-//function downloadMinio(fname,callback){
+
+/**
+ * Download file from Minio, decrypt and save it to local host (blob file <=10MB)
+ * It can support only small data (<=10MB)
+ * 
+ * @param {string} fname File name
+ * @param {string} KeyG Key or passphrase for key generation. The key is used to encrypt data // needed test
+ * @param {string} Kenc Key or passphrase for key generation. The key is shared with SSE TA for verification // needed test
+ * @param {callback} callback Callback function
+ * @return {} Decrypted data is save as a file
+ */
 function downloadDecryptBlob(fname,Kenc,keyId,callback=undefined){
 	console.log("Download blob")
 	var presigned_url = getPresignUrl(fname+keyId) // request for a presigned url 
@@ -1226,8 +1494,16 @@ function downloadDecryptBlob(fname,Kenc,keyId,callback=undefined){
 	})
 }
 
-//Decrypt and save blob data (<=10MB)
-//Input: - data: blob data, - fname: file name. Output: - save file to local host
+/**
+ * Decrypt a ciphertext downloaded from MinIO server, and save as file.
+ * This function can support only small files (<=10MB)
+ * 
+ * @param {blob} blob Blob 
+ * @param {string} fname File name
+ * @param {string} Kenc Key or passphrase for key generation. The key is used for encrypting data. //needed test
+ * @param {callback} callback Callback function
+ * @return {promise} Promise to save decrypted data as a file
+ */
 function decryptSaveBlob(blob,fname,Kenc,callback=undefined){
 	 var outputname = fname;//fname.split(".")[0];// + "_decrypted";
 	 console.log("Filename to be saved: " +  outputname);
@@ -1246,7 +1522,15 @@ function decryptSaveBlob(blob,fname,Kenc,callback=undefined){
 	 return promise;
 }
 
-// Decrypt a blob file (<=10MB)
+/**
+ * Decrypt a ciphertext downloaed from MinIO server
+ * This function can support only small files (<10MB)
+ * 
+ * @param {blob} blobCipher Ciphertext downloaded from MinIO server
+ * @param {string} ftype File type 
+ * @param {string} Kenc Key or passphrase for key generation. The key is used for encrypting data. //needed test
+ * @return {promise} Promise to create the decrypted blob
+ */
 function decryptBlob(blobCipher,ftype,Kenc){
 	return function(resolve) {
 		var reader = new FileReader();
@@ -1256,6 +1540,7 @@ function decryptBlob(blobCipher,ftype,Kenc){
 			console.log("input array:",imagecipher);
 	
 			var bitarray = toBitArrayCodec(imagecipher);
+			//var bitarray = sjcl.codec.bytes.toBit(imagecipher);//needed test
 			console.log("bit array:",bitarray);
 	
 			var imageBase = sjcl.codec.base64.fromBits(bitarray); // byte array->base64
@@ -1278,8 +1563,16 @@ function decryptBlob(blobCipher,ftype,Kenc){
 	}
 }
 
-//Decrypt chunks of ciphertext and save as multiple files. 
-//A concatenation script is saved as concat_script.txt which contains a script to merge the multiple downloaded files into plaintext file.
+/**
+ * Download chunks of ciphertext from MinIO server, decrypt them and save as multiple files. Create a script to merge multiple files into one.
+ * This function can support large files (~800MB)
+ * 
+ * @param {string} fname File name
+ * @param {string} Kenc Key or passphrase for key generation. The key is used for encrypting data. //needed test
+ * @param {string} keyId Unique key identification
+ * @param {callback} callback Callback function
+ * @return {} Download multiple of plaintext chunk files, and a script file (concat_script.txt) to merge them into one plaintext file
+ */
 function downloadProgressDecryptBlob(fname,Kenc,keyId,callback=undefined){
     console.log("Download blob")
     try {
@@ -1351,8 +1644,12 @@ function downloadProgressDecryptBlob(fname,Kenc,keyId,callback=undefined){
     }    
 }
 
-//referenced from internet
-/** Convert from an array of bytes to a bitArray. */
+/**
+ * Convert from an array of bytes to a bitArray. This function is referenced from internet.
+ * 
+ * @param {array} bytes Array of bytes
+ * @return {array} out Bit array //needed test
+ */
 function toBitArrayCodec(bytes) {
     var out = [], i, tmp=0;
     for (i=0; i<bytes.length; i++) {
@@ -1368,8 +1665,12 @@ function toBitArrayCodec(bytes) {
     return out;
 }
 
-//referenced from internet
-/** Convert from a bitArray to an array of bytes. */
+/**
+ * Convert from a bitArray to an array of bytes. This function is referenced from internet.
+ * 
+ * @param {array} arr Bit array //needed test
+ * @return {array} out Array of bytes
+ */
 function fromBitArrayCodec(arr) {
     var out = [], bl = sjcl.bitArray.bitLength(arr), i, tmp;
     for (i=0; i<bl/8; i++) {
@@ -1382,8 +1683,13 @@ function fromBitArrayCodec(arr) {
     return out;
 }
 
-//referenced from internet
-//save file to localhost
+/**
+ * Save blob to file. This function is referenced from internet.
+ * 
+ * @param {blob} blob The blob data
+ * @param {string} fileName The file name
+ * @return {} The blob is saved as a file in Download
+ */
 function saveBlob(blob, fileName) {
 	console.log("save file")
 	 var a = document.createElement("a");
@@ -1474,9 +1780,9 @@ function computeKeyG_Pbkdf2(pwdphrase,salt,iter,keysize) {
 }
 
 /**
- * Encrypt with AES-CCM 
- * 128 bits (defined in sseConfig.ks_sgx) if sgx is enabled at SSE TA (due to the restriction of mbedtls in SGX, we only use 128 bits for encryption) 
- * 256 bits otherwise (defined in sseConfig.ks)
+ * Encrypt with AES-CCM. The encryption needs to be compatible with decryption at SSE TA.
+ * 128 bits (defined by sseConfig.ks_sgx) if sgx is enabled at SSE TA (due to the restriction of mbedtls in SGX, we only use 128 bits for encryption) 
+ * 256 bits otherwise (defined by sseConfig.ks)
  * 
  * @param {string} key The AES key (base64) or pwdphrase (string).
  * @param {string} input Plaintext
@@ -1485,16 +1791,16 @@ function computeKeyG_Pbkdf2(pwdphrase,salt,iter,keysize) {
  */
 function encrypt_sgx(key, input, sgx_enable=true){
 	var options = {};
-	if(sgx_enable)
+	if(sgx_enable) // encrypt with AES-CCM 128 bit
 		options = {mode:sseConfig.mode_sgx,iter:sseConfig.iter_sgx,
 			ks:sseConfig.ks_sgx,ts:sseConfig.ts_sgx,v:1,
-			cipher:sseConfig.cipher,
-			adata:"",salt:sseConfig.salt_sgx, iv:sseConfig.iv_sgx}; //salt, iv are base64 string
-	else
+			cipher:sseConfig.cipher_sgx,
+			adata: sseConfig.adata_sgx,salt:sseConfig.salt_sgx, iv:sseConfig.iv_sgx}; //salt, iv are base64 string
+	else // encrypt with AES-CCM 256 bit
 		options = {mode:sseConfig.mode_sgx,iter:sseConfig.iter,
 			ks:sseConfig.ks,ts:sseConfig.ts,v:1,
 			cipher:sseConfig.cipher,
-			adata:"",salt:sseConfig.salt, iv:sseConfig.iv}; 
+			adata:sseConfig.adata,salt:sseConfig.salt, iv:sseConfig.iv}; 
 	var res = sjcl.encrypt(key, input, options);
 	var ct = JSON.parse(res).ct;
 	return ct;
