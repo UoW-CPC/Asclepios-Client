@@ -24,29 +24,28 @@ HTTP_CODE_CREATED = 201
 var sseConfig={
         'base_url_ta' : 'ta_url', //{url} URL of SSE TA. Example: http://127.0.0.1:8000
         'base_url_sse_server' : 'sse_url',//{url} URL of SSE Server
-        'salt' : 'salt_value', //{string} Salt value which is used for key generation from a passphrase
-        'iv' : 'iv_value', //{string} Initial vector value which is used for encryption
+        'salt' : 'salt_value', //{string, 8 characters} Salt value which is used for key generation from a passphrase
+        'iv' : 'iv_value', //{string} Initial vector value which is used for encryption 
         'iter' : iter_value, //{number} Number of iteration for generating key from passphrase
         'ks' : ks_value, // {number} key size. Example: 128, 256
         'ts' : ts_value, // {number} tag size. Example: 64
         'mode' : 'mode_value', // {string} Encryption mode. Example: ccm
-        'adata':'adata_value',
-        'adata_len' : adata_len_value, //{number}
-        'cipher' : 'cipher_type', //{string} cipher type. Example: aes
+        'adata':'', // {string, ''} This is not supported to be configurable yet
+        'adata_len' : 0, //{number, 0} This is not supported to be configurable yet
         'hash_length' : hash_length_value, // {number} length of hash value
         'chunk_size' : chunk_size_value,// {number} Size of 1 slice/ chunk for encryption (in uint8 items). Example: 32768=1024^32
         'no_chunks_per_upload' : no_chunks_per_upload_value, // {number} Number of chunks to be packed in 1 upload
         'salt_sgx' : 'salt_sgx_value', // {base64, 8 bytes} salt value for encryption. This will be replaced with correct value at runtime at the web server
-        'iv_sgx' : 'iv_sgx_value', // {base64, 8 bytes} iv for encryption. This will be replaced with correct value at runtime at the web server
+        'iv_sgx' : 'iv_sgx_value', // {base64, 8 bytes} iv for encryption. This will be replaced with correct value at runtime at the web server 
         'iter_sgx' : iter_sgx_value, //{number} Number of iteration for generating key from passphrase. Example: 1000
         'ks_sgx' : ks_sgx_value, //{128} it is set 128 bits to be compatible with AES encryption in SGX
         'ts_sgx' : ts_sgx_value, // {number} tag size. Example: 64
         'mode_sgx' : 'mode_sgx_value', // {string} Encryption mode. Example: ccm
-        'adata_sgx':'adata_sgx_value',
-        'adata_len_sgx' : adata_len_sgx_value, //{number}
-        'cipher_sgx' : 'cipher_sgx_type' //{string} cipher type. Example: aes
+        'adata_sgx':'', // {string, ''} This is not supported to be configurable yet
+        'adata_len_sgx' : 0, //{number, 0} This is not supported to be configurable yet
+        'sgx_enable': sgx_enable_value // {boolean} True if SGX is enabled at SSE TA, false otherwise
 }
-
+// Values "salt_sgx, iv_sgx, iter_sgx, ks_sgx, ts_sgx, mode_sgx, adata_sgx, adata_len_sgx" are not used when sgx_enable=false
 
 /////////////////////// SSE CONFIGURATION - End ///////////////////////
 
@@ -176,17 +175,16 @@ function hash(input){
 /**
  * Encrypt data
  * 
- * @param {string} key Key or passphrase // needed test
+ * @param {hex string or string} key Key (hex string) or passphrase (arbitrary string) for key generation 
+ * If it is a passphrase, a key will be generated from the passphrase.
+ * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" as a key (number of hex characters = keysize/4), or "123" as a passphrase
  * @param {string} input Plaintext
  * @return {object} res Ciphertext object. For example:{"iv":"IjJ65qTj+uwKJnrTfRW2hw==","v":1,"iter":1000,"ks":128,"ts":64,"mode":"ccm","adata":"","cipher":"aes","salt":"+lSbfNMnwP8=","ct":"0ARVIuwmi1IrtGT3k1NHF6w0rXfD0w=="}
  */
 function encrypt(key, input){
-	var salt = btoa(sseConfig.salt);
-	var iv = btoa(sseConfig.iv);
-	//var salt = sjcl.codec.base64.toBits(sseConfig.salt); // needed test
-	//var iv = sjcl.codec.base64.toBits(sseConfig.iv); // needed test
-	var options = {mode:"ccm",iter:sseConfig.iter,ks:sseConfig.ks,ts:sseConfig.ts,v:1,cipher:"aes",adata:"",salt:salt, iv:iv}; //define salt, mode for encryption
-	//var options = {mode:sseConfig.mode,iter:sseConfig.iter,ks:sseConfig.ks,ts:sseConfig.ts,v:1,cipher:sseConfig.cipher,adata:sseConfig.adata,salt:salt, iv:iv}; //needed test
+	var salt = btoa(sseConfig.salt); // string (utf-8) -> base64
+	var iv = btoa(sseConfig.iv); // string (utf-8) -> base64
+	var options = {mode:sseConfig.mode,iter:sseConfig.iter,ks:sseConfig.ks,ts:sseConfig.ts,v:1,cipher:"aes",adata:sseConfig.adata,salt:salt,iv:iv}; //needed test
 
 	var res = sjcl.encrypt(key, input, options);
 	return res; // return a ciphertext object
@@ -195,9 +193,11 @@ function encrypt(key, input){
 /**
  * Decrypt data
  * 
- * @param {string} key Key or passphrase //needed test
+ * @param {hex string or string} key Key (hex string) or passphrase (arbitrary string) for key generation  
+ * If it is a passphrase, a key will be generated from the passphrase.
+ * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" as a key (number of hex characters = keysize/4), or "123" as a passphrase
  * @param {object} cipherObj Ciphertext object
- * @return {string} res Decrypted data (plaintext) //needed test
+ * @return {string} res Decrypted data (plaintext)
  */
 function decrypt(key, cipherObj){
 	var res = ""
@@ -253,12 +253,19 @@ function getMultiFileOrSearchNo(requestType,Lw,keyid){
  * 
  * @param {json} data Input data
  * @param {string} file_id Unique identification of the data object
- * @param {string} sharedKey Key or passphrase for key generation. The key will be shared with SSE TA for verification//needed test
- * @param {string} Kenc Key or passphrase for key generation. The key will be used for data encryption //needed test
+ * @param {hex string or string} sharedKey Key (hex string) or passphrase (arbitrary string) for key generation. 
+ * If it is a passphrase, a key will be generated from the passphrase.
+ * The key will be shared with SSE TA for verification
+ * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" as a key (number of hex characters = keysize/4), or "123" as a passphrase
+ * @param {hex string or string} Kenc Key (hex string) or passphrase (arbitrary string) for key generation. 
+ * If it is a passphrase, a key will be generated from the passphrase.
+ * The key will be used for data encryption
+ * @param {string} keyid The unique key identification
+ * @param {boolean} iskey false if sharedKey, Kenc are passphrases, true if they are keys
  * @param {callback} callback Callback function. This is used for automatic test with Jest
  * @return {boolean} false/true False if error, True if successful
  */
-function uploadData(data, file_id, sharedKey, Kenc, keyid, callback){
+function uploadData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback=undefined){
 	if(data=={} || file_id=="" || sharedKey=="" || Kenc=="" || keyid==""){
 		console.log("Lack of parameter of uploadData function")
 		return false;
@@ -270,10 +277,22 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, callback){
 		return false;
 	}
 
-	var KeyG = computeKeyG(sharedKey);
+	//var KeyG = computeKeyG(sharedKey);
+	var KeyG, key;
+	if(iskey == false) {// sharedKey is a passphrase. A key is generated from the passphrase
+		KeyG = sjcl.codec.hex.toBits(computeKeyG(sharedKey)); // hex string -> array
+		console.log("KeyG (in array format):",KeyG);
+		key = sjcl.codec.hex.toBits(computeKeyEnc(Kenc)); // hex string -> array
+	} else {
+		KeyG = sjcl.codec.hex.toBits(sharedKey); // sharedKey is a key
+		console.log("KeyG (in array format):",KeyG);
+		key = sjcl.codec.hex.toBits(Kenc);
+	}
+		
 	//console.log("KeyG in upload:",KeyG);
-	var key = hash(Kenc); //generate encryption key from inputed passphrase Kenc
-
+	//var key = hash(Kenc); //generate encryption key from inputed passphrase Kenc
+	
+	
 	console.log("URL TA:",sseConfig.base_url_ta)
 	
 	console.log("json object:",data);
@@ -394,12 +413,16 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, callback){
  * Decrypt the retrieved ciphertext at SSE Client. The ciphertext is a part of the response from SSE Server after SSE client sends a search request by a keyword.
  * 
  * @param {json} response The response from SSE Server which contains the ciphertext
- * @param {string} Kenc Key or passphrase for key generation. The key will be used for data encryption //needed test
+ * @param {string} Kenc Key (hex string) or passphrase (arbitrary string) for key generation. 
+ * If it is a passphrase, a key will be generated from the passphrase
+ * The key is used for data encryption
+ * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" as a key (number of hex characters = keysize/4), or "123" as a passphrase
  * @param {number} searchNo The search number of the searched keyword
  * @param {string} searchNoUri The search number URI of the searched keyword
  * @param {string} keyword The searched keyword
  * @param {string} keyid The unique key identification
  * @return {json} JSON.parse(data) The decrypted data in json format. It contains count (number of data objects), and objects (list of data objects)
+ * Example: { count: 1, objects: [ { firstname: 'David', lastname: 'White' } ] }
  */
 function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid){
 	console.log("response of search:",response)
@@ -468,9 +491,26 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid){
  * 
  * @param {list} cipherList The retrieved ciphertext from SSE Server
  * @param {string} Kenc Key or passphrase for key generation. The key will be used for data encryption //needed test
- * @return {list} data The list of decrypted data
+ * @return {list} data The list of ciphertext object
+ * Example:  [
+        {
+          data: "{'iv': 'YWJjZGVmZw==', 'v': 1, 'iter': 10000, 'ks': 256, 'ts': 64, 'mode': 'ccm', 'adata': '', 'cipher': 'aes', 'salt': 'YWJjMTIzIT8=', 'ct': '+GY52jIR88d1jeo8wtN8TEojTeH/ikY='}",
+          id: 6,
+          jsonId: '2',
+          keyId: '1',
+          resource_uri: '/api/v1/ciphertext/6/'
+        },
+        {
+          data: "{'iv': 'YWJjZGVmZw==', 'v': 1, 'iter': 10000, 'ks': 256, 'ts': 64, 'mode': 'ccm', 'adata': '', 'cipher': 'aes', 'salt': 'YWJjMTIzIT8=', 'ct': '8m443Sge/89sqN812tl5eK7FdN5cjTg='}",
+          id: 7,
+          jsonId: '2',
+          keyId: '1',
+          resource_uri: '/api/v1/ciphertext/7/'
+        }
+      ]
+
  */
-// needed test: if this function or retrieveData is redundant
+// improvement: check if this function or retrieveData is redundant
 function decryptData(cipherList, Kenc){
 	var found = cipherList.length;
 	console.log("length of list:",found)
@@ -495,16 +535,34 @@ function decryptData(cipherList, Kenc){
  * Search by a keyword
  * 
  * @param {string} keyword The retrieved ciphertext from SSE Server
- * @param {string} sharedKey Key or passphrase for key generation. The key will be shared with SSE TA for verification //needed test
- * @param {string} Kenc Key or passphrase for key generation. The key will be used for encryption //needed test
+ * @param {string} sharedKey Key (hex string) or passphrase (arbitrary string) for key generation. 
+ * If it is a passphrase, a key will be generated from the passphrase
+ * The key is shared with SSE TA for verification 
+ * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" as a key (number of hex characters = keysize/4), or "123" as a passphrase
+ * @param {string} Kenc Key (hex string) or passphrase (arbitrary string) for key generation
+ * The key will be used for data encryption
  * @param {string} keyid Unique key identification. This identification identifies the pair of (sharedKey,Kenc)
+ * @param {boolean} iskey False if sharedKey, Kenc are passphrases, true if they are passphrases
  * @return {list} data The list of decrypted data
+ * Example: { count: 1, objects: [ { firstname: 'David' } ] }
  */
-function findKeyword(keyword, sharedKey, Kenc,keyid){
+function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false){
 	console.log("Search keyword function");
+	console.log("shared key:",sharedKey,"- iskey:",iskey);
 	
-	var KeyG = computeKeyG(sharedKey);
-	var key = hash(Kenc);
+	//var KeyG = computeKeyG(sharedKey);
+	var KeyG,key;
+	if(iskey == false) { // sharedKey is a passphrase. A key is generated from the passphrase
+		KeyG = sjcl.codec.hex.toBits(computeKeyG(sharedKey)); // hex string -> array
+		console.log("KeyG (in array format):{}, in hex string format:{}",KeyG,computeKeyG(sharedKey));
+		key = sjcl.codec.hex.toBits(computeKeyEnc(Kenc)); // hex string -> array
+	} else {
+		KeyG = sjcl.codec.hex.toBits(sharedKey); // sharedKey is a key
+		console.log("KeyG (in array format):{},in hex string format:{}",KeyG,sharedKey);
+		key = sjcl.codec.hex.toBits(Kenc);
+	}
+	
+	//var key = hash(Kenc);
 	
 	var fileNo, fileNoUri;
 	
@@ -541,7 +599,14 @@ function findKeyword(keyword, sharedKey, Kenc,keyid){
 	
 	// Compute KeyW
 	var KeyW = encrypt(KeyG,hash(keyword)+searchNo); 
-	console.log("Search number: ",searchNo," - KeyW: ",KeyW);
+	console.log("key in array format:{}",KeyG);
+	console.log("Search number: ",searchNo," - KeyW (encrypt with key): ",KeyW);
+	
+	// test only
+	var KeyG1="123";
+	console.log("password:",KeyG1);
+	var KeyW1 = encrypt(KeyG1,hash(keyword)+searchNo); 
+	console.log("Search number: ",searchNo," - KeyW (encrypt with password): ",KeyW1);
 	
 	// Increase search number:
 	searchNo = searchNo + 1; //new
@@ -583,12 +648,18 @@ function findKeyword(keyword, sharedKey, Kenc,keyid){
  * Search by a json object containing the searched keyword
  * 
  * @param {json} data The json object containing the searched keyword. For instance: {"keyword": searched_keyword}
- * @param {string} sharedKey Key or passphrase for key generation. The key will be shared with SSE TA for verification //needed test
- * @param {string} Kenc Key or passphrase for key generation. The key will be used for encryption //needed test
+ * @param {string} sharedKey Key (hex string) or passphrase (arbitrary string) for key generation. 
+ * If it is a passphrase, a key will be generated from the passphrase
+ * The key is shared with SSE TA for verification 
+ * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" as a key (number of hex characters = keysize/4), or "123" as a passphrase
+ * @param {string} Kenc Key (hex string) or passphrase (arbitrary string) for key generation. 
+ * The key will be used for encryption
  * @param {string} keyid Unique key identification. This identification identifies the pair of (sharedKey,Kenc)
+ * @param {boolean} iskey False if KeyG, Kenc are passphrases, true if they are passphrases
  * @return {list} data The list of decrypted data
+ * Example: { count: 1, objects: [ { firstname: 'David' } ] }
  */
-function search(data, KeyG, Kenc,keyid){
+function search(data, KeyG, Kenc,keyid,iskey=false){
 	if(data=={} || KeyG=="" || Kenc=="" || keyid==""){
 		console.log("Lack of parameter of search function")
 		return {};
@@ -600,7 +671,7 @@ function search(data, KeyG, Kenc,keyid){
 		return null;
 	}
 	console.log("keyword: ",keyword);
-	var results = findKeyword(keyword,KeyG,Kenc,keyid);
+	var results = findKeyword(keyword,KeyG,Kenc,keyid,iskey);
 	return results;
 }
 
@@ -608,9 +679,12 @@ function search(data, KeyG, Kenc,keyid){
  * Compute the list of KeyW values
  * 
  * @param {list} Lhash List of hash values
- * @param {string} KeyG Key or passphrase for key generation. The key will be shared with SSE TA for verification //needed test
+ * @param {string} KeyG Key (hex string) or passphrase (arbitrary string) for key generation. 
+ * If it is a passphrase, a key will be generated from the passphrase
+ * The key is shared with SSE TA for verification 
+ * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" as a key (number of hex characters = keysize/4), or "123" as a passphrase
  * @param {list} LsearchNo List of search numbers
- * @param {number} offset the amount of increase in No.Search
+ * @param {number} offset The amount of increase/decrease in No.Search
  * @return {list} LkeyW The list of KeyW values
  */
 function computeListKeyW(Lhash,KeyG,LsearchNo,offset=0){
@@ -687,7 +761,10 @@ function computeAddr(Lhash,LkeyW,LfileNo,offset=0){
  * Encrypt the list of keywords
  * 
  * @param {list} Lkeyword List of keywords
- * @param {string} Kenc Key or passphrase for key generation. The key will be used for encryption //needed test
+ * @param {string} Kenc Key (hex string) or passphrase (arbitrary string) for key generation. 
+ * If it is a passphrase, a key will be generated from the passphrase
+ * The key will be used for data encryption 
+ * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" as a key (number of hex characters = keysize/4), or "123" as a passphrase
  * @return {list} Lcipher The list of ciphertext objects
  */
 function encryptList(Lkeyword,Kenc){
@@ -798,12 +875,18 @@ function createFullList(Lhash,Lexisted_hash,Lfound){
  * 
  * @param {json} data The updated data in json format. For example,  { att1:[current_value,new_value], att2:[current_value,new_value] }
  * @param {string} file_id The unique identification of data object
- * @param {string} sharedKey Key or passphrase for key generation. The key will be shared with SSE TA for verification //needed test
- * @param {string} Kenc Key or passphrase for key generation. The key will be used for encryption //needed test
+ * @param {string} sharedKey Key (hex string) or passphrase (arbitrary string) for key generation. 
+ * If it is a passphrase, a key will be generated from the passphrase
+ * The key will be shared with SSE TA for verification
+ * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" as a key (number of hex characters = keysize/4), or "123" as a passphrase
+ * @param {string} Kenc Key (hex string) or passphrase (arbitrary string) for key generation. 
+ * The key will be used for encryption
  * @param {string} keyid Unique key identification. This identification identifies the pair of (sharedKey,Kenc)
+ * @param {boolean} iskey False if sharedKey, Kenc are passphrases, true if they are passphrases
+ * @param {callback} callback Callback function
  * @return {boolean} True if updated successfully, False if otherwise
  */
-function updateData(data, file_id, sharedKey, Kenc, keyid, callback){
+function updateData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback=undefined){
 	if(data=={} || file_id=="" || sharedKey=="" || Kenc=="" || keyid==""){
 		console.log("Lack of parameter of updateData function")
 		return false;
@@ -823,8 +906,17 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, callback){
 	Lcurrent_hash = [];
 	Lnew_hash=[];
 	
-	var KeyG = computeKeyG(sharedKey);
-	var key = hash(Kenc);
+	//var KeyG = computeKeyG(sharedKey);
+	var KeyG, key;
+	if(iskey == false) {// sharedKey is a passphrase. A key is generated from the passphrase
+		KeyG = sjcl.codec.hex.toBits(computeKeyG(sharedKey)); // hex string -> array
+		key = sjcl.codec.hex.toBits(computeKeyEnc(Kenc)); // hex string -> array
+	} else {
+		KeyG = sjcl.codec.hex.toBits(sharedKey); // sharedKey is a key
+		key = sjcl.codec.hex.toBits(Kenc);
+	}
+	
+	//var key = hash(Kenc);
 	
 	for(i=0; i<length;i++){
 		current_value = keys[i] + '|' + values[i][0];
@@ -950,12 +1042,19 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, callback){
  * Delete data
  * 
  * @param {string} file_id The unique identification of data object
- * @param {string} sharedKey Key or passphrase for key generation. The key will be shared with SSE TA for verification //needed test
- * @param {string} Kenc Key or passphrase for key generation. The key will be used for encryption //needed test
+ * @param {string} sharedKey Key (hex string) or passphrase (arbitrary string) for key generation. 
+ * If it is a passphrase, a key will be generated from the passphrase
+ * The key will be shared with SSE TA for verification
+ * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" as a key (number of hex characters = keysize/4), or "123" as a passphrase
+ * @param {string} Kenc Key (hex string) or passphrase (arbitrary string) for key generation. 
+ * If it is a passphrase, a key will be generated from the passphrase
+ * The key will be used for encryption 
  * @param {string} keyid Unique key identification. This identification identifies the pair of (sharedKey,Kenc)
+ * @param {boolean} iskey False if sharedKey, Kenc are passphrases, true if they are passphrases
+ * @param {callback} callback Callback function
  * @return {boolean} True if deleted successfully, False if otherwise
  */
-function deleteData(file_id, sharedKey, Kenc, keyid, callback){
+function deleteData(file_id, sharedKey, Kenc, keyid, iskey=false, callback=undefined){
 	if(file_id=="" || sharedKey=="" || Kenc=="" || keyid==""){
 		console.log("Lack of parameter of deleteData function")
 		return false;
@@ -970,9 +1069,18 @@ function deleteData(file_id, sharedKey, Kenc, keyid, callback){
 	}
 	else{
 		console.log("File_id and key id exist");
-		var KeyG = computeKeyG(sharedKey);
+		//var KeyG = computeKeyG(sharedKey);
+		var KeyG, key;
+		if(iskey == false) { // sharedKey is a passphrase. A key is generated from the passphrase
+			KeyG = sjcl.codec.hex.toBits(computeKeyG(sharedKey)); // hex string -> array
+			key = sjcl.codec.hex.toBits(computeKeyEnc(Kenc)); // hex string -> array
+		} else {
+			KeyG = sjcl.codec.hex.toBits(sharedKey); // sharedKey is a key
+			key = sjcl.codec.hex.toBits(Kenc);
+		}
+		
 		console.log("KeyG:",KeyG);
-		var key = hash(Kenc);
+		//var key = hash(Kenc);
 		
 		// Decrypt data
 		var pt = decryptData(obj.objects,key);
@@ -1062,29 +1170,72 @@ function deleteData(file_id, sharedKey, Kenc, keyid, callback){
 }
 
 /**
- * Generate key from passphrase using hash function
+ * Generate key from passphrase using Pbkdf2
+ * This key will be shared with SSE TA for verification
  * 
  * @param {string} pwdphrase The passphrase which is used for key generation
- * @return {string} Hash value of (pwdphrase + "keyg")
+ * @return {hex string} Key which is generated by Pbkdf2
+ * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" (number of hex characters = keysize/4)
  */
 function computeKeyG(pwdphrase){
-	return hash(pwdphrase + "keyg");
+	//return hash(pwdphrase + "keyg");
+	var salt, iter, keysize;
+	if(sseConfig.sgx_enable==false){
+		salt = btoa(sseConfig.salt)
+		iter = sseConfig.iter
+		keysize = sseConfig.ks
+	}
+	else{
+		salt = sseConfig.salt_sgx
+		iter = sseConfig.iter_sgx
+		keysize = sseConfig.ks_sgx
+	}
+		
+	return computeKeyG_Pbkdf2(pwdphrase,salt,iter,keysize); // hex string
 }
 
 /**
- * Generate key from passphrase, and upload it to SSE TA
+ * Generate key from passphrase using Pbkdf2 
+ * This key will be used for data encryption
  * 
  * @param {string} pwdphrase The passphrase which is used for key generation
- * @param {string} keyid The unique key identification
- * @return {boolean} True if uploading the generated key to SSE TA, false otherwise
+ * @return {hex string} Key which is generated by Pbkdf2
+ * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" (number of hex characters = keysize/4)
  */
-function uploadKeyG(pwdphrase,keyid){
+function computeKeyEnc(pwdphrase){
+	var salt, iter, keysize;
+	salt = btoa(sseConfig.salt)
+	iter = sseConfig.iter
+	keysize = sseConfig.ks
+	
+	var key = computeKeyG_Pbkdf2(pwdphrase,salt,iter,keysize); // hex string
+	console.log("password:%s,generated key:%s",pwdphrase,key)
+	return key;
+}
+
+/**
+ * Upload a shared key to SSE TA
+ * 
+ * @param {string} pwdphrase Key (hex string) or passphrase (arbitrary string) for key generation. 
+ * If it is a passphrase, a key will be generated from the passphrase
+ * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" as a key (number of hex characters = keysize/4), or "123" as a passphrase
+ * @param {string} keyid The unique key identification
+ * @param {boolean} iskey false if pwdphrase is a passphrase, true if pwdphrase is a key
+ * @return {boolean} true if uploading the (generated) key to SSE TA, false otherwise
+ */
+function uploadKeyG(pwdphrase,keyid,iskey=false){
 	if(pwdphrase=="" || keyid==""){
 		console.log("Lack of passphrase or keyid");
 		return false;
 	}
 	console.log("passphrase to compute keyg:",pwdphrase);
-	var keyg = computeKeyG(pwdphrase);
+	//var keyg = computeKeyG(pwdphrase); // hex string
+	var keyg;
+	if(iskey == false) // pwdphrase is a passphrase. A key is generated from the passphrase
+		keyg = computeKeyG(pwdphrase); // hex string -> array
+	else
+		keyg = pwdphrase; // pwdphrase is a key
+	
 	var jsonData = '{ "key" : "' + keyg + '","keyId":"' + keyid + '"}';
 	console.log("uploaded KeyG:",keyg)
 	postRequest(sseConfig.base_url_ta + "/api/v1/key/", jsonData, undefined, async_feat = false);
@@ -1343,8 +1494,6 @@ function putPresignUrl(fname){
  * @param {callback} callback Callback function
  * @return {} Blob data is uploaded to MinIO server
  */
-//Upload file to Minio
-//Input: - fname: filename, - blob: data to upload
 function uploadMinio(blob,fname,callback=undefined){
 	var presigned_url = putPresignUrl(fname) // request for a presigned url
     
@@ -1449,7 +1598,6 @@ function encryptUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
  * @param {callback} callback Callback function
  * @return {promise} promise A promise to upload the ciphertext chunks to MinIO server
  */
-//Encrypt large blob data and upload to Minio
 function encryptProgressUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
     var ftype = blob.type;
     console.log("blob type:",ftype);
@@ -1512,7 +1660,6 @@ function decryptSaveBlob(blob,fname,Kenc,callback=undefined){
 	 var ftype = blob.type; //identify filetype from blob
 	 
 	 var promise = new Promise(decryptBlob(blob,ftype,Kenc));
-	 //var promise = decryptBlob(blob,ftype,Kenc);
 	 
 	 promise.then((plainBlob) => {
 		 console.log("Save file to disk");
@@ -1793,17 +1940,37 @@ function computeKeyG_Pbkdf2(pwdphrase,salt,iter,keysize) {
  */
 function encrypt_sgx(key, input, sgx_enable=true){
 	var options = {};
-	if(sgx_enable) // encrypt with AES-CCM 128 bit
+	
+	if(sgx_enable==true) // encrypt with AES-CCM 128 bit
 		options = {mode:sseConfig.mode_sgx,iter:sseConfig.iter_sgx,
 			ks:sseConfig.ks_sgx,ts:sseConfig.ts_sgx,v:1,
-			cipher:sseConfig.cipher_sgx,
+			cipher:"aes",
 			adata: sseConfig.adata_sgx,salt:sseConfig.salt_sgx, iv:sseConfig.iv_sgx}; //salt, iv are base64 string
 	else // encrypt with AES-CCM 256 bit
-		options = {mode:sseConfig.mode_sgx,iter:sseConfig.iter,
+		// encrypt with key generation from passphrase
+		options = {mode:sseConfig.mode,iter:sseConfig.iter,
 			ks:sseConfig.ks,ts:sseConfig.ts,v:1,
-			cipher:sseConfig.cipher,
-			adata:sseConfig.adata,salt:sseConfig.salt, iv:sseConfig.iv}; 
-	var res = sjcl.encrypt(key, input, options);
-	var ct = JSON.parse(res).ct;
+			cipher:"aes",
+			adata:sseConfig.adata,salt:btoa(sseConfig.salt), iv:btoa(sseConfig.iv)};  //salt, iv are string (utf-8). Therefore, they needed to be encoded into base64
+	
+		options1 = {mode:sseConfig.mode,iter:sseConfig.iter,
+			ts:sseConfig.ts,v:1,
+			cipher:"aes",
+			adata:sseConfig.adata,iv:btoa(sseConfig.iv)}; 
+		
+	console.log("key:{},input:{}",key,input)
+	var res1 = sjcl.encrypt(key, input, options);
+	var ct = JSON.parse(res1).ct;
+	console.log("Encrypt with passphrase:",res1);
+	console.log("decrypt with passphrase:",sjcl.decrypt(key,res1));
+	
+	gen_key = computeKeyG_Pbkdf2(key,btoa(sseConfig.salt),sseConfig.iter,sseConfig.ks); //salt, iv are string (utf-8). Therefore, they needed to be encoded into base64
+	gen_key1 = sjcl.codec.hex.toBits(gen_key) // from hex string to array
+	console.log("generated key:",gen_key,gen_key1);
+	
+	var res2 = sjcl.encrypt(gen_key1, input, options1);
+	console.log("Encrypt with key:",res2);
+	console.log("decrypt with key:",sjcl.decrypt(gen_key1,res2));
+	
 	return ct;
 }
