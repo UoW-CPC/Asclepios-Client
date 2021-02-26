@@ -5,8 +5,7 @@
 /////////////////////// CONFIGURATION FOR AUTOMATIC TESTS WITH JEST- End ///////////////////////
 
 
-/////////////////////// CONFIGURATION FOR AUTOMATIC BENCHMARK TESTS WITH JEST- Start ///////////////////////
-/// For benchmarking
+/////////////////////// CONFIGURATION FOR BENCHMARKING TESTS WITH JEST- Start ///////////////////////
 //let sjcl = require('./sjcl'); 
 //let btoa = require('../../../Benchmark/node_modules/btoa');
 //let dom = new (require('../../../Benchmark/node_modules/jsdom').JSDOM)(' '); // create mock document for jquery
@@ -21,32 +20,32 @@
 /////////////////////// SSE CONFIGURATION - Start ///////////////////////
 HTTP_CODE_CREATED = 201
 
+//{salt,iv,iter,ks,ts,mode,adata,adata_len} are parameters for encrypting data at SSE client
+//{salt_ta,iv_ta,iter_ta,ks_ta,ts_ta,mode_ta,adata_ta,adata_len_ta} are parameters to be shared between SSE client and SSE TA.
 var sseConfig={
         'base_url_ta' : 'ta_url', //{url} URL of SSE TA. Example: http://127.0.0.1:8000
         'base_url_sse_server' : 'sse_url',//{url} URL of SSE Server
-        'salt' : 'salt_value', //{string, 8 characters} Salt value which is used for key generation from a passphrase
-        'iv' : 'iv_value', //{string} Initial vector value which is used for encryption 
-        'iter' : iter_value, //{number} Number of iteration for generating key from passphrase
+        'salt' : 'salt_value', //{base64, 8 bytes} Salt value which is used for key generation from a passphrase, if needed
+        'iv' : 'iv_value', //{base64, 8 bytes} Initial vector value which is used for encryption  
+        'iter' : iter_value, //{number} Number of iteration for generating key from passphrase, if needed. Example: 1000,10000
         'ks' : ks_value, // {number} key size. Example: 128, 256
         'ts' : ts_value, // {number} tag size. Example: 64
         'mode' : 'mode_value', // {string} Encryption mode. Example: ccm
         'adata':'', // {string, ''} This is not supported to be configurable yet
         'adata_len' : 0, //{number, 0} This is not supported to be configurable yet
         'hash_length' : hash_length_value, // {number} length of hash value
-        'chunk_size' : chunk_size_value,// {number} Size of 1 slice/ chunk for encryption (in uint8 items). Example: 32768=1024^32
-        'no_chunks_per_upload' : no_chunks_per_upload_value, // {number} Number of chunks to be packed in 1 upload
-        'salt_sgx' : 'salt_sgx_value', // {base64, 8 bytes} salt value for encryption. This will be replaced with correct value at runtime at the web server
-        'iv_sgx' : 'iv_sgx_value', // {base64, 8 bytes} iv for encryption. This will be replaced with correct value at runtime at the web server 
-        'iter_sgx' : iter_sgx_value, //{number} Number of iteration for generating key from passphrase. Example: 1000
-        'ks_sgx' : ks_sgx_value, //{128} it is set 128 bits to be compatible with AES encryption in SGX
-        'ts_sgx' : ts_sgx_value, // {number} tag size. Example: 64
-        'mode_sgx' : 'mode_sgx_value', // {string} Encryption mode. Example: ccm
-        'adata_sgx':'', // {string, ''} This is not supported to be configurable yet
-        'adata_len_sgx' : 0, //{number, 0} This is not supported to be configurable yet
+        'chunk_size' : chunk_size_value,// {number} Size of 1 slice/ chunk for encryption (in uint8 items). The value 32768 (=1024^32) is selected by running experiments to avoid the memory crash. This can be selected differently, but needs to run experiments to predict any memory crash in the browser.  
+        'no_chunks_per_upload' : no_chunks_per_upload_value, // {number} Number of chunks to be packed in 1 upload. The value 30 is selected by running experiments to avoid the memory crash. This can be selected differently, but needs to run experiments to predict any memory crash in the browser.  
+        'salt_ta' : 'salt_ta_value', // {base64, 8 bytes} salt value which is used for key generation from a passphrase, if needed
+        'iv_ta' : 'iv_ta_value', // {base64, 8 bytes} Initial vector value which is used for encryption
+        'iter_ta' : iter_ta_value, //{number} Number of iteration for generating key from passphrase, if needed. Example: 1000,10000
+        'ks_ta' : ks_ta_value, //{number} keysize. If SGX is enabled at TA, it must be set to 128 bits to be compatible with AES encryption in SGX enclave
+        'ts_ta' : ts_ta_value, // {number, 64} tag size. It is not supported to be configurable yet.
+        'mode_ta' : 'mode_sgx_value', // {string} Encryption mode. Example: ccm
+        'adata_ta':'', // {string, ''} This is not supported to be configurable yet
+        'adata_len_ta' : 0, //{number, 0} This is not supported to be configurable yet
         'sgx_enable': sgx_enable_value // {boolean} True if SGX is enabled at SSE TA, false otherwise
 }
-// Values "salt_sgx, iv_sgx, iter_sgx, ks_sgx, ts_sgx, mode_sgx, adata_sgx, adata_len_sgx" are not used when sgx_enable=false
-
 /////////////////////// SSE CONFIGURATION - End ///////////////////////
 
 /////////////////////// REQUESTS - Start ///////////////////////
@@ -181,11 +180,19 @@ function hash(input){
  * @param {string} input Plaintext
  * @return {object} res Ciphertext object. For example:{"iv":"IjJ65qTj+uwKJnrTfRW2hw==","v":1,"iter":1000,"ks":128,"ts":64,"mode":"ccm","adata":"","cipher":"aes","salt":"+lSbfNMnwP8=","ct":"0ARVIuwmi1IrtGT3k1NHF6w0rXfD0w=="}
  */
-function encrypt(key, input){
-	var salt = btoa(sseConfig.salt); // string (utf-8) -> base64
-	var iv = btoa(sseConfig.iv); // string (utf-8) -> base64
-	var options = {mode:sseConfig.mode,iter:sseConfig.iter,ks:sseConfig.ks,ts:sseConfig.ts,v:1,cipher:"aes",adata:sseConfig.adata,salt:salt,iv:iv}; //needed test
+function encrypt(key, input, ista=false){
+	//var salt = btoa(sseConfig.salt); // string (utf-8) -> base64
+	//var iv = btoa(sseConfig.iv); // string (utf-8) -> base64
 
+	var options;
+	if(ista==false) // if encryption happens only at SSE client
+		options = {mode:sseConfig.mode,iter:sseConfig.iter,ks:sseConfig.ks,ts:sseConfig.ts,v:1,cipher:"aes",adata:sseConfig.adata,salt:sseConfig.salt,iv:sseConfig.iv}; 
+	else // if encryption happens at SSE client, decryption happens at TA (for verification)
+		if(sseConfig.sgx_enable==true && sseConfig.ks_ta!=128 ){
+			console.log("SSE TA with SGX enabled can only support 128 bit key. Please correct the value of sseConfig.ks_ta.")
+			return {}
+		}
+		options = {mode:sseConfig.mode,iter:sseConfig.iter_ta,ks:sseConfig.ks_ta,ts:sseConfig.ts_ta,v:1,cipher:"aes",adata:sseConfig.adata_ta,salt:sseConfig.salt_ta,iv:sseConfig.iv_ta}; 
 	var res = sjcl.encrypt(key, input, options);
 	return res; // return a ciphertext object
 }
@@ -277,12 +284,12 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 		return false;
 	}
 
-	//var KeyG = computeKeyG(sharedKey);
+	//var KeyG = computeKey(sharedKey);
 	var KeyG, key;
 	if(iskey == false) {// sharedKey is a passphrase. A key is generated from the passphrase
-		KeyG = sjcl.codec.hex.toBits(computeKeyG(sharedKey)); // hex string -> array
+		KeyG = sjcl.codec.hex.toBits(computeKey(sharedKey,true)); // hex string -> array
 		console.log("KeyG (in array format):",KeyG);
-		key = sjcl.codec.hex.toBits(computeKeyEnc(Kenc)); // hex string -> array
+		key = sjcl.codec.hex.toBits(computeKey(Kenc)); // hex string -> array
 	} else {
 		KeyG = sjcl.codec.hex.toBits(sharedKey); // sharedKey is a key
 		console.log("KeyG (in array format):",KeyG);
@@ -362,7 +369,7 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 			searchno = 0;
 
 		// Compute the key KeyW
-		KeyW = encrypt(KeyG,hw + searchno);	
+		KeyW = encrypt(KeyG,hw + searchno,true);	
 		console.log(" - Hash of keyword:",hw," -Search number:",searchno)
 		console.log("KeyW object:",KeyW);
 		
@@ -550,12 +557,12 @@ function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false){
 	console.log("Search keyword function");
 	console.log("shared key:",sharedKey,"- iskey:",iskey);
 	
-	//var KeyG = computeKeyG(sharedKey);
+	//var KeyG = computeKey(sharedKey);
 	var KeyG,key;
 	if(iskey == false) { // sharedKey is a passphrase. A key is generated from the passphrase
-		KeyG = sjcl.codec.hex.toBits(computeKeyG(sharedKey)); // hex string -> array
-		console.log("KeyG (in array format):{}, in hex string format:{}",KeyG,computeKeyG(sharedKey));
-		key = sjcl.codec.hex.toBits(computeKeyEnc(Kenc)); // hex string -> array
+		KeyG = sjcl.codec.hex.toBits(computeKey(sharedKey,true)); // hex string -> array
+		//console.log("KeyG (in array format):{}, in hex string format:{}",KeyG,computeKey(sharedKey,true));
+		key = sjcl.codec.hex.toBits(computeKey(Kenc)); // hex string -> array
 	} else {
 		KeyG = sjcl.codec.hex.toBits(sharedKey); // sharedKey is a key
 		console.log("KeyG (in array format):{},in hex string format:{}",KeyG,sharedKey);
@@ -598,21 +605,22 @@ function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false){
 	console.log(" - searchNo: ",searchNo, " - searh number url: ", searchNoUri);
 	
 	// Compute KeyW
-	var KeyW = encrypt(KeyG,hash(keyword)+searchNo); 
+	var KeyW = encrypt(KeyG,hash(keyword)+searchNo,true); 
 	console.log("key in array format:{}",KeyG);
 	console.log("Search number: ",searchNo," - KeyW (encrypt with key): ",KeyW);
 	
 	// test only
-	var KeyG1="123";
-	console.log("password:",KeyG1);
-	var KeyW1 = encrypt(KeyG1,hash(keyword)+searchNo); 
-	console.log("Search number: ",searchNo," - KeyW (encrypt with password): ",KeyW1);
+	//var KeyG1="123";
+	//console.log("password:",KeyG1);
+	//var KeyW1 = encrypt(KeyG1,hash(keyword)+searchNo,true); 
+	//console.log("Search number: ",searchNo," - KeyW (encrypt with password): ",KeyW1);
 	
 	// Increase search number:
 	searchNo = searchNo + 1; //new
 	
 	// Compute new KeyW with the increased search number
-	var newKeyW = encrypt(KeyG,hash(keyword)+searchNo);
+	var newKeyW = encrypt(KeyG,hash(keyword)+searchNo,true);
+	console.log("newKeyW (hash(keyword)+searchNo): ",hash(keyword)+searchNo);
 	console.log("Increased search number: ", searchNo, " - new KeyW: ", newKeyW);
 	
 	var newKeyW_ciphertext = JSON.parse(newKeyW).ct;
@@ -699,7 +707,7 @@ function computeListKeyW(Lhash,KeyG,LsearchNo,offset=0){
 		if(searchno === undefined){ //if not found
 			searchno = 0;
 		}
-		KeyW = encrypt(KeyG,w + searchno);	
+		KeyW = encrypt(KeyG,w + searchno,true);	
 		console.log("- Hash of keyword:",w," -Search number:",searchno)
 		console.log("ciphertext:",KeyW);
 		
@@ -906,11 +914,11 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 	Lcurrent_hash = [];
 	Lnew_hash=[];
 	
-	//var KeyG = computeKeyG(sharedKey);
+	//var KeyG = computeKey(sharedKey);
 	var KeyG, key;
 	if(iskey == false) {// sharedKey is a passphrase. A key is generated from the passphrase
-		KeyG = sjcl.codec.hex.toBits(computeKeyG(sharedKey)); // hex string -> array
-		key = sjcl.codec.hex.toBits(computeKeyEnc(Kenc)); // hex string -> array
+		KeyG = sjcl.codec.hex.toBits(computeKey(sharedKey,true)); // hex string -> array
+		key = sjcl.codec.hex.toBits(computeKey(Kenc)); // hex string -> array
 	} else {
 		KeyG = sjcl.codec.hex.toBits(sharedKey); // sharedKey is a key
 		key = sjcl.codec.hex.toBits(Kenc);
@@ -1069,11 +1077,11 @@ function deleteData(file_id, sharedKey, Kenc, keyid, iskey=false, callback=undef
 	}
 	else{
 		console.log("File_id and key id exist");
-		//var KeyG = computeKeyG(sharedKey);
+		//var KeyG = computeKey(sharedKey);
 		var KeyG, key;
 		if(iskey == false) { // sharedKey is a passphrase. A key is generated from the passphrase
-			KeyG = sjcl.codec.hex.toBits(computeKeyG(sharedKey)); // hex string -> array
-			key = sjcl.codec.hex.toBits(computeKeyEnc(Kenc)); // hex string -> array
+			KeyG = sjcl.codec.hex.toBits(computeKey(sharedKey,true)); // hex string -> array
+			key = sjcl.codec.hex.toBits(computeKey(Kenc)); // hex string -> array
 		} else {
 			KeyG = sjcl.codec.hex.toBits(sharedKey); // sharedKey is a key
 			key = sjcl.codec.hex.toBits(Kenc);
@@ -1171,46 +1179,31 @@ function deleteData(file_id, sharedKey, Kenc, keyid, iskey=false, callback=undef
 
 /**
  * Generate key from passphrase using Pbkdf2
- * This key will be shared with SSE TA for verification
  * 
  * @param {string} pwdphrase The passphrase which is used for key generation
+ * @param {boolean} ista If true, the generated key is shared with SSE TA. Otherwise, the key is only used at SSE client
  * @return {hex string} Key which is generated by Pbkdf2
  * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" (number of hex characters = keysize/4)
  */
-function computeKeyG(pwdphrase){
-	//return hash(pwdphrase + "keyg");
-	var salt, iter, keysize;
-	if(sseConfig.sgx_enable==false){
-		salt = btoa(sseConfig.salt)
-		iter = sseConfig.iter
+function computeKey(pwdphrase,ista=false){
+	var options={};
+	var keysize;
+	if(ista==false){
+		options.salt = sjcl.codec.base64.toBits(sseConfig.salt)
+		options.iter = sseConfig.iter
 		keysize = sseConfig.ks
 	}
 	else{
-		salt = sseConfig.salt_sgx
-		iter = sseConfig.iter_sgx
-		keysize = sseConfig.ks_sgx
+		options.salt = sjcl.codec.base64.toBits(sseConfig.salt_ta)
+		options.iter = sseConfig.iter_ta
+		keysize = sseConfig.ks_ta
 	}
-		
-	return computeKeyG_Pbkdf2(pwdphrase,salt,iter,keysize); // hex string
-}
 
-/**
- * Generate key from passphrase using Pbkdf2 
- * This key will be used for data encryption
- * 
- * @param {string} pwdphrase The passphrase which is used for key generation
- * @return {hex string} Key which is generated by Pbkdf2
- * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" (number of hex characters = keysize/4)
- */
-function computeKeyEnc(pwdphrase){
-	var salt, iter, keysize;
-	salt = btoa(sseConfig.salt)
-	iter = sseConfig.iter
-	keysize = sseConfig.ks
-	
-	var key = computeKeyG_Pbkdf2(pwdphrase,salt,iter,keysize); // hex string
-	console.log("password:%s,generated key:%s",pwdphrase,key)
-	return key;
+	options = sjcl.misc.cachedPbkdf2(pwdphrase, options);
+	var key = options.key.slice(0, keysize/32); // @return: list of item which is 4 bytes
+	var key_hexa = sjcl.codec.hex.fromBits(key);  // convert to hex string
+	console.log("key:",key,"key as hex string:",key_hexa)
+	return key_hexa;  // hex string  
 }
 
 /**
@@ -1229,16 +1222,35 @@ function uploadKeyG(pwdphrase,keyid,iskey=false){
 		return false;
 	}
 	console.log("passphrase to compute keyg:",pwdphrase);
-	//var keyg = computeKeyG(pwdphrase); // hex string
+	//var keyg = computeKey(pwdphrase); // hex string
 	var keyg;
 	if(iskey == false) // pwdphrase is a passphrase. A key is generated from the passphrase
-		keyg = computeKeyG(pwdphrase); // hex string -> array
+		keyg = computeKey(pwdphrase,true); // hex string
 	else
 		keyg = pwdphrase; // pwdphrase is a key
 	
-	var jsonData = '{ "key" : "' + keyg + '","keyId":"' + keyid + '"}';
-	console.log("uploaded KeyG:",keyg)
-	postRequest(sseConfig.base_url_ta + "/api/v1/key/", jsonData, undefined, async_feat = false);
+	if(sseConfig.sgx_enable==false) { // if SSE TA is not sgx-enabled
+		var jsonData = '{ "key" : "' + keyg + '","keyId":"' + keyid + '"}';
+		console.log("uploaded KeyG:",keyg)
+		postRequest(sseConfig.base_url_ta + "/api/v1/key/", jsonData, undefined, async_feat = false);
+	} else { //if SSE TA is sgx-enabled
+		if(sseConfig.ks_ta!=128){
+			console.log("SSE TA with sgx enabled can only support 128 bit keys. Please correct the value of sseConfig.ks_ta");
+			return false;
+		}
+		var ret = getRequest(sseConfig.base_url_ta + "/api/v1/pubkey/pk/"); //get public key from SSE TA
+		var pk=ret['pubkey'].replace(/(\r\n|\n|\r)/gm, ""); //remove all line breaks inside PEM format of the key
+		console.log("public key from TA SGX:",pk);
+		
+		var encryptor = new JSEncrypt();
+		encryptor.setPublicKey(pk);
+		var ct = encryptor.encrypt(keyg); // encrypt with RSA PKCSv1.5
+		console.log("ciphertext:",ct);
+		
+		var jsonData = '{ "pubkey" : "' + ct + '","keyId":"' + keyid + '"}';
+		console.log("uploaded data:",jsonData)
+		postRequest(sseConfig.base_url_ta + "/api/v1/pubkey/", jsonData, undefined, async_feat = false);
+	}
 	return true;
 }
 
@@ -1862,6 +1874,7 @@ function saveBlob(blob, fileName) {
  * @param {string} pwdphrase The passphrase to generate a key.
  * @param {string} keyid The unique key identification
  */
+/*
 async function uploadKeyGsgx(pwdphrase,keyid){
 	if(pwdphrase=="" || keyid==""){
 		console.log("Lack of passphrase or keyid");
@@ -1887,14 +1900,17 @@ async function uploadKeyGsgx(pwdphrase,keyid){
 	postRequest(sseConfig.base_url_ta + "/api/v1/pubkey/", jsonData, undefined, async_feat = false);
 	
 	return true;
-}
+}*/
 
+/*
 // test: 
 function sendkeyW(keyword, pwdphrase, keyid){
 	console.log("Search keyword function");
 	
 	
-	var KeyW = encrypt_sgx(pwdphrase,keyword);
+	//var KeyW = encrypt_sgx(pwdphrase,keyword);
+	var res = encrypt(pwdphrase,keyword);
+	var KeyW = JSON.parse(res).ct;
 	
 	var data = '{ "KeyW" : "' + KeyW + '","keyId":"' + keyid + '"}';
 	console.log("Data sent to TA:", data);
@@ -1905,7 +1921,7 @@ function sendkeyW(keyword, pwdphrase, keyid){
 	
 	return data;
 }
-
+*/
 /**
  * Generate a key from a passphrase with Pbkdf2 function, 
  *
@@ -1915,6 +1931,7 @@ function sendkeyW(keyword, pwdphrase, keyid){
  * @param {number} keysize The size of the generated key. It could be 128, 192, or 256.
  * @return {hexa string} key The generated key
  */
+/*
 function computeKeyG_Pbkdf2(pwdphrase,salt,iter,keysize) {
   var key, options={};
   
@@ -1927,7 +1944,7 @@ function computeKeyG_Pbkdf2(pwdphrase,salt,iter,keysize) {
   console.log("key as hex string:",key_hexa)
   return key_hexa; 
 }
-
+*/
 /**
  * Encrypt with AES-CCM. The encryption needs to be compatible with decryption at SSE TA.
  * 128 bits (defined by sseConfig.ks_sgx) if sgx is enabled at SSE TA (due to the restriction of mbedtls in SGX, we only use 128 bits for encryption) 
@@ -1938,6 +1955,7 @@ function computeKeyG_Pbkdf2(pwdphrase,salt,iter,keysize) {
  * @param {boolean} sgx_enable True if encryption needs to be compatible with decryption inside SGX at TA, false if it does not need to be compatible
  * @return {string} ct Ciphertext
  */
+/*
 function encrypt_sgx(key, input, sgx_enable=true){
 	var options = {};
 	
@@ -1960,7 +1978,7 @@ function encrypt_sgx(key, input, sgx_enable=true){
 		
 	console.log("key:{},input:{}",key,input)
 	var res1 = sjcl.encrypt(key, input, options);
-	var ct = JSON.parse(res1).ct;
+	var ct = JSON.parse(res1).ct; //note
 	console.log("Encrypt with passphrase:",res1);
 	console.log("decrypt with passphrase:",sjcl.decrypt(key,res1));
 	
@@ -1973,4 +1991,4 @@ function encrypt_sgx(key, input, sgx_enable=true){
 	console.log("decrypt with key:",sjcl.decrypt(gen_key1,res2));
 	
 	return ct;
-}
+}*/
