@@ -30,7 +30,7 @@ var sseConfig={
         'iter' : iter_value, //{number} Number of iteration for generating key from passphrase, if needed. Example: 1000,10000
         'ks' : ks_value, // {number} key size. Example: 128, 256
         'ts' : ts_value, // {number} tag size. Example: 64
-        'mode' : 'mode_value', // {string} Encryption mode. Example: ccm
+        'mode' : 'ccm', // {string} Encryption mode. Example: ccm
         'adata':'', // {string, ''} This is not supported to be configurable yet
         'adata_len' : 0, //{number, 0} This is not supported to be configurable yet
         'hash_length' : hash_length_value, // {number} length of hash value
@@ -41,7 +41,7 @@ var sseConfig={
         'iter_ta' : iter_ta_value, //{number} Number of iteration for generating key from passphrase, if needed. Example: 1000,10000
         'ks_ta' : ks_ta_value, //{number} keysize. If SGX is enabled at TA, it must be set to 128 bits to be compatible with AES encryption in SGX enclave
         'ts_ta' : ts_ta_value, // {number, 64} tag size. It is not supported to be configurable yet.
-        'mode_ta' : 'mode_sgx_value', // {string} Encryption mode. Example: ccm
+        'mode_ta' : 'ccm', // {string} Encryption mode. Example: ccm
         'adata_ta':'', // {string, ''} This is not supported to be configurable yet
         'adata_len_ta' : 0, //{number, 0} This is not supported to be configurable yet
         'sgx_enable': sgx_enable_value // {boolean} True if SGX is enabled at SSE TA, false otherwise
@@ -1254,45 +1254,9 @@ function uploadKeyG(pwdphrase,keyid,iskey=false){
 	return true;
 }
 
-/**
- * Encrypt blob data of small size (<=10MB)
- * 
- * @param {blob} blobData The blob data
- * @param {string} ftype File type
- * @param {string} Kenc Key or passphrase for key generation. The key will be used for encryption //needed test
- * @return {promise} A promise to create blob of encrypted data
- */
-function encryptBlob(blobData,ftype, Kenc){
-	return function(resolve) {
-		var reader = new FileReader()
+/////////////////////// SSE functions - End ///////////////////////
 
-		reader.onload = function(e){
-			var imageData = new Uint8Array(e.target.result);
-			console.log("Blob content:",imageData);    	    
-			var imageString = sjcl.codec.base64.fromBits(imageData); // convert byte array to base64 string
-			console.log("image plaintext in string:",imageString);
-
-			var imagecipher = encrypt(Kenc,imageString); //encrypt
-
-			var objJsonStr = JSON.stringify(imagecipher); // json -> string
-			console.log("cipher image in string:",objJsonStr);
-			var objJsonB64 = btoa(objJsonStr); // string -> base64
-			console.log("cipher image in base64:",objJsonB64);
-			var temp=sjcl.codec.base64.toBits(objJsonB64); // base64 -> bits
-			console.log("number of bits:",temp.length);
-			console.log("bit array:",sjcl.codec.base64.toBits(objJsonB64));
-			
-			var cipherByte = new Uint8Array(fromBitArrayCodec(sjcl.codec.base64.toBits(objJsonB64)));
-			console.log("cipher image in byte:",cipherByte);
-			console.log("number of bytes:",cipherByte.length);
-			var cipherBlob = new Blob([cipherByte], { type: ftype });
-			resolve(cipherBlob);
-
-		};
-		reader.readAsArrayBuffer(blobData);	
-	}
- }
-
+////////Progressive Encryption/Decryption for large blob data - Start////////
 /**
  * Encrypt blob data progressively, and upload them to MinIO server
  * It can support large files (~800MB)
@@ -1526,27 +1490,6 @@ function uploadMinio(blob,fname,callback=undefined){
 	})
 }
 
-/**
- * Encrypt blob data (<=10MB) and upload to MinIO along with its searchable encrypted metadata (json format)
- * It can only support small data (<=10MB)
- * 
- * @param {blob} blob Blob data
- * @param {string} fname File name
- * @param {json} jsonObj Metatdata in the format of json object. The uploaded blob data will be searchable by any keyword in its metadata
- * @param {string} file_id The unique key identification
- * @param {string} KeyG Key or passphrase for key generation. The key is used to encrypt data // needed test
- * @param {string} Kenc Key or passphrase for key generation. The key is shared with SSE TA for verification // needed test
- * @param {callback} callback Callback function
- * @return {} The encrypted blob data is sent to MinIO, and its encrypted metadata is sent to SSE Server
- */
-// test to remove callback function
-function encryptUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,keyId,callback=undefined){
-	//append filename to metadata
-	jsonObj.filename = fname;
-	console.log("metadata after appending filename:{}",jsonObj);
-	encryptUploadBlob(blob,fname,Kenc,keyId);
-	uploadData(jsonObj,file_id,KeyG,Kenc,keyId);
-}
 
 
 /**
@@ -1569,35 +1512,6 @@ function encryptProgressUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, K
 	encryptProgressUploadBlob(blob,fname,Kenc,keyId);
 	uploadData(jsonObj,file_id,KeyG,Kenc,keyId);
 }
-
-/**
- * Encrypt blob data and upload to MinIO
- * It can support only small data (<=10MB)
- * 
- * @param {blob} blob Blob data
- * @param {string} fname File name
- * @param {string} KeyG Key or passphrase for key generation. The key is used to encrypt data // needed test
- * @param {string} Kenc Key or passphrase for key generation. The key is shared with SSE TA for verification // needed test
- * @param {callback} callback Callback function
- * @return {promise} promise A promise to upload encrypted blob data
- */
-function encryptUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
-    var ftype = blob.type;
-    var outputname = fname + keyId;
-    var promise = new Promise(encryptBlob(blob,ftype,Kenc));
-
-    // Wait for promise to be resolved, or log error.
-    promise.then(function(cipherBlob) {
-    	console.log("Completed encrypting blob. Now send data to server.")
-    	console.log(cipherBlob);
-    	uploadMinio(cipherBlob,outputname,callback);
-    	//return true;//for jest
-    }).catch(function(err) {
-    	console.log('Error: ',err);
-    });
-    return promise;
-}
-
 
 /**
  * Encrypt large blob data progressively, and upload chunks of ciphertext to MinIO
@@ -1623,105 +1537,6 @@ function encryptProgressUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
     	console.log('Error: ',err);
     });
     return promise;
-}
-
-
-/**
- * Download file from Minio, decrypt and save it to local host (blob file <=10MB)
- * It can support only small data (<=10MB)
- * 
- * @param {string} fname File name
- * @param {string} KeyG Key or passphrase for key generation. The key is used to encrypt data // needed test
- * @param {string} Kenc Key or passphrase for key generation. The key is shared with SSE TA for verification // needed test
- * @param {callback} callback Callback function
- * @return {} Decrypted data is save as a file
- */
-function downloadDecryptBlob(fname,Kenc,keyId,callback=undefined){
-	console.log("Download blob")
-	var presigned_url = getPresignUrl(fname+keyId) // request for a presigned url 
-	$.ajax({
-		  url: presigned_url, // the presigned URL
-		  type: 'GET',
-	      xhrFields:{
-	            responseType: 'blob' //download as blob data
-	      },
-		  success: function(data, status) {
-			  console.log("Decrypt and save blob")
-			  decryptSaveBlob(data,fname,Kenc,callback) //decrypt data
-		  },
-		  error: function(erro){
-			  console.error("Download from Minio Error");
-			  console.error(erro);
-		  }
-	})
-}
-
-/**
- * Decrypt a ciphertext downloaded from MinIO server, and save as file.
- * This function can support only small files (<=10MB)
- * 
- * @param {blob} blob Blob 
- * @param {string} fname File name
- * @param {string} Kenc Key or passphrase for key generation. The key is used for encrypting data. //needed test
- * @param {callback} callback Callback function
- * @return {promise} Promise to save decrypted data as a file
- */
-function decryptSaveBlob(blob,fname,Kenc,callback=undefined){
-	 var outputname = fname;//fname.split(".")[0];// + "_decrypted";
-	 console.log("Filename to be saved: " +  outputname);
-	 var ftype = blob.type; //identify filetype from blob
-	 
-	 var promise = new Promise(decryptBlob(blob,ftype,Kenc));
-	 
-	 promise.then((plainBlob) => {
-		 console.log("Save file to disk");
-		 saveBlob(plainBlob,outputname);
-		 if(callback!=undefined){
-			callback(true); // for jest
-		}
-	 })
-	 return promise;
-}
-
-/**
- * Decrypt a ciphertext downloaed from MinIO server
- * This function can support only small files (<10MB)
- * 
- * @param {blob} blobCipher Ciphertext downloaded from MinIO server
- * @param {string} ftype File type 
- * @param {string} Kenc Key or passphrase for key generation. The key is used for encrypting data. //needed test
- * @return {promise} Promise to create the decrypted blob
- */
-function decryptBlob(blobCipher,ftype,Kenc){
-	return function(resolve) {
-		var reader = new FileReader();
-		console.log("Decrypt blob")
-		reader.onload = function(e){
-			var imagecipher = new Uint8Array(e.target.result);
-			console.log("input array:",imagecipher);
-	
-			var bitarray = toBitArrayCodec(imagecipher);
-			//var bitarray = sjcl.codec.bytes.toBit(imagecipher);//needed test
-			console.log("bit array:",bitarray);
-	
-			var imageBase = sjcl.codec.base64.fromBits(bitarray); // byte array->base64
-			console.log("image ciphertext in base64:",imageBase);
-			var imageString = atob(imageBase); //base64 -> string
-			console.log("image ciphertext in string:",imageString);
-			var imageJson = JSON.parse(imageString);//string->json
-			console.log("ciphertext in json:",imageJson);
-	
-			var imagept = decrypt(Kenc,imageJson);
-			console.log("decrypt image in string:",imagept);
-	
-			var imageByte = new Uint8Array(sjcl.codec.base64.toBits(imagept)); // create byte array from base64 string
-			console.log("plaintext in bytes:",imageByte);
-	
-			var imageDecryptBlob = new Blob([imageByte], { type: ftype });
-			resolve(imageDecryptBlob);
-		};	
-		reader.readAsArrayBuffer(blobCipher);
-	}
 }
 
 /**
@@ -1865,6 +1680,298 @@ function saveBlob(blob, fileName) {
 	 document.body.removeChild(a);
 	 blob=null;
 }; 
+////////Progressive Encryption/Decryption for large blob data - End////////
+
+////////Progressive Encryption/Decryption for medium blob data - Start////////
+/**
+ * Download chunks of ciphertext from MinIO server, decrypt them and save as 1 plaintext file
+ * This function can support medium files (~100MB)
+ * 
+ * @param {string} fname File name
+ * @param {string} Kenc Key or passphrase for key generation. The key is used for encrypting data. //needed test
+ * @param {string} keyId Unique key identification
+ * @param {callback} callback Callback function
+ * @return {} Download multiple of plaintext chunk files, and a script file (concat_script.txt) to merge them into one plaintext file
+ */
+/*
+function downloadProgressDecryptMediumBlob(fname,Kenc,keyId,callback=undefined){
+    console.log("Download blob")
+    try {
+    	var metafile = fname + "_meta" + keyId;
+    	var presigned_url = getPresignUrl(metafile);  
+    	var fragments = [];
+    	var n = 0;
+    	var threshold=30;
+        $.ajax({
+        	url: presigned_url,
+            type: 'GET',
+            async: false,
+            success: function(blob, status) { 
+            	//create a list which contains names of ciphertext chunks
+                console.log("meta data:",blob);
+                n = blob;
+                if(n>threshold){
+	                var i;
+	                for (i = 1; i <= blob; i++) {
+	                	fragments.push(fname + "_part"+i + keyId);
+	                }
+	                console.log("file names:",fragments);
+	                
+	                //create a concatenation script for users to merge multiple chunks of plaintext into a complete plaintext
+	                var script_data="cat $(for((i=1;i<="+blob+";i++)); do echo -n \""+fname +"${i} \"; done) > "+fname;
+	                console.log("script:",script_data);
+	               	var outputname= fname + "_script" + keyId;
+	                var blob = new Blob([script_data]);
+	                saveBlob(blob,"concat_script");
+                }
+       		},
+            error: function(erro){
+                 console.log("Download from Minio Error");
+                 console.log(erro);
+             }
+         })	            
+        var iv = sjcl.hash.sha1.hash(sseConfig.iv).slice(0,4); // IV should be an array of 4 words. Get 4 words to create iv
+		var key = sjcl.hash.sha256.hash(Kenc); //key is an array of 4,6 or 8 words
+
+        var aes = new sjcl.cipher.aes(key);
+        var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
+        
+        var imageArr = []
+        for (var i=0; i<fragments.length; i++) {
+            presigned_url = getPresignUrl(fragments[i]);          
+            $.ajax({
+            	url: presigned_url,
+                type: 'GET',
+                async: false,
+                success: function(blob, status) {
+                    var ftype = blob.type;
+                   	var imageJson = JSON.parse("[" +blob+"]");//string->json
+           			console.log("ciphertext in json - imageJson:",imageJson);
+            			
+           			var dresult = sjcl.codec.bytes.fromBits(dec.process(imageJson));            			
+         		    if(i==fragments.length-1){
+   	     		    	dresult = dresult.concat(dec.finalize());
+   	     		    }
+    	     		    
+           			var imageByte = new Uint8Array(dresult); // create byte array from base64 string
+     				console.log("plaintext in bytes - imageByte:",imageByte);
+     				if(n>threshold){
+	     				var imageDecryptBlob = new Blob([imageByte], { type: ftype });
+	     				var j = i+1;
+	     				saveBlob(imageDecryptBlob,fname+j);
+                	} else {
+     					imageArr.push(imageByte);
+     				}
+           		},
+                error: function(erro){
+                     console.log("Download from Minio Error");
+                     console.log(erro);
+                 }
+                })	
+        }
+        if(n<=threshold){
+        	var imageDecryptBlob = new Blob(imageArra, { type: ftype });
+        	saveBlob(imageDecryptBlob,fname);
+        }
+    } catch (e) {
+        console.log("Error:" + e);
+    }    
+}*/
+////////Progressive Encryption/Decryption for medium blob data - End////////
+
+////////Encryption/Decryption (non-progressively) for small blob data - Start////////
+/**
+ * Download file from Minio, decrypt and save it to local host (blob file <=10MB)
+ * It can support only small data (<=10MB)
+ * 
+ * @param {string} fname File name
+ * @param {string} KeyG Key or passphrase for key generation. The key is used to encrypt data // needed test
+ * @param {string} Kenc Key or passphrase for key generation. The key is shared with SSE TA for verification // needed test
+ * @param {callback} callback Callback function
+ * @return {} Decrypted data is save as a file
+ */
+/*
+function downloadDecryptBlob(fname,Kenc,keyId,callback=undefined){
+	console.log("Download blob")
+	var presigned_url = getPresignUrl(fname+keyId) // request for a presigned url 
+	$.ajax({
+		  url: presigned_url, // the presigned URL
+		  type: 'GET',
+	      xhrFields:{
+	            responseType: 'blob' //download as blob data
+	      },
+		  success: function(data, status) {
+			  console.log("Decrypt and save blob")
+			  decryptSaveBlob(data,fname,Kenc,callback) //decrypt data
+		  },
+		  error: function(erro){
+			  console.error("Download from Minio Error");
+			  console.error(erro);
+		  }
+	})
+}*/
+
+/**
+ * Encrypt blob data of small size (<=10MB)
+ * 
+ * @param {blob} blobData The blob data
+ * @param {string} ftype File type
+ * @param {string} Kenc Key or passphrase for key generation. The key will be used for encryption //needed test
+ * @return {promise} A promise to create blob of encrypted data
+ */
+/*
+function encryptBlob(blobData,ftype, Kenc){
+	return function(resolve) {
+		var reader = new FileReader()
+
+		reader.onload = function(e){
+			var imageData = new Uint8Array(e.target.result);
+			console.log("Blob content:",imageData);    	    
+			var imageString = sjcl.codec.base64.fromBits(imageData); // convert byte array to base64 string
+			console.log("image plaintext in string:",imageString);
+
+			var imagecipher = encrypt(Kenc,imageString); //encrypt
+
+			var objJsonStr = JSON.stringify(imagecipher); // json -> string
+			console.log("cipher image in string:",objJsonStr);
+			var objJsonB64 = btoa(objJsonStr); // string -> base64
+			console.log("cipher image in base64:",objJsonB64);
+			var temp=sjcl.codec.base64.toBits(objJsonB64); // base64 -> bits
+			console.log("number of bits:",temp.length);
+			console.log("bit array:",sjcl.codec.base64.toBits(objJsonB64));
+			
+			var cipherByte = new Uint8Array(fromBitArrayCodec(sjcl.codec.base64.toBits(objJsonB64)));
+			console.log("cipher image in byte:",cipherByte);
+			console.log("number of bytes:",cipherByte.length);
+			var cipherBlob = new Blob([cipherByte], { type: ftype });
+			resolve(cipherBlob);
+
+		};
+		reader.readAsArrayBuffer(blobData);	
+	}
+ }*/
+
+/**
+ * Encrypt blob data (<=10MB) and upload to MinIO along with its searchable encrypted metadata (json format)
+ * It can only support small data (<=10MB)
+ * 
+ * @param {blob} blob Blob data
+ * @param {string} fname File name
+ * @param {json} jsonObj Metatdata in the format of json object. The uploaded blob data will be searchable by any keyword in its metadata
+ * @param {string} file_id The unique key identification
+ * @param {string} KeyG Key or passphrase for key generation. The key is used to encrypt data // needed test
+ * @param {string} Kenc Key or passphrase for key generation. The key is shared with SSE TA for verification // needed test
+ * @param {callback} callback Callback function
+ * @return {} The encrypted blob data is sent to MinIO, and its encrypted metadata is sent to SSE Server
+ */
+// test to remove callback function
+/*
+function encryptUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,keyId,callback=undefined){
+	//append filename to metadata
+	jsonObj.filename = fname;
+	console.log("metadata after appending filename:{}",jsonObj);
+	encryptUploadBlob(blob,fname,Kenc,keyId);
+	uploadData(jsonObj,file_id,KeyG,Kenc,keyId);
+}*/
+
+/**
+ * Encrypt blob data and upload to MinIO
+ * It can support only small data (<=10MB)
+ * 
+ * @param {blob} blob Blob data
+ * @param {string} fname File name
+ * @param {string} KeyG Key or passphrase for key generation. The key is used to encrypt data // needed test
+ * @param {string} Kenc Key or passphrase for key generation. The key is shared with SSE TA for verification // needed test
+ * @param {callback} callback Callback function
+ * @return {promise} promise A promise to upload encrypted blob data
+ */
+/*
+function encryptUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
+    var ftype = blob.type;
+    var outputname = fname + keyId;
+    var promise = new Promise(encryptBlob(blob,ftype,Kenc));
+
+    // Wait for promise to be resolved, or log error.
+    promise.then(function(cipherBlob) {
+    	console.log("Completed encrypting blob. Now send data to server.")
+    	console.log(cipherBlob);
+    	uploadMinio(cipherBlob,outputname,callback);
+    	//return true;//for jest
+    }).catch(function(err) {
+    	console.log('Error: ',err);
+    });
+    return promise;
+}*/
+
+/**
+ * Decrypt a ciphertext downloaded from MinIO server, and save as file.
+ * This function can support only small files (<=10MB)
+ * 
+ * @param {blob} blob Blob 
+ * @param {string} fname File name
+ * @param {string} Kenc Key or passphrase for key generation. The key is used for encrypting data. //needed test
+ * @param {callback} callback Callback function
+ * @return {promise} Promise to save decrypted data as a file
+ */
+/*
+function decryptSaveBlob(blob,fname,Kenc,callback=undefined){
+	 var outputname = fname;//fname.split(".")[0];// + "_decrypted";
+	 console.log("Filename to be saved: " +  outputname);
+	 var ftype = blob.type; //identify filetype from blob
+	 
+	 var promise = new Promise(decryptBlob(blob,ftype,Kenc));
+	 
+	 promise.then((plainBlob) => {
+		 console.log("Save file to disk");
+		 saveBlob(plainBlob,outputname);
+		 if(callback!=undefined){
+			callback(true); // for jest
+		}
+	 })
+	 return promise;
+}*/
+
+/**
+ * Decrypt a ciphertext downloaed from MinIO server
+ * This function can support only small files (<10MB)
+ * 
+ * @param {blob} blobCipher Ciphertext downloaded from MinIO server
+ * @param {string} ftype File type 
+ * @param {string} Kenc Key or passphrase for key generation. The key is used for encrypting data. //needed test
+ * @return {promise} Promise to create the decrypted blob
+ */
+/*
+function decryptBlob(blobCipher,ftype,Kenc){
+	return function(resolve) {
+		var reader = new FileReader();
+		console.log("Decrypt blob")
+		reader.onload = function(e){
+			var imagecipher = new Uint8Array(e.target.result);
+			console.log("input array:",imagecipher);
+	
+			var bitarray = toBitArrayCodec(imagecipher);
+			//var bitarray = sjcl.codec.bytes.toBit(imagecipher);//needed test
+			console.log("bit array:",bitarray);
+	
+			var imageBase = sjcl.codec.base64.fromBits(bitarray); // byte array->base64
+			console.log("image ciphertext in base64:",imageBase);
+			var imageString = atob(imageBase); //base64 -> string
+			console.log("image ciphertext in string:",imageString);
+			var imageJson = JSON.parse(imageString);//string->json
+			console.log("ciphertext in json:",imageJson);
+	
+			var imagept = decrypt(Kenc,imageJson);
+			console.log("decrypt image in string:",imagept);
+	
+			var imageByte = new Uint8Array(sjcl.codec.base64.toBits(imagept)); // create byte array from base64 string
+			console.log("plaintext in bytes:",imageByte);
+	
+			var imageDecryptBlob = new Blob([imageByte], { type: ftype });
+			resolve(imageDecryptBlob);
+		};	
+		reader.readAsArrayBuffer(blobCipher);
+	}
+}*/
 
 /**
  * Generate a key from a passphrase with Pbkdf2 function, 
@@ -1901,94 +2008,4 @@ async function uploadKeyGsgx(pwdphrase,keyid){
 	
 	return true;
 }*/
-
-/*
-// test: 
-function sendkeyW(keyword, pwdphrase, keyid){
-	console.log("Search keyword function");
-	
-	
-	//var KeyW = encrypt_sgx(pwdphrase,keyword);
-	var res = encrypt(pwdphrase,keyword);
-	var KeyW = JSON.parse(res).ct;
-	
-	var data = '{ "KeyW" : "' + KeyW + '","keyId":"' + keyid + '"}';
-	console.log("Data sent to TA:", data);
-	
-	result = postRequest(sseConfig.base_url_ta + "/api/v1/search/", data);
-	
-	console.log("Response from TA:",result);
-	
-	return data;
-}
-*/
-/**
- * Generate a key from a passphrase with Pbkdf2 function, 
- *
- * @param {string} pwdphrase The passphrase to generate a key.
- * @param {base64 or hexa string} salt The salt value to generate a key
- * @param {number} iter The number of iteration in the Pbkdf2 function
- * @param {number} keysize The size of the generated key. It could be 128, 192, or 256.
- * @return {hexa string} key The generated key
- */
-/*
-function computeKeyG_Pbkdf2(pwdphrase,salt,iter,keysize) {
-  var key, options={};
-  
-  options.iter = iter;
-  options.salt = sjcl.codec.base64.toBits(salt);
-
-  options = sjcl.misc.cachedPbkdf2(pwdphrase, options);
-  var key = options.key.slice(0, keysize/32); // @return: list of item which is 4 bytes
-  var key_hexa = sjcl.codec.hex.fromBits(key);  // convert to hex string
-  console.log("key as hex string:",key_hexa)
-  return key_hexa; 
-}
-*/
-/**
- * Encrypt with AES-CCM. The encryption needs to be compatible with decryption at SSE TA.
- * 128 bits (defined by sseConfig.ks_sgx) if sgx is enabled at SSE TA (due to the restriction of mbedtls in SGX, we only use 128 bits for encryption) 
- * 256 bits otherwise (defined by sseConfig.ks)
- * 
- * @param {string} key The AES key (base64) or pwdphrase (string).
- * @param {string} input Plaintext
- * @param {boolean} sgx_enable True if encryption needs to be compatible with decryption inside SGX at TA, false if it does not need to be compatible
- * @return {string} ct Ciphertext
- */
-/*
-function encrypt_sgx(key, input, sgx_enable=true){
-	var options = {};
-	
-	if(sgx_enable==true) // encrypt with AES-CCM 128 bit
-		options = {mode:sseConfig.mode_sgx,iter:sseConfig.iter_sgx,
-			ks:sseConfig.ks_sgx,ts:sseConfig.ts_sgx,v:1,
-			cipher:"aes",
-			adata: sseConfig.adata_sgx,salt:sseConfig.salt_sgx, iv:sseConfig.iv_sgx}; //salt, iv are base64 string
-	else // encrypt with AES-CCM 256 bit
-		// encrypt with key generation from passphrase
-		options = {mode:sseConfig.mode,iter:sseConfig.iter,
-			ks:sseConfig.ks,ts:sseConfig.ts,v:1,
-			cipher:"aes",
-			adata:sseConfig.adata,salt:btoa(sseConfig.salt), iv:btoa(sseConfig.iv)};  //salt, iv are string (utf-8). Therefore, they needed to be encoded into base64
-	
-		options1 = {mode:sseConfig.mode,iter:sseConfig.iter,
-			ts:sseConfig.ts,v:1,
-			cipher:"aes",
-			adata:sseConfig.adata,iv:btoa(sseConfig.iv)}; 
-		
-	console.log("key:{},input:{}",key,input)
-	var res1 = sjcl.encrypt(key, input, options);
-	var ct = JSON.parse(res1).ct; //note
-	console.log("Encrypt with passphrase:",res1);
-	console.log("decrypt with passphrase:",sjcl.decrypt(key,res1));
-	
-	gen_key = computeKeyG_Pbkdf2(key,btoa(sseConfig.salt),sseConfig.iter,sseConfig.ks); //salt, iv are string (utf-8). Therefore, they needed to be encoded into base64
-	gen_key1 = sjcl.codec.hex.toBits(gen_key) // from hex string to array
-	console.log("generated key:",gen_key,gen_key1);
-	
-	var res2 = sjcl.encrypt(gen_key1, input, options1);
-	console.log("Encrypt with key:",res2);
-	console.log("decrypt with key:",sjcl.decrypt(gen_key1,res2));
-	
-	return ct;
-}*/
+////////Encryption/Decryption (non-progressively) for small blob data - End////////
