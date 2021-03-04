@@ -1,7 +1,7 @@
 /////////////////////// CONFIGURATION FOR AUTOMATIC TESTS WITH JEST- Start ///////////////////////
 //const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
 //const sjcl = require('./sjcl.js') // for jest automatic testing
-//module.exports = [uploadData,search,updateData,deleteData,uploadKeyG,encryptUploadBlob,downloadDecryptBlob]; // for jest automatic testing
+//module.exports = [uploadData,search,updateData,deleteData,uploadKeyG]; // for jest automatic testing
 /////////////////////// CONFIGURATION FOR AUTOMATIC TESTS WITH JEST- End ///////////////////////
 
 
@@ -275,6 +275,11 @@ function getMultiFileOrSearchNo(requestType,Lw,keyid){
 function uploadData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback=undefined){
 	if(data=={} || file_id=="" || sharedKey=="" || Kenc=="" || keyid==""){
 		console.log("Lack of parameter of uploadData function")
+		return false;
+	}
+	
+	if(sharedKey == Kenc){
+		console.log("The two provided passphrases/ keys should be different to avoid SSE TA to learn the encryption key!")
 		return false;
 	}
 	// verify if file_id existed
@@ -1186,6 +1191,7 @@ function deleteData(file_id, sharedKey, Kenc, keyid, iskey=false, callback=undef
  * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" (number of hex characters = keysize/4)
  */
 function computeKey(pwdphrase,ista=false){
+	console.log("generating key from passphrase")
 	var options={};
 	var keysize;
 	if(ista==false){
@@ -1269,7 +1275,7 @@ function uploadKeyG(pwdphrase,keyid,iskey=false){
  * @param {string} keyId The unique key identification
  * @return {promise} A promise to upload ciphertext chunks to MinIO server
  */
-function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId){
+function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId, iskey=false){
 	console.log("Progress Encrypt Blob")
 	console.log("blob content:",blobData)
 	return function(resolve) {
@@ -1280,7 +1286,16 @@ function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId){
 			
 			var iv = sjcl.hash.sha1.hash(sseConfig.iv).slice(0,4); // IV should be an array of 4 words. Get 4 words to create iv
 
-			var key = sjcl.hash.sha256.hash(Kenc); //key is an array of 4,6 or 8 words
+			//var key = sjcl.hash.sha256.hash(Kenc); //key is an array of 4,6 or 8 words
+			//var key = sjcl.codec.hex.toBits(computeKey(Kenc));
+	        var key;
+			if(iskey == false) {// Kenc is a passphrase. A key is generated from the passphrase
+				console.log("generating key")
+				key = sjcl.codec.hex.toBits(computeKey(Kenc)); // hex string -> array
+			} else {
+				key = sjcl.codec.hex.toBits(Kenc); // Kenc is a key
+			}
+			
 			var aes = new sjcl.cipher.aes(key);
 			//adata = "";
 			var enc = sjcl.mode.ocb2progressive.createEncryptor(aes, iv);
@@ -1295,6 +1310,10 @@ function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId){
 		    var idx=0;
 		    var tb=[];
 		    
+		    var no_chunks = Math.ceil(imageData.length/sliceSizeRange);
+		    console.log("number of chunks:",no_chunks);
+		    var is_final = false; // indicating if the encryptor is finalized or not
+		    
 		    while (slice[0] < imageData.length) {
 		    	result = result.concat(enc.process(sjcl.codec.bytes.toBits(imageData.slice(slice[0], slice[1]))));
 		        slice[0] = slice[1];
@@ -1305,7 +1324,12 @@ function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId){
 		        count = count +1 ;		        
 		        
 		        if((count % sseConfig.no_chunks_per_upload)==0){ //upload each part of #fragment chunks/ slices.
-		        	console.log("upload part:",count);
+					if(count==no_chunks){ // if this is the final chunk, finalize the encryption
+						result = result.concat(enc.finalize());
+						is_final = true;
+					}
+					
+					console.log("upload part:",count);
 		        	console.log("ciphertext type:",typeof result);
 
 		        	tb[idx]=result;
@@ -1319,60 +1343,22 @@ function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId){
 		        	uploadMinio(cipherpart,outputname);
 		        }
 		    }
-		    result = result.concat(enc.finalize());
-		    console.log("Last part ciphertext:",result)
-		    tb[idx]=result;
-		    console.log("tb[idx]:",tb[idx])
-	    	idx = idx+1;
-		    
-		    cipherpart = new Blob([result], { type: ftype });
-        	outputname= fname + "_part" + idx  + keyId;
-        	uploadMinio(cipherpart,outputname);
+		    if(is_final==false){ // if the encryptor is not finalized yet
+			    result = result.concat(enc.finalize());
+			    console.log("Last part ciphertext:",result)
+			    tb[idx]=result;
+			    console.log("tb[idx]:",tb[idx])
+		    	idx = idx+1;
+			    
+			    cipherpart = new Blob([result], { type: ftype });
+	        	outputname= fname + "_part" + idx  + keyId;
+	        	uploadMinio(cipherpart,outputname);
+		    }
         	
+		    // upload metadata
         	outputname= fname + "_meta" + keyId;
         	cipherpart = new Blob([idx], { type: ftype });
         	uploadMinio(cipherpart,outputname);
-        	
-        	/*
-        	//decryption - for testing only
-        	
-		    try {
-		    	console.log("Decrypting")
-		        var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
-		        var dresult = [];
-		        console.log("idx",idx);
-		       
-		        var i;
-		        var imageByte, imageDecryptBlob;
-		        
-		        for (i = 0; i < idx; i++) {
-		        	console.log("decrypting block:",i)
-		        	console.log("type of ciphertext:",typeof tb[i]);
-		        	console.log("ciphertext:",tb[i]);
-		        	//dresult = dresult.concat(fromBitArrayCodec(dec.process(tb[i])));
-		        	
-		        	dresult = fromBitArrayCodec(dec.process(tb[i])); // testing only
-		        	console.log("plaintext:",dresult);
-		        	
-		        	//for testing
-		        	imageByte = new Uint8Array(dresult); // create byte array from base64 string
-					console.log("plaintext in bytes:",imageByte);	
-					imageDecryptBlob = new Blob([imageByte], { type: ftype });
-					uploadMinio(imageDecryptBlob,"plaintext" + idx);
-		        }
-		        dresult = dresult.concat(dec.finalize());
-		        console.log("plaintext:",dresult)
-		        imageByte = new Uint8Array(dresult); // create byte array from base64 string
-				console.log("plaintext in bytes:",imageByte);
-		
-				imageDecryptBlob = new Blob([imageByte], { type: ftype });//{ type: ftype });
-				uploadMinio(imageDecryptBlob,"plaintext");
-				
-				console.log("complete decrypting and sending to minio");
-		    } catch (e) {
-		        console.log("Error:" + e);
-		    }
-		    */
 			resolve(cipherpart);
 
 		};
@@ -1490,8 +1476,6 @@ function uploadMinio(blob,fname,callback=undefined){
 	})
 }
 
-
-
 /**
  * Encrypt large blob data and upload to MinIO along with its searchable encrypted metadata (json format)
  * It can support large data (~800MB)
@@ -1505,12 +1489,16 @@ function uploadMinio(blob,fname,callback=undefined){
  * @param {callback} callback Callback function
  * @return {} The encrypted blob data is sent to MinIO, and its encrypted metadata is sent to SSE Server
  */
-function encryptProgressUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,keyId, callback=undefined){
+function encryptProgressUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,keyId, iskey=false, callback=undefined){
+	if(KeyG == Kenc){
+		console.log("The two provided passphrases/ keys should be different to avoid SSE TA to learn the encryption key!")
+		return false;
+	}
 	//append filename to metadata
 	jsonObj.filename = fname;
 	console.log("metadata after appending filename:{}",jsonObj);
-	encryptProgressUploadBlob(blob,fname,Kenc,keyId);
-	uploadData(jsonObj,file_id,KeyG,Kenc,keyId);
+	encryptProgressUploadBlob(blob,fname,Kenc,keyId,iskey);
+	uploadData(jsonObj,file_id,KeyG,Kenc,keyId,iskey);
 }
 
 /**
@@ -1524,11 +1512,11 @@ function encryptProgressUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, K
  * @param {callback} callback Callback function
  * @return {promise} promise A promise to upload the ciphertext chunks to MinIO server
  */
-function encryptProgressUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
+function encryptProgressUploadBlob(blob,fname,Kenc,keyId,iskey=false,callback=undefined){
     var ftype = blob.type;
     console.log("blob type:",ftype);
 
-    var promise = new Promise(encryptProgressBlob(blob,fname,ftype,Kenc,keyId));
+    var promise = new Promise(encryptProgressBlob(blob,fname,ftype,Kenc,keyId,iskey));
 
     // Wait for promise to be resolved, or log error.
     promise.then(function(cipherBlob) {
@@ -1549,7 +1537,7 @@ function encryptProgressUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
  * @param {callback} callback Callback function
  * @return {} Download multiple of plaintext chunk files, and a script file (concat_script.txt) to merge them into one plaintext file
  */
-function downloadProgressDecryptBlob(fname,Kenc,keyId,callback=undefined){
+function downloadProgressDecryptBlob(fname,Kenc,keyId,iskey=false,callback=undefined){
     console.log("Download blob")
     try {
     	var metafile = fname + "_meta" + keyId;
@@ -1582,8 +1570,16 @@ function downloadProgressDecryptBlob(fname,Kenc,keyId,callback=undefined){
              }
          })	            
         var iv = sjcl.hash.sha1.hash(sseConfig.iv).slice(0,4); // IV should be an array of 4 words. Get 4 words to create iv
-		var key = sjcl.hash.sha256.hash(Kenc); //key is an array of 4,6 or 8 words
-
+		//var key = sjcl.hash.sha256.hash(Kenc); //key is an array of 4,6 or 8 words
+        //var key = sjcl.codec.hex.toBits(computeKey(Kenc));
+        var key;
+		if(iskey == false) {// Kenc is a passphrase. A key is generated from the passphrase
+			console.log("generating key")
+			key = sjcl.codec.hex.toBits(computeKey(Kenc)); // hex string -> array
+		} else {
+			key = sjcl.codec.hex.toBits(Kenc); // Kenc is a key
+		}
+		
         var aes = new sjcl.cipher.aes(key);
         var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
         
