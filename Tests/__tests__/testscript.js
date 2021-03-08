@@ -1,4 +1,4 @@
-const [uploadData,search,updateData,deleteData,uploadKeyG,encryptUploadBlob,downloadDecryptBlob,encryptProgressUploadBlob] = require("../../sse/static/js/sse.js");
+const [uploadData,search,updateData,deleteData,uploadKeyG,computeKey] = require("../../sse/static/js/sse.js");
 
 const keyid1 = "1"
 const keyid2 = "2"
@@ -15,20 +15,18 @@ const nfound1 = 1; // after inserting input1
 const nfound2 = 2;  // after inserting input2
 const nfound3 = 0; // after deleting 2 files
 
-/*// test encryption/decryption with password
+// test encryption/decryption with password
 const iskey = false
-const KeyG1="123"; 
-const Kenc1 = "123enc";
-const KeyG2="456";
-const Kenc2 = "456enc";
-*/
+const KeyG1="123"; //password
+const Kenc1 = "abc"; // password
+const KeyG2="456"; //password
+const Kenc2 = "def";//password
 
-// test encryption/decryption with key
-const iskey = true;
-const KeyG1="358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce"; // Key (hex string)
-const Kenc1 = "ad68f3d6b434b48773f60220c1e48d974d15004c4348efee7cb7b111468da909";
-const KeyG2 = "d810aec54e97242a250fc6edd9de3b1cac42b65c3c460a5e70cfaec3bb1eea99"
-const Kenc2 = "784724c13265d96bc8bd6931f76144ea5bed1eece6e09f1ebc723e63ea5fe3d0";
+const key_KeyG1="fb77d1464189bb07f7f1d6d524b9eaaf"; // Key (hex string) which is generated from the password in KeyG1
+const key_Kenc1 = "ed0f78e4cfd589337faf5b6d5e07637081426bcf32b5a2fab9a4b7517147bf2c"; // Key (hex string) which is generated from the password in Kenc1
+
+const key_KeyG2="9751c56747f3867e76d39968d3de9e31"; // Key (hex string) which is generated from the password in KeyG2
+const key_Kenc2 = "d89f8ad6988ba7aba42ddbdf2453f2241d3edafc96757f750911df1c8e986179"; // Key (hex string) which is generated from the password in Kenc2
 
 
 const criteria1 = { "keyword": "firstname|David" };
@@ -98,23 +96,28 @@ const search_json = require(search_file)
 const search_json1 = require(search_file1)
 const update_json = require(update_file)
 
+
+/*
 describe("upload shared key to TA",() => {
+	//input is a password. The key will be generated from the password.
 	test("upload shared key to TA should return true", () => {
-		//console.log("in testscript - iskey:",iskey);
-		var result = uploadKeyG(KeyG1,keyid1,iskey);
+		var key = computeKey(KeyG1,true);
+		var result = uploadKeyG(key,keyid1);
 		expect(result).toEqual(true);
 	});
+	// input is a key
 	test("upload shared key to TA should return true", () => {
-		var result = uploadKeyG(KeyG2,keyid2,iskey);
+		var result = uploadKeyG(key_KeyG2,keyid2);
 		expect(result).toEqual(true);
 	});
-});
+});*/
 
 describe("upload and search", () => {
 	test("search for non-existed data should return not found", () => {
 		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey);
 		expect(result["count"]).toEqual(0);	
 	});
+	// upload data with password
 	test("it should upload json object successfully", done => {
 		function callback(data) {
 			try {
@@ -128,16 +131,24 @@ describe("upload and search", () => {
 		uploadData(input1,file_id1,KeyG1,Kenc1,keyid1,iskey,callback);
 	});
 	
+	// search data with password
 	test("2nd search for uploaded data should return found results", () => {
 		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey);
 		expect(result["count"]).toEqual(nfound1);
 	});
   
+	// search data with key
+	test("2nd search for uploaded data should return found results", () => {
+		var result = search(criteria1,key_KeyG1,key_Kenc1,keyid1,true);
+		expect(result["count"]).toEqual(nfound1);
+	});
+	
 	test("it should not upload json object with existed file id (uRl) with the same keyid, but should with different keyid", () => {;
 		expect(uploadData(input1,file_id1,KeyG1,Kenc1,keyid1,iskey)).toEqual(false);
 		expect(uploadData(input1,file_id1,KeyG2,Kenc2,keyid2,iskey)).toEqual(true);
 	});
 
+	// upload data with key
 	test("it should upload json object with more than 1 field successfully", done => {
 		function callback(data) {
 			try {
@@ -148,7 +159,7 @@ describe("upload and search", () => {
 				done(error);
 			}
 		};
-		uploadData(input2,file_id2,KeyG1,Kenc1,keyid1,iskey,callback);    
+		uploadData(input2,file_id2,key_KeyG1,key_Kenc1,keyid1,true,callback);    
 	});	
 	test("search for uploaded data with keyid1 should return at least 2 found results, and with keyid2 should return 1 result", ()  => {
 		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey);
@@ -190,6 +201,8 @@ describe("update and search", () => {
 		var result = updateData(update3,file_id2,KeyG1,Kenc1,keyid1,iskey);
 		expect(result).toEqual(false);
 	});
+	
+	// update data with key
 	test("update a pair of existed values should return true", done => {
 		function callback(data) {
 			try {
@@ -200,7 +213,7 @@ describe("update and search", () => {
 				done(error);
 			}
 		};
-		updateData(update4,file_id2,KeyG1,Kenc1,keyid1,iskey,callback);
+		updateData(update4,file_id2,key_KeyG1,key_Kenc1,keyid1,true,callback);
 	});
 	test("search updated value should return 2 found result", () => {
 		var result = search(criteria2,KeyG1,Kenc1,keyid1,iskey);
@@ -221,6 +234,8 @@ describe("delete and search", () => {
 		var result = deleteData(file_id3,KeyG1,Kenc1,keyid1,iskey);
 		expect(result).toEqual(false);
 	});
+	
+	// delete data with password
 	test("delete one existed value should return true", done => {
 		function callback(data) {
 			try {
@@ -237,6 +252,8 @@ describe("delete and search", () => {
 		var result = search(criteria2,KeyG1,Kenc1,keyid1,iskey);
 		expect(result["count"]).toEqual(nfound1);
 	});
+	
+	//delete data with key
 	test("delete one existed value should return true", done => {
 		function callback(data) {
 			try {
@@ -247,7 +264,7 @@ describe("delete and search", () => {
 				done(error);
 			}
 		};
-		deleteData(file_id2,KeyG1,Kenc1,keyid1,iskey,callback);
+		deleteData(file_id2,key_KeyG1,key_Kenc1,keyid1,true,callback);
 	});
 	test("search value should return 0 found result", () => {
 		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey);
