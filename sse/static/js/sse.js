@@ -1,7 +1,7 @@
 /////////////////////// CONFIGURATION FOR AUTOMATIC TESTS WITH JEST- Start ///////////////////////
-//const $ = require('./jquery-3.4.1.min.js') // for jest automatic testing
+//const $ = require('./jquery-3.6.0.min.js') // for jest automatic testing
 //const sjcl = require('./sjcl.js') // for jest automatic testing
-//module.exports = [uploadData,search,updateData,deleteData,uploadKeyG]; // for jest automatic testing
+//module.exports = [uploadData,search,updateData,deleteData,uploadKeyG,computeKey]; // for jest automatic testing
 /////////////////////// CONFIGURATION FOR AUTOMATIC TESTS WITH JEST- End ///////////////////////
 
 
@@ -22,6 +22,7 @@ HTTP_CODE_CREATED = 201
 
 //{salt,iv,iter,ks,ts,mode,adata,adata_len} are parameters for encrypting data at SSE client
 //{salt_ta,iv_ta,iter_ta,ks_ta,ts_ta,mode_ta,adata_ta,adata_len_ta} are parameters to be shared between SSE client and SSE TA.
+
 var sseConfig={
         'base_url_ta' : 'ta_url', //{url} URL of SSE TA. Example: http://127.0.0.1:8000
         'base_url_sse_server' : 'sse_url',//{url} URL of SSE Server
@@ -45,7 +46,10 @@ var sseConfig={
         'adata_ta':'', // {string, ''} This is not supported to be configurable yet
         'adata_len_ta' : 0, //{number, 0} This is not supported to be configurable yet
         'sgx_enable': sgx_enable_value // {boolean} True if SGX is enabled at SSE TA, false otherwise
+        'base_url_cp_abe' : 'cp_abe_url', //{url} URL of CP-ABE server
+        'debug' : debug_value // {boolean} true if debug, false otherwise
 }
+
 /////////////////////// SSE CONFIGURATION - End ///////////////////////
 
 /////////////////////// REQUESTS - Start ///////////////////////
@@ -79,8 +83,10 @@ function getRequest(api_url) {
  * @param {json} jsonObj The sent data
  * @param {callback} callback The function to be executed when calling back. This is used for automatic testing with Jest.
  * @param {boolean} async_feat True if asynchronous, False if synchronous
+ * @param {string} header The request header
+ * @return {response} result The response
  */
-function postRequest(api_url, jsonObj, callback=undefined, async_feat=true) {
+function postRequest(api_url, jsonObj, callback=undefined, async_feat=true, header="") {
 	console.log("data:", jsonObj);
 	result = $.ajax({
 		url: api_url,
@@ -88,6 +94,7 @@ function postRequest(api_url, jsonObj, callback=undefined, async_feat=true) {
 		contentType: 'application/json',
 		data: jsonObj,
 		async: async_feat,
+		headers: { header },
 		success: function(data) {
 			if(callback!=undefined){
 				callback(data);
@@ -158,6 +165,17 @@ function patchRequest(api_url, jsonObj, callback, async_feat=true) {
 /////////////////////// REQUESTS - End ///////////////////////
 
 /////////////////////// BASIC FUNCTIONS - Start ///////////////////////
+/**
+ * Enable/ disable logging by setting DEBUG value to true/false
+ * Reference: https://stackoverflow.com/questions/1215392/how-to-quickly-and-conveniently-disable-all-console-log-statements-in-my-code
+ */
+DEBUG = sseConfig.debug; // set to false to disable debugging
+old_console_log = console.log;
+console.log = function() {
+    if ( DEBUG ) {
+        old_console_log.apply(this, arguments);
+    }
+}
 
 /**
  * Hash function (hash 256 bits)
@@ -181,9 +199,6 @@ function hash(input){
  * @return {object} res Ciphertext object. For example:{"iv":"IjJ65qTj+uwKJnrTfRW2hw==","v":1,"iter":1000,"ks":128,"ts":64,"mode":"ccm","adata":"","cipher":"aes","salt":"+lSbfNMnwP8=","ct":"0ARVIuwmi1IrtGT3k1NHF6w0rXfD0w=="}
  */
 function encrypt(key, input, ista=false){
-	//var salt = btoa(sseConfig.salt); // string (utf-8) -> base64
-	//var iv = btoa(sseConfig.iv); // string (utf-8) -> base64
-
 	var options;
 	if(ista==false) // if encryption happens only at SSE client
 		options = {mode:sseConfig.mode,iter:sseConfig.iter,ks:sseConfig.ks,ts:sseConfig.ts,v:1,cipher:"aes",adata:sseConfig.adata,salt:sseConfig.salt,iv:sseConfig.iv}; 
@@ -289,7 +304,6 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 		return false;
 	}
 
-	//var KeyG = computeKey(sharedKey);
 	var KeyG, key;
 	if(iskey == false) {// sharedKey is a passphrase. A key is generated from the passphrase
 		KeyG = sjcl.codec.hex.toBits(computeKey(sharedKey,true)); // hex string -> array
@@ -300,10 +314,6 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 		console.log("KeyG (in array format):",KeyG);
 		key = sjcl.codec.hex.toBits(Kenc);
 	}
-		
-	//console.log("KeyG in upload:",KeyG);
-	//var key = hash(Kenc); //generate encryption key from inputed passphrase Kenc
-	
 	
 	console.log("URL TA:",sseConfig.base_url_ta)
 	
@@ -522,7 +532,6 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid){
       ]
 
  */
-// improvement: check if this function or retrieveData is redundant
 function decryptData(cipherList, Kenc){
 	var found = cipherList.length;
 	console.log("length of list:",found)
@@ -562,7 +571,6 @@ function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false){
 	console.log("Search keyword function");
 	console.log("shared key:",sharedKey,"- iskey:",iskey);
 	
-	//var KeyG = computeKey(sharedKey);
 	var KeyG,key;
 	if(iskey == false) { // sharedKey is a passphrase. A key is generated from the passphrase
 		KeyG = sjcl.codec.hex.toBits(computeKey(sharedKey,true)); // hex string -> array
@@ -573,8 +581,6 @@ function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false){
 		console.log("KeyG (in array format):{},in hex string format:{}",KeyG,sharedKey);
 		key = sjcl.codec.hex.toBits(Kenc);
 	}
-	
-	//var key = hash(Kenc);
 	
 	var fileNo, fileNoUri;
 	
@@ -613,12 +619,6 @@ function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false){
 	var KeyW = encrypt(KeyG,hash(keyword)+searchNo,true); 
 	console.log("key in array format:{}",KeyG);
 	console.log("Search number: ",searchNo," - KeyW (encrypt with key): ",KeyW);
-	
-	// test only
-	//var KeyG1="123";
-	//console.log("password:",KeyG1);
-	//var KeyW1 = encrypt(KeyG1,hash(keyword)+searchNo,true); 
-	//console.log("Search number: ",searchNo," - KeyW (encrypt with password): ",KeyW1);
 	
 	// Increase search number:
 	searchNo = searchNo + 1; //new
@@ -793,7 +793,7 @@ function encryptList(Lkeyword,Kenc){
 }
 
 /**
- * Objects to update file numbers at SSE TA
+ * Create objects to update file numbers at SSE TA
  * 
  * @param {list} Lhash List of hash values
  * @param {list} LfileNoUri List of file number URI
@@ -851,15 +851,14 @@ function updateFileNo(Lhash,LfileNoUri,LfileNo,offset,keyid){
 }
 
 /**
- * Objects to update file numbers at SSE TA
+ * Create a full list of file numbers/ search numbers of a list of hash values, 
+ * where non-existed file numbers/ search numbers are represented as 0
  * 
  * @param {list} Lhash List of hash values
- * @param {list} LfileNoUri List of file number URI
- * @param {list} LfileNo List of file number
- * @param {number} offset The amount of addition or subtraction from the current fileno
- * @return {list} [del,objects,deleted_objects] del=true if delete file number, del=false otherwise. Objects is the list of updated entries for file numbers. deleted_objects is the list of deleted entries for file numbers.
+ * @param {list} Lexisted List of existed file numbers at SSE TA. It is equal to or a subset of Lhash
+ * @param {list} Lfound List of existed and non-existed file numbers/ search numbers
+ * @return {list} Lfull Full list of file numbers/ search numbers, where non-existed values are represented as 0.
  */
-// Lexisted is equal or subset of Lhash
 function createFullList(Lhash,Lexisted_hash,Lfound){
 	console.log("createFullList function")
 	console.log("Lhash:",Lhash)
@@ -919,7 +918,6 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 	Lcurrent_hash = [];
 	Lnew_hash=[];
 	
-	//var KeyG = computeKey(sharedKey);
 	var KeyG, key;
 	if(iskey == false) {// sharedKey is a passphrase. A key is generated from the passphrase
 		KeyG = sjcl.codec.hex.toBits(computeKey(sharedKey,true)); // hex string -> array
@@ -928,8 +926,6 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 		KeyG = sjcl.codec.hex.toBits(sharedKey); // sharedKey is a key
 		key = sjcl.codec.hex.toBits(Kenc);
 	}
-	
-	//var key = hash(Kenc);
 	
 	for(i=0; i<length;i++){
 		current_value = keys[i] + '|' + values[i][0];
@@ -970,7 +966,7 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 	console.log("all_tempListWord:",all_tempListWord);
 	console.log("Lcurrent_hash:",Lcurrent_hash);
 	
-	// get the full list of search no of current keywords, which invole keywords with no search = 0
+	// get the full list of search no of current keywords, which involve keywords with no search = 0
 	// (not yet) to be improved: compare length of 2 list before calling function
 	Lcurrent_searchNo = createFullList(Lcurrent_hash,all_tempListWord,Lall_found_searchNo);
 	console.log("Lcurrent_searchNo:",Lcurrent_searchNo);
@@ -1082,7 +1078,6 @@ function deleteData(file_id, sharedKey, Kenc, keyid, iskey=false, callback=undef
 	}
 	else{
 		console.log("File_id and key id exist");
-		//var KeyG = computeKey(sharedKey);
 		var KeyG, key;
 		if(iskey == false) { // sharedKey is a passphrase. A key is generated from the passphrase
 			KeyG = sjcl.codec.hex.toBits(computeKey(sharedKey,true)); // hex string -> array
@@ -1093,7 +1088,6 @@ function deleteData(file_id, sharedKey, Kenc, keyid, iskey=false, callback=undef
 		}
 		
 		console.log("KeyG:",KeyG);
-		//var key = hash(Kenc);
 		
 		// Decrypt data
 		var pt = decryptData(obj.objects,key);
@@ -1213,27 +1207,38 @@ function computeKey(pwdphrase,ista=false){
 }
 
 /**
+ * Verify if the format and size of the key
+ * Reference: https://www.sitepoint.com/community/t/how-to-check-if-string-is-hexadecimal/162739/2
+
+ * @param {hex string} key The key. Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce"
+ * @param {number} size The expected size (the number of hex characters)= key size/ 4. Example: if the expected key size is 256 bits, the size of the key should be 256/4 = 64 hex characters
+ * @return {boolean} ret true if the key is in the right format (hex string), and has the right size
+ */
+function isHexKey(key,size) {
+	var re = /[0-9A-Fa-f]{6}/g;
+
+	var ret = false;
+	if(re.test(key) && key.length==size) {
+	    ret = true;
+	} 
+	re.lastIndex = 0; // be sure to reset the index after using .test()
+	return ret;
+}
+
+/**
  * Upload a shared key to SSE TA
  * 
- * @param {string} pwdphrase Key (hex string) or passphrase (arbitrary string) for key generation. 
- * If it is a passphrase, a key will be generated from the passphrase
- * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" as a key (number of hex characters = keysize/4), or "123" as a passphrase
+ * @param {hex string} keyg Key (hex string)
  * @param {string} keyid The unique key identification
- * @param {boolean} iskey false if pwdphrase is a passphrase, true if pwdphrase is a key
- * @return {boolean} true if uploading the (generated) key to SSE TA, false otherwise
+ * @return {boolean} true if uploading the key to SSE TA, false otherwise
  */
-function uploadKeyG(pwdphrase,keyid,iskey=false){
-	if(pwdphrase=="" || keyid==""){
-		console.log("Lack of passphrase or keyid");
+function uploadKeyG(keyg,keyid){
+	if (isHexKey(keyg,sseConfig.ks_ta/4)==false){
+		console.log("The input key is not valid. Please check if it is a hex string with the correct size.")
 		return false;
 	}
-	console.log("passphrase to compute keyg:",pwdphrase);
-	//var keyg = computeKey(pwdphrase); // hex string
-	var keyg;
-	if(iskey == false) // pwdphrase is a passphrase. A key is generated from the passphrase
-		keyg = computeKey(pwdphrase,true); // hex string
-	else
-		keyg = pwdphrase; // pwdphrase is a key
+	
+	console.log("uploading key:",keyg)
 	
 	if(sseConfig.sgx_enable==false) { // if SSE TA is not sgx-enabled
 		var jsonData = '{ "key" : "' + keyg + '","keyId":"' + keyid + '"}';
@@ -1286,8 +1291,6 @@ function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId, iskey=false){
 			
 			var iv = sjcl.hash.sha1.hash(sseConfig.iv).slice(0,4); // IV should be an array of 4 words. Get 4 words to create iv
 
-			//var key = sjcl.hash.sha256.hash(Kenc); //key is an array of 4,6 or 8 words
-			//var key = sjcl.codec.hex.toBits(computeKey(Kenc));
 	        var key;
 			if(iskey == false) {// Kenc is a passphrase. A key is generated from the passphrase
 				console.log("generating key")
@@ -1296,7 +1299,7 @@ function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId, iskey=false){
 				key = sjcl.codec.hex.toBits(Kenc); // Kenc is a key
 			}
 			
-			var aes = new sjcl.cipher.aes(key);
+			var aes = new sjcl.cipher.aes(key); //key must be an array of 4,6 or 8 words
 			//adata = "";
 			var enc = sjcl.mode.ocb2progressive.createEncryptor(aes, iv);
 
@@ -1570,8 +1573,7 @@ function downloadProgressDecryptBlob(fname,Kenc,keyId,iskey=false,callback=undef
              }
          })	            
         var iv = sjcl.hash.sha1.hash(sseConfig.iv).slice(0,4); // IV should be an array of 4 words. Get 4 words to create iv
-		//var key = sjcl.hash.sha256.hash(Kenc); //key is an array of 4,6 or 8 words
-        //var key = sjcl.codec.hex.toBits(computeKey(Kenc));
+
         var key;
 		if(iskey == false) {// Kenc is a passphrase. A key is generated from the passphrase
 			console.log("generating key")
@@ -1580,7 +1582,7 @@ function downloadProgressDecryptBlob(fname,Kenc,keyId,iskey=false,callback=undef
 			key = sjcl.codec.hex.toBits(Kenc); // Kenc is a key
 		}
 		
-        var aes = new sjcl.cipher.aes(key);
+        var aes = new sjcl.cipher.aes(key); //key must be an array of 4,6 or 8 words
         var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
         
         for (var i=0; i<fragments.length; i++) {
@@ -1617,7 +1619,8 @@ function downloadProgressDecryptBlob(fname,Kenc,keyId,iskey=false,callback=undef
 }
 
 /**
- * Convert from an array of bytes to a bitArray. This function is referenced from internet.
+ * Convert from an array of bytes to a bitArray. 
+ * This function is referenced from internet.
  * 
  * @param {array} bytes Array of bytes
  * @return {array} out Bit array //needed test
@@ -1638,7 +1641,8 @@ function toBitArrayCodec(bytes) {
 }
 
 /**
- * Convert from a bitArray to an array of bytes. This function is referenced from internet.
+ * Convert from a bitArray to an array of bytes. 
+ * This function is referenced from internet.
  * 
  * @param {array} arr Bit array //needed test
  * @return {array} out Array of bytes
@@ -1660,7 +1664,7 @@ function fromBitArrayCodec(arr) {
  * 
  * @param {blob} blob The blob data
  * @param {string} fileName The file name
- * @return {} The blob is saved as a file in Download
+ * @return {} The blob is saved as a file in Download folder
  */
 function saveBlob(blob, fileName) {
 	console.log("save file")
@@ -1678,7 +1682,59 @@ function saveBlob(blob, fileName) {
 }; 
 ////////Progressive Encryption/Decryption for large blob data - End////////
 
-////////Progressive Encryption/Decryption for medium blob data - Start////////
+/////////////////////// CP-ABE-RELEVANT FUNCTIONS - Start ///////////////////////
+/**
+ * Encrypt and upload SSE keys to Keytray
+ * 
+ * @param {hex string} verkey The verification key which will be shared with SSE TA 
+ * @param {hex string} enckey The encryption key which will be used to encrypt data
+ * @param {string} token Access token
+ * @return {string} keyid The unique key identification 
+ */
+function uploadSSEkeys(verkey,enckey,token){
+	if(KeyG=="" || Kenc==""){
+		console.log("Lack of passphrases/keys");
+		return false;
+	}
+	
+	var ver_key,enc_key;
+	if(isHexKey(verkey,sseConfig.ks_ta) == false || isHexKey(enckey,sseConfig.ks)==false){
+		console.log("Please check if the keys are hex strings, and they have the correct size.")
+		return false;
+	}
+	
+	var header = 'Authorization': 'Basic ' + token;
+	var jsonData = '{ "verKey" : "' + verkey + '","encKey":"' + enckey + '"}';
+	var keyid = postRequest(sseConfig.base_url_cp_abe + "/api/v1/put", jsonData, undefined, async_feat = false,header);
+	
+	return keyid;
+}
+
+/**
+ * Retrieve and decrypt the encrypted SSE keys from KeyTray
+ * 
+ * @param {string} keyid The unique key identification 
+ * @param {string} username User name
+ * @param {string} token Access token
+ * @return {json} keys The pair of SSE keys 
+ */
+
+function getSSEkeys(keyid,username,token){
+	if(keyid=="" || username==""){
+		console.log("Lack of key id or username");
+		return false;
+	}
+	var jsonData = '{ "uuid" : "' + keyid + '","username":"' + username + '"}';
+	console.log("uploaded KeyG:",keyg)
+	var header = 'Authorization': 'Basic ' + token;
+	var ret = postRequest(sseConfig.base_url_cp_abe + "/api/v1/get", jsonData, undefined, async_feat = false, header);
+	var keys = ret.responseJSON;
+	
+	return keys;
+}
+/////////////////////// CP-ABE-RELEVANT FUNCTIONS - End ///////////////////////
+
+////////(to be developed) Progressive Encryption/Decryption for medium blob data - Start////////
 /**
  * Download chunks of ciphertext from MinIO server, decrypt them and save as 1 plaintext file
  * This function can support medium files (~100MB)
