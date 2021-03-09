@@ -86,7 +86,7 @@ function getRequest(api_url) {
  * @param {string} header The request header
  * @return {response} result The response
  */
-function postRequest(api_url, jsonObj, callback=undefined, async_feat=true, header="") {
+function postRequest(api_url, jsonObj, callback=undefined, async_feat=true, header={}) {
 	console.log("data:", jsonObj);
 	result = $.ajax({
 		url: api_url,
@@ -94,7 +94,7 @@ function postRequest(api_url, jsonObj, callback=undefined, async_feat=true, head
 		contentType: 'application/json',
 		data: jsonObj,
 		async: async_feat,
-		headers: { header },
+		headers: header,
 		success: function(data) {
 			if(callback!=undefined){
 				callback(data);
@@ -1692,19 +1692,22 @@ function saveBlob(blob, fileName) {
  * @return {string} keyid The unique key identification 
  */
 function uploadSSEkeys(verkey,enckey,token){
-	if(KeyG=="" || Kenc==""){
+	if(verkey=="" || enckey==""){
 		console.log("Lack of passphrases/keys");
 		return false;
 	}
 	
 	var ver_key,enc_key;
-	if(isHexKey(verkey,sseConfig.ks_ta) == false || isHexKey(enckey,sseConfig.ks)==false){
+	if(isHexKey(verkey,sseConfig.ks_ta/4) == false || isHexKey(enckey,sseConfig.ks/4)==false){
 		console.log("Please check if the keys are hex strings, and they have the correct size.")
 		return false;
 	}
 	
-	var header = 'Authorization': 'Basic ' + token;
+	console.log("Sending keys to KeyTray")
+	var header = '{"Authorization: Bearer ' + token + '"}';
 	var jsonData = '{ "verKey" : "' + verkey + '","encKey":"' + enckey + '"}';
+	console.log("json data:",jsonData);
+	console.log("header:",header);
 	var keyid = postRequest(sseConfig.base_url_cp_abe + "/api/v1/put", jsonData, undefined, async_feat = false,header);
 	
 	return keyid;
@@ -1720,17 +1723,40 @@ function uploadSSEkeys(verkey,enckey,token){
  */
 
 function getSSEkeys(keyid,username,token){
-	if(keyid=="" || username==""){
-		console.log("Lack of key id or username");
+	if(keyid=="" || username=="" || token==""){
+		console.log("Lack of key id or username or token");
 		return false;
 	}
-	var jsonData = '{ "uuid" : "' + keyid + '","username":"' + username + '"}';
-	console.log("uploaded KeyG:",keyg)
-	var header = 'Authorization': 'Basic ' + token;
-	var ret = postRequest(sseConfig.base_url_cp_abe + "/api/v1/get", jsonData, undefined, async_feat = false, header);
+	//var jsonData = '{ "uuid" : "' + keyid + '","username":"' + username + '"}';
+	var jsonData={"uuid:":keyid,"username":username};
+	//var jsonData = JSON.stringify(data);
+	var header = { "Authorization": "Bearer " + token };
+	console.log("header:",JSON.stringify(header));
+	
+	/*result = $.ajax({
+		url: sseConfig.base_url_cp_abe + "/api/v1/get",
+		type: 'POST',
+		contentType: 'application/json',
+		data: jsonData,
+		async: false,
+		headers: {
+	        "Authorization": "Bearer " + token
+	    },
+		success: function(data) {
+			if(callback!=undefined){
+				callback(data);
+			}
+		},
+		error: function(erro){
+			console.error("Post Request Error");
+		}
+	});
+	console.log("response of post request:",result);*/
+	
+	var ret = postRequest(sseConfig.base_url_cp_abe + "/api/v1/get", jsonData, undefined, async_feat = false, JSON.stringify(header));
 	var keys = ret.responseJSON;
 	
-	return keys;
+	return ret;
 }
 /////////////////////// CP-ABE-RELEVANT FUNCTIONS - End ///////////////////////
 
