@@ -10,7 +10,7 @@ var appConfig={
 // Handle event of data upload data
 function handleFileLoad(event){
 	  var Kenc = $("#passphrase1").val()
-	  //var KeyG = Kenc;
+
 	  var KeyG = $("#passphrase1b").val();
 	  console.log("encryption passphrase/key:",Kenc,"verification passphrase/key:",KeyG);
 		
@@ -55,7 +55,7 @@ function handleFileLoad(event){
 // Handle search data event
 function handleSearchFileLoad(event){
 	var Kenc = $("#passphrase2").val();
-	//var KeyG = Kenc;
+	
 	var KeyG = $("#passphrase2b").val();
 	console.log("encryption passphrase/key:",Kenc,"verification passphrase/key:",KeyG);
 	
@@ -94,16 +94,17 @@ function handleSearchFileLoad(event){
 }
 
 // Include sse.js
+/*
 function dynamicallyLoadScript(url) {
     var script = document.createElement("script"); //Make a script DOM node
     script.src = url; //Set it's src to the provided URL
     document.head.appendChild(script); //Add it to the end of the head section of the page (could change 'head' to 'body' to add it to the end of the body section instead)
-}
+}*/
 
 //Handle update data event
 function handleUpdateFileLoad(event){
 	var Kenc = $("#passphrase3").val();
-	//var KeyG = Kenc;
+	
 	var KeyG = $("#passphrase3b").val();
 	console.log("encryption passphrase/key:",Kenc,"verification passphrase/key:",KeyG);
 	
@@ -148,7 +149,7 @@ function handleUpdateFileLoad(event){
 //Handle update data event
 function handleDeleteFile(){
 	var Kenc = $("#passphrase4").val();
-	//var KeyG = Kenc;
+	
 	var KeyG = $("#passphrase4b").val();
 	console.log("encryption passphrase/key:",Kenc,"verification passphrase/key:",KeyG);
 	
@@ -303,7 +304,7 @@ function handleBlobSSEUpload(jsonObj){
 function handleProgressBlobSSEUpload(jsonObj){
 	return function(event){
 		var Kenc = $("#passphrase7").val();
-		//var KeyG = Kenc;
+		
 		var KeyG = $("#passphrase7b").val();
 		console.log("encryption passphrase/key:",Kenc,"verification passphrase/key:",KeyG);
 		
@@ -469,11 +470,18 @@ $(document).ready(
 					iskey = true;
 				console.log("Input is a key?:",iskey);
 				
-				console.log("Send hashed key to TA")
+				console.log("Send key to SSE TA")
 				$('#uploadkeyg').empty();
-				var key = $("#passphrase").val();
+				var input = $("#passphrase").val()
+				var key;
+				if(iskey==true)
+					key = input;
+				else
+					key = computeKey(input,true) // generate key to be shared with SSE TA
+				
 				var keyid = $("#keyid").val();
-				uploadKeyG(key,keyid,iskey); // Upload data to CSP
+				uploadKeyG(key,keyid); // Upload key to SSE TA
+				
 				$('#passphrase').val("");
 				$('#uploadkeyg').html("<div class='alert-primary alert'> Submitted </div>");
 			});
@@ -631,21 +639,34 @@ $(document).ready(
 				}
 			});
 			
-			/*
-			$("#btnSendHashKeySGX").click(function(){
-				console.log("Send hashed key to TA SGX")
-				$('#uploadkeygsgx').empty();
-				var key = $("#passphrase8").val();
-				var keyid = $("#keyid8").val();
+			$('#bntUploadSSEkeys').click(function(){
+				var encK = $('#passphrase8').val();
+				var verK = $('#passphrase8b').val();
+				var token=$('#token1').val();
 				
-				var msg = "hello world!"
-				uploadKeyG(key,keyid);
-				var c = encrypt(key,msg,false);
-				console.log("ciphertext:",c);
-				sendkeyW(msg,key,keyid);
+				if (encK=="" || verK=="" || token=="" ) {
+					console.log("Please enter the keys and/or the token");
+				}
+				else{
+					console.log("Uploading keys");
+					var keyid=uploadSSEkeys(verK,encK,token);
+					$("#keyid8").val(keyid);
+					$("#uploadssekeys").val("submitted");
+				}
+			});
+			$('#bntDownloadSSEkeys').click(function(){
+				var keyid=$('#keyid9').val();
+				var username=$('#username').val();
+				var token=$('#token2').val();
 				
-				
-				$('#passphrase8').val("");
-				$('#uploadkeyg8').html("<div class='alert-primary alert'> Submitted </div>");
-			});*/
+				if (keyid=="" || token=="" || username=="") {
+					console.log("Please enter the key id and/or token and/or username");
+				}
+				else{
+					var ret=getSSEkeys(keyid,username,token);
+					var keys=JSON.parse(ret);
+					 $("#passphrase9").val(keys['encKey']);
+					 $("#passphrase9b").val(keys['verKey']);
+				}
+			});
 		});
