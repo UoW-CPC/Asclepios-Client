@@ -86,7 +86,7 @@ function getRequest(api_url) {
  * @param {string} header The request header
  * @return {response} result The response
  */
-function postRequest(api_url, jsonObj, callback=undefined, async_feat=true, header={}) {
+function postRequest(api_url, jsonObj, callback=undefined, async_feat=true, headers={}) {
 	console.log("data:", jsonObj);
 	result = $.ajax({
 		url: api_url,
@@ -94,7 +94,7 @@ function postRequest(api_url, jsonObj, callback=undefined, async_feat=true, head
 		contentType: 'application/json',
 		data: jsonObj,
 		async: async_feat,
-		headers: header,
+		headers: headers,
 		success: function(data) {
 			if(callback!=undefined){
 				callback(data);
@@ -1704,11 +1704,31 @@ function uploadSSEkeys(verkey,enckey,token){
 	}
 	
 	console.log("Sending keys to KeyTray")
-	var header = '{"Authorization: Bearer ' + token + '"}';
+	var headers = {Authorization:"Bearer " + token};//'{"Authorization: Bearer ' + token + '"}';
 	var jsonData = '{ "verKey" : "' + verkey + '","encKey":"' + enckey + '"}';
 	console.log("json data:",jsonData);
-	console.log("header:",header);
-	var keyid = postRequest(sseConfig.base_url_cp_abe + "/api/v1/put", jsonData, undefined, async_feat = false,header);
+	console.log("header:",headers);
+/*	
+	keyid = $.ajax({
+                url: sseConfig.base_url_cp_abe,
+                type: 'POST',
+                contentType: 'application/json',
+                data: {verkey:"fb77d1464189bb07f7f1d6d524b9eaaf",encKey:"ed0f78e4cfd589337faf5b6d5e07637081426bcf32b5a2fab9a4b7517147bf2c"},
+                async: false,
+		dataType: "jsonp",
+                headers: {Authorization: "Bearer " + token},
+                success: function(data) {
+                        if(callback!=undefined){
+                                callback(data);
+                        }
+                },
+                error: function(erro){
+                        console.error("Post Request Error");
+                }
+        });
+*/
+
+	var keyid = postRequest(sseConfig.base_url_cp_abe + "/api/v1/put", jsonData, undefined, async_feat = false,headers);
 	
 	return keyid;
 }
