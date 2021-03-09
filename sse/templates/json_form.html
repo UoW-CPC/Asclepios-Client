@@ -61,20 +61,20 @@
 			<label for="fileid1" class="col-sm-10 col-form-label">Unique file id</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="fileid1"
-					placeholder="Please enter file id or it will be generated"
+					placeholder="Please enter file id"
 					name='file_id'>
 			</div>
 			
 			<label for="passphrase1" class="col-sm-10 col-form-label">Encryption passphrase (string) or key (hex string)</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="passphrase1"
-					placeholder="Please enter passphrase" name='passphrase1'>
+					placeholder="Please enter passphrase or key" name='passphrase1'>
 			</div>
 			
 			<label for="passphrase1b" class="col-sm-10 col-form-label">Verification passphrase (string) or key (hex string)</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="passphrase1b"
-					placeholder="Please enter passphrase" name='passphrase1b'>
+					placeholder="Please enter passphrase or key" name='passphrase1b'>
 			</div>
 			
 			<div class="form-check form-check-inline">
@@ -616,24 +616,73 @@
 <div id='uploadblobsse'></div>
 <div id='uploadblobssetime'></div>
 
-<!-- 
-<label for="upload-keyg-sgx"><b>SEND KEY TO SGX</b></label>
-<form id='upload-keyg-sgx' class='mb-2' method="post" action="">
+<label for="upload-sse-keys"><b>ENCRYPT/ UPLOAD SSE KEYS TO KEYTRAY</b></label>
+<form id='upload-sse-keys' class='mb-2' method="post" action="">
 	<div class='mb-2'>
 		<div class="form-group row">
-			<label for="passphrase8" class="col-sm-10 col-form-label">Passphrase (it will be hashed prior to sending to Trusted Authority)</label>
+			<label for="passphrase8" class="col-sm-10 col-form-label">Encryption key (hex string)</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="passphrase8"
-					placeholder="Please enter passphrase" name='passphrase8'>
+					placeholder="Please enter a key (hex string)" name='passphrase8'>
 			</div>
-			<label for="keyid8" class="col-sm-10 col-form-label">Key ID</label>
+			
+			<label for="passphrase8b" class="col-sm-10 col-form-label">Verification key (hex string)</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase8b"
+					placeholder="Please enter a key (hex string)" name='passphrase8b'>
+			</div>
+			
+			<label for="token1" class="col-sm-10 col-form-label">Access token</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="token1"
+					placeholder="Please provide the access token" name='token1'>
+			</div>
+			
+			<label for="keyid8" class="col-sm-10 col-form-label">Generated key Id</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="keyid8"
-					placeholder="Please enter key Id" name='keyid8'>
+					name='keyid8' disabled>
 			</div>
 		</div>
 	</div>
-	<button type="button" class="btn btn-primary" id="btnSendHashKeySGX">Send</button>
+	<button type="button" class="btn btn-primary" id="bntUploadSSEkeys">Send</button>
 </form>
-<div id='uploadkeygsgx'></div>  -->
+
+<div id='uploadssekeys'></div>
+
+<label for="download-sse-keys"><b>DOWNLOAD/DECRYPT SSE KEYS FROM KEYTRAY</b></label>
+<form id='download-sse-keys' class='mb-2' method="post" action="">
+	<div class='mb-2'>
+		<div class="form-group row">
+			<label for="keyid9" class="col-sm-10 col-form-label">Key Id</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="keyid9"
+					placeholder="Please enter the key identification" name='keyid9'>
+			</div>
+			<label for="token2" class="col-sm-10 col-form-label">Access token</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="token2"
+					placeholder="Please provide the access token" name='token2'>
+			</div>
+			<label for="username" class="col-sm-10 col-form-label">User name</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="username"
+					placeholder="Please provide the username" name='username'>
+			</div>
+			
+			<label for="passphrase9" class="col-sm-10 col-form-label">Retrieved encryption key (hex string)</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase9"
+					name='passphrase9' disabled>
+			</div>
+			
+			<label for="passphrase9b" class="col-sm-10 col-form-label">Retrieved verification key (hex string)</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase9b"
+					name='passphrase9b' disabled>
+			</div>
+		</div>
+	</div>
+	<button type="button" class="btn btn-primary" id="bntDownloadSSEkeys">Download</button>
+</form>
 {% endblock %}
