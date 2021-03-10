@@ -1744,6 +1744,80 @@ function getSSEkeys(keyid,username,token){
 
 /////////////////////// CP-ABE-RELEVANT FUNCTIONS - End ///////////////////////
 
+/////////////////////// COMPLEX-QUERY SEARCH FUNCTION - Start ///////////////////////
+/**
+ * Convert infix expression to postfix expression
+ * Reference: https://jsfiddle.net/DerekL/rm9feo32/
+ *
+ * @param {string} exp Infix expression. Example: '1 + 2'
+ * @returns {list} List of numbers and operators of the postfix expression. Example: [1,"+",2]
+ */
+function infixToPostfix(exp){
+	var infix = tokenize(exp);
+    const presedences = ["+", "*"];
+
+	var opsStack = [],
+    	postfix = [];
+
+    for(let token of infix){
+    	// Step 1
+    	if("number" === typeof token){
+        	postfix.push(token); continue;
+        }
+        let topOfStack = opsStack[opsStack.length - 1];
+        // Step 2
+        if(!opsStack.length || topOfStack == "("){
+        	opsStack.push(token); continue;
+        }
+        // Step 3
+        if(token == "("){
+	        opsStack.push(token); continue;
+        }
+        // Step 4
+        if(token == ")"){
+        	while(opsStack.length){
+            	let op = opsStack.pop();
+                if(op == "(")	break;
+                postfix.push(op);
+            }
+            continue;
+        }
+        // Step 5
+		let prevPresedence = presedences.indexOf(topOfStack),
+        	currPresedence = presedences.indexOf(token);
+        while(currPresedence < prevPresedence){
+            let op = opsStack.pop();
+            postfix.push(op);
+            prevPresedence = presedences.indexOf(opsStack[opsStack.length - 1]);
+        }
+        opsStack.push(token);
+	}
+    // Step 6
+    while(opsStack.length){
+        let op = opsStack.pop();
+        if(op == "(")	break;
+        postfix.push(op);
+    }
+
+    return postfix;
+}
+
+/**
+ * Convert infix expression (string) to list of numbers and operators
+ * Reference: https://jsfiddle.net/DerekL/rm9feo32/
+ *
+ * @param {string} exp Infix expression. Example: '1 + 2'
+ * @returns {list} List of numbers and operators. Example: [1,"+",2]
+ */
+function tokenize(exp){
+	return exp
+    	.replace(/\s/g, "")
+        .split("")
+        .map((token, i) => /^\d$/.test(token) ? +token : token);
+}
+
+/////////////////////// COMPLEX-QUERY SEARCH FUNCTION - End ///////////////////////
+
 ////////(to be developed) Progressive Encryption/Decryption for medium blob data - Start////////
 /**
  * Download chunks of ciphertext from MinIO server, decrypt them and save as 1 plaintext file
