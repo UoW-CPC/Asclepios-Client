@@ -1704,32 +1704,12 @@ function uploadSSEkeys(verkey,enckey,token){
 	}
 	
 	console.log("Sending keys to KeyTray")
-	var headers = {Authorization:"Bearer " + token};//'{"Authorization: Bearer ' + token + '"}';
+	var header = { Authorization: "Bearer " + token };
 	var jsonData = '{ "verKey" : "' + verkey + '","encKey":"' + enckey + '"}';
 	console.log("json data:",jsonData);
-	console.log("header:",headers);
-/*	
-	keyid = $.ajax({
-                url: sseConfig.base_url_cp_abe,
-                type: 'POST',
-                contentType: 'application/json',
-                data: {verkey:"fb77d1464189bb07f7f1d6d524b9eaaf",encKey:"ed0f78e4cfd589337faf5b6d5e07637081426bcf32b5a2fab9a4b7517147bf2c"},
-                async: false,
-		dataType: "jsonp",
-                headers: {Authorization: "Bearer " + token},
-                success: function(data) {
-                        if(callback!=undefined){
-                                callback(data);
-                        }
-                },
-                error: function(erro){
-                        console.error("Post Request Error");
-                }
-        });
-*/
-
-	var keyid = postRequest(sseConfig.base_url_cp_abe + "/api/v1/put", jsonData, undefined, async_feat = false,headers);
-	
+	console.log("header:",header);
+	var res = postRequest(sseConfig.base_url_cp_abe + "/api/v1/put", jsonData, undefined, async_feat = false,header);
+    var keyid = res.responseText.slice(1,-1); // slice() is to remove " character at the beginning and the end of the returned value
 	return keyid;
 }
 
@@ -1741,43 +1721,27 @@ function uploadSSEkeys(verkey,enckey,token){
  * @param {string} token Access token
  * @return {json} keys The pair of SSE keys 
  */
-
+/**
+ * Retrieve and decrypt the encrypted SSE keys from KeyTray
+ * 
+ * @param {string} keyid The unique key identification 
+ * @param {string} username User name
+ * @param {string} token Access token
+ * @return {json} ret.responseText The pair of SSE keys 
+ */
 function getSSEkeys(keyid,username,token){
 	if(keyid=="" || username=="" || token==""){
 		console.log("Lack of key id or username or token");
 		return false;
 	}
-	//var jsonData = '{ "uuid" : "' + keyid + '","username":"' + username + '"}';
-	var jsonData={"uuid:":keyid,"username":username};
-	//var jsonData = JSON.stringify(data);
-	var header = { "Authorization": "Bearer " + token };
-	console.log("header:",JSON.stringify(header));
+	var jsonData = '{ "uuid" : "' + keyid + '","username":"' + username + '"}';
 	
-	/*result = $.ajax({
-		url: sseConfig.base_url_cp_abe + "/api/v1/get",
-		type: 'POST',
-		contentType: 'application/json',
-		data: jsonData,
-		async: false,
-		headers: {
-	        "Authorization": "Bearer " + token
-	    },
-		success: function(data) {
-			if(callback!=undefined){
-				callback(data);
-			}
-		},
-		error: function(erro){
-			console.error("Post Request Error");
-		}
-	});
-	console.log("response of post request:",result);*/
+	var header = { Authorization: "Bearer " + token };
 	
-	var ret = postRequest(sseConfig.base_url_cp_abe + "/api/v1/get", jsonData, undefined, async_feat = false, JSON.stringify(header));
-	var keys = ret.responseJSON;
-	
-	return ret;
+	var ret = postRequest(sseConfig.base_url_cp_abe + "/api/v1/get", jsonData, undefined, async_feat = false, header);
+	return ret.responseText;
 }
+
 /////////////////////// CP-ABE-RELEVANT FUNCTIONS - End ///////////////////////
 
 ////////(to be developed) Progressive Encryption/Decryption for medium blob data - Start////////
