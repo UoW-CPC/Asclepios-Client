@@ -11,6 +11,17 @@ const file_id2 = "2";
 
 const file_id3 = "3";
 
+const input4 = {"name":"John","age":28,"gender":"male","job":"doctor"};
+const file_id4 = "4";
+const input5 = {"name":"Jenny","age":26,"gender":"female","job":"doctor"};
+const file_id5 = "5";
+const input6 = {"name":"Steve","age":30,"gender":"male","job":"nurse"};
+const file_id6 = "6";
+const input7 = {"name":"Sophie","age":30,"gender":"female","job":"nurse"};
+const file_id7 = "7";
+const input8 = {"name":"Stuart","age":30,"gender":"male","job":"scientist"};
+const file_id8 = "8";
+
 const nfound1 = 1; // after inserting input1
 const nfound2 = 2;  // after inserting input2
 const nfound3 = 0; // after deleting 2 files
@@ -32,6 +43,25 @@ const key_Kenc2 = "d89f8ad6988ba7aba42ddbdf2453f2241d3edafc96757f750911df1c8e986
 const criteria1 = { "keyword": "firstname|David" };
 const criteria2 = { "keyword": "firstname|Peter" };
 const criteria3 = { "keyword": "lastname|Yellow" };
+
+const criteria4 = { "keyword": ["gender|male","job|doctor","job|nurse"],
+		"condition" : "(1*2) + (1*3)"}; // male doctor or male nurse: found 2
+const nfound4 = 2;
+const criteria5 = { "keyword": ["job|doctor","job|scientist"],
+		"condition": "1+2"}; //doctor or scientist
+const nfound5 = 3;
+const criteria6 = { "keyword": ["gender|male","age|30"],
+		"condition": "1*2"}; // male, age 30
+const nfound6 = 2;
+const criteria7 = { "keyword": ["gender|female","job|doctor","job|nurse"],
+		"condition": "2+(1*3)"}; // doctor, or female nurse
+const nfound7 = 3;
+const criteria8 = { "keyword": ["job|doctor","age|26","age|28"],
+		"condition": "1*(2+3)"}; // doctor at age 26 or 28
+const nfound8 = 2;
+const criteria9 = { "keyword": ["job|scientist","gender|female"],
+		"condition": "1*2"}; // female scientist
+const nfound9 = 0;
 
 const update1 = {"firstname":["Mary","Peter"]};
 const update2 = {"firstname":["David","Peter"]};
@@ -96,7 +126,6 @@ const search_json = require(search_file)
 const search_json1 = require(search_file1)
 const update_json = require(update_file)
 
-
 /*
 describe("upload shared key to TA",() => {
 	//input is a password. The key will be generated from the password.
@@ -110,7 +139,8 @@ describe("upload shared key to TA",() => {
 		var result = uploadKeyG(key_KeyG2,keyid2);
 		expect(result).toEqual(true);
 	});
-});*/
+});
+
 
 describe("upload and search", () => {
 	test("search for non-existed data should return not found", () => {
@@ -276,6 +306,64 @@ describe("delete and search", () => {
 	});
 });
 
+describe("upload and search with complex query", () => {
+	// upload data with password
+	test("it should upload json objects successfully", done => {
+		function callback(data) {
+			try {
+				expect(data).toBe(true);
+				done();
+			} catch (error) {
+				console.log("errors")
+				done(error);
+			}
+		};
+		
+		uploadData(input4,file_id4,KeyG1,Kenc1,keyid1,iskey,callback);
+		uploadData(input5,file_id5,KeyG1,Kenc1,keyid1,iskey,callback);
+		uploadData(input6,file_id6,KeyG1,Kenc1,keyid1,iskey,callback);
+		uploadData(input7,file_id7,KeyG1,Kenc1,keyid1,iskey,callback);
+		uploadData(input8,file_id8,KeyG1,Kenc1,keyid1,iskey,callback);
+		
+		var result = search(criteria5,KeyG1,Kenc1,keyid1,iskey);
+		console.log("found results:",result);
+		expect(result["count"]).toEqual(nfound5);
+		
+		var result = search(criteria5,KeyG1,Kenc1,keyid1,iskey);
+		expect(result["count"]).toEqual(nfound5);
+		
+		var result = search(criteria5,KeyG1,Kenc1,keyid1,iskey);
+		expect(result["count"]).toEqual(nfound5);
+		
+		var result = search(criteria5,KeyG1,Kenc1,keyid1,iskey);
+		expect(result["count"]).toEqual(nfound5);
+	});
+	// search data with password
+	test("complex search with OR for uploaded data should return found results", () => {
+		var result = search(criteria5,KeyG1,Kenc1,keyid1,iskey);
+		expect(result["count"]).toEqual(nfound5);
+	});
+	
+	test("complex search with AND for uploaded data should return found results", () => {
+		var result = search(criteria6,KeyG1,Kenc1,keyid1,iskey);
+		expect(result["count"]).toEqual(nfound6);
+		
+		result = search(criteria9,KeyG1,Kenc1,keyid1,iskey);
+		expect(result["count"]).toEqual(nfound9);
+	});
+	
+	test("complex search with OR and AND for uploaded data should return found results", () => {
+		var result = search(criteria4,KeyG1,Kenc1,keyid1,iskey);
+		expect(result["count"]).toEqual(nfound4);
+		
+		result = search(criteria7,KeyG1,Kenc1,keyid1,iskey);
+		expect(result["count"]).toEqual(nfound7);
+		
+		result = search(criteria8,KeyG1,Kenc1,keyid1,iskey);
+		expect(result["count"]).toEqual(nfound8);
+	});
+});*/
+
 //describe("test large file",() => {
 //	test("it should upload large json object successfully", done => {
 //		function callback(data) {
@@ -332,7 +420,7 @@ describe("delete and search", () => {
 //		function callback(data) {
 //			try {
 //				expect(data).toBe(true);
-//				//done();
+//				done();
 //			} catch (error) {
 //				console.log("errors");
 //				done(error);
@@ -344,7 +432,7 @@ describe("delete and search", () => {
 //		var contents = fs.readFileSync(fpath_txt);
 //		console.log("contents:",contents);	
 //	    var blobData = new Blob([contents], {type: ftype_txt});	        
-//	    await encryptProgressUploadBlob(blobData,fname_txt,Kenc,callback);
+//	    await encryptProgressUploadBlob(blobData,fname_txt,Kenc1,callback);
 //	});
 	
 //	test("upload txt file returns true", async () => {
