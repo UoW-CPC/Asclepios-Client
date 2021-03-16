@@ -10,7 +10,10 @@ var appConfig={
 // Handle event of data upload data
 function handleFileLoad(event){
 	  var Kenc = $("#passphrase1").val()
-	  var KeyG = Kenc;
+
+	  var KeyG = $("#passphrase1b").val();
+	  console.log("encryption passphrase/key:",Kenc,"verification passphrase/key:",KeyG);
+		
       
 	  var file_id = $("#fileid1").val()
 	  var keyid = $("#keyid1").val()
@@ -24,14 +27,21 @@ function handleFileLoad(event){
       var st_date = new Date();
       var st_time = st_date.getTime();
       
-	  var ret = uploadData(jsonObj,file_id,KeyG,Kenc,keyid); // Upload data to CSP
+      var iskey;
+      if($('#pwd1').is(":checked"))
+    	  iskey = false;
+      else
+    	  iskey = true;
+      console.log("Is it a key? ",iskey)
+      
+	  var ret = uploadData(jsonObj,file_id,KeyG,Kenc,keyid,iskey); // Upload data to CSP
 	  
       var end_date = new Date();
       var end_time = end_date.getTime();
       var diff = end_time - st_time;
       
 	  if(ret==false){
-		  message = "Existed file id. Please enter a unique file id"
+		  message = "Existed file id, or the two provide passphrases/keys are the same."
 	  }
 	  else{
 		  message = "Submit process completed."
@@ -45,15 +55,25 @@ function handleFileLoad(event){
 // Handle search data event
 function handleSearchFileLoad(event){
 	var Kenc = $("#passphrase2").val();
-	var KeyG = Kenc;
+	
+	var KeyG = $("#passphrase2b").val();
+	console.log("encryption passphrase/key:",Kenc,"verification passphrase/key:",KeyG);
+	
 	var keyid = $("#keyid2").val()
 	
 	var jsonObj = JSON.parse(event.target.result);
 	
 	var st_date = new Date();
     var st_time = st_date.getTime();
-   
-	var results=search(jsonObj,KeyG,Kenc,keyid);
+ 
+	var iskey;
+	if($('#pwd2').is(":checked"))
+		iskey = false;
+	else
+		iskey = true;
+	console.log("Is it a key? ",iskey)
+	
+	var results=search(jsonObj,KeyG,Kenc,keyid,iskey);
 	
 	if(results==null){
 		message = "Invalid input file"
@@ -74,16 +94,20 @@ function handleSearchFileLoad(event){
 }
 
 // Include sse.js
+/*
 function dynamicallyLoadScript(url) {
     var script = document.createElement("script"); //Make a script DOM node
     script.src = url; //Set it's src to the provided URL
     document.head.appendChild(script); //Add it to the end of the head section of the page (could change 'head' to 'body' to add it to the end of the body section instead)
-}
+}*/
 
 //Handle update data event
 function handleUpdateFileLoad(event){
 	var Kenc = $("#passphrase3").val();
-	var KeyG = Kenc;
+	
+	var KeyG = $("#passphrase3b").val();
+	console.log("encryption passphrase/key:",Kenc,"verification passphrase/key:",KeyG);
+	
 	
 	var keyid =$("#keyid3").val();
 	
@@ -96,7 +120,14 @@ function handleUpdateFileLoad(event){
     	message = "Please provide file id and/ or key id"
 	}
     else{
-    	var result=updateData(jsonObj,file_id,KeyG,Kenc,keyid);
+		var iskey;
+		if($('#pwd3').is(":checked"))
+			iskey = false;
+		else
+			iskey = true;
+		console.log("Is it a key? ",iskey)
+		
+    	var result=updateData(jsonObj,file_id,KeyG,Kenc,keyid,iskey);
     	console.log("Update result:",result)
     	if(result==true){
     		message = "Updated"
@@ -118,7 +149,10 @@ function handleUpdateFileLoad(event){
 //Handle update data event
 function handleDeleteFile(){
 	var Kenc = $("#passphrase4").val();
-	var KeyG = Kenc;
+	
+	var KeyG = $("#passphrase4b").val();
+	console.log("encryption passphrase/key:",Kenc,"verification passphrase/key:",KeyG);
+	
 	
 	var st_date = new Date();
     var st_time = st_date.getTime();
@@ -129,7 +163,14 @@ function handleDeleteFile(){
  	}
     else{
     	console.log("Delete data")
-    	var result=deleteData(file_id,KeyG,Kenc,keyid);
+		var iskey;
+		if($('#pwd4').is(":checked"))
+			iskey = false
+		else
+			iskey = true
+		console.log("Is it a key? ",iskey)
+		
+    	var result=deleteData(file_id,KeyG,Kenc,keyid,iskey);
     	console.log("Delete result:",result)
     	if(result==true){
     		message = "Deleted"
@@ -147,6 +188,7 @@ function handleDeleteFile(){
 	$('#deletetime').html("<div class='alert-primary alert'> Delete time: " +  diff + " </div>");
 }
 
+/*
 function handleBlobDecrypt(fname,keyId){
 	var Kenc = $("#passphrase6").val();
 	
@@ -157,20 +199,26 @@ function handleBlobDecrypt(fname,keyId){
     var end_date = new Date();
     var end_time = end_date.getTime();
     var diff = end_time - st_time;
-}
+}*/
 
 function handleProgressBlobDecrypt(fname,keyId){
 	var Kenc = $("#passphrase6").val();
+	var iskey ;
+	if($('#pwd6').is(":checked"))
+		iskey = false;
+	else
+		iskey = true;
 	
 	var st_date = new Date();
     var st_time = st_date.getTime();
-    downloadProgressDecryptBlob(fname,Kenc,keyId);
+    downloadProgressDecryptBlob(fname,Kenc,keyId,iskey);
     
     var end_date = new Date();
     var end_time = end_date.getTime();
     var diff = end_time - st_time;
 }
 
+/*
 // Browse file, encrypt it and upload to Minio
 function handleBlobUpload(event){
 	var Kenc = $("#passphrase5").val();
@@ -192,7 +240,7 @@ function handleBlobUpload(event){
     var end_date = new Date();
     var end_time = end_date.getTime();
     var diff = end_time - st_time;
-}
+}*/
 
 
 function handleBlobProgressUpload(event){
@@ -212,13 +260,21 @@ function handleBlobProgressUpload(event){
 
     var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
     
-    encryptProgressUploadBlob(blobData,fname,Kenc,keyId);
+	var iskey ;
+	if($('#pwd5').is(":checked"))
+		iskey = false;
+	else
+		iskey = true;
+    console.log("is it a key?:",iskey);
+    
+    encryptProgressUploadBlob(blobData,fname,Kenc,keyId,iskey);
 
     var end_date = new Date();
     var end_time = end_date.getTime();
     var diff = end_time - st_time;
 }
 
+/*
 function handleBlobSSEUpload(jsonObj){
 	return function(event){
 		var Kenc = $("#passphrase7").val();
@@ -243,12 +299,15 @@ function handleBlobSSEUpload(jsonObj){
 	    var end_time = end_date.getTime();
 	    var diff = end_time - st_time;
 	}
-}
+}*/
 
 function handleProgressBlobSSEUpload(jsonObj){
 	return function(event){
 		var Kenc = $("#passphrase7").val();
-		var KeyG = Kenc;
+		
+		var KeyG = $("#passphrase7b").val();
+		console.log("encryption passphrase/key:",Kenc,"verification passphrase/key:",KeyG);
+		
 		var keyId = $("#keyid7").val();
 		
 		var st_date = new Date();
@@ -259,10 +318,16 @@ function handleProgressBlobSSEUpload(jsonObj){
 	    var outputname = fname.split(".")[0];// + "_encrypted";
 	    console.log("Filename: " + typeof  fname);
 	    console.log("Type: " +  ftype);
-	
+		
+		if($('#pwd7').is(":checked"))
+			iskey = false;
+		else
+			iskey = true;
+		console.log("Is it a key? ",iskey)
+		
 	    var blobData = new Blob([new Uint8Array(event.target.result)], {type: ftype });
 	    
-	    encryptProgressUploadSearchableBlob(blobData,fname,jsonObj,fname,KeyG,Kenc,keyId);
+	    encryptProgressUploadSearchableBlob(blobData,fname,jsonObj,fname,KeyG,Kenc,keyId,iskey);
 	
 	    var end_date = new Date();
 	    var end_time = end_date.getTime();
@@ -275,6 +340,7 @@ function handleProgressBlobSSEUpload(jsonObj){
 
 $(document).ready(
 		function() {
+			/*
 			$("input[name='inputFormat']").change(function () {
 	            if ($(this).val() == 'json_input') {
 					$("#json-form").prop("hidden", true);
@@ -308,32 +374,6 @@ $(document).ready(
 			});
 			
 			dynamicallyLoadScript('static/js/sse.js')
-			
-			// ADD PATIENT by submitting file
-			$("#btnSendHashKey").click(function(){
-				console.log("Send hashed key to TA")
-				$('#uploadkeyg').empty();
-				var key = $("#passphrase").val();
-				var keyid = $("#keyid").val();
-				uploadKeyG(key,keyid); // Upload data to CSP
-				$('#passphrase').val("");
-				$('#uploadkeyg').html("<div class='alert-primary alert'> Submitted </div>");
-			});
-			
-			// ADD PATIENT by submitting file
-			$("#btnSubmitFile").click(function(){
-				$('#notify').empty();
-				if ($('#jsonFile').get(0).files.length === 0) {
-				    console.log("No files selected.");
-				}
-				else{
-					var reader = new FileReader()
-					reader.onload = handleFileLoad;
-					reader.readAsText($('#jsonFile').get(0).files[0]);
-				}
-				$('#notify').html("<div class='alert-primary alert'> Submitted </div>");
-			});
-			
 			console.log("Symmetric Searchable Encryption Scheme");
 			
 			
@@ -419,7 +459,46 @@ $(document).ready(
 				$('#result').append("<div class='alert-primary alert'> Found " + data["count"] + " results </div>");
 
 			    $('#searchtime').html("<div class='alert-primary alert'> Search time: " +  diff + " </div>");
-			});//end btnSearch
+			});//end btnSearch */
+			
+			// Send key to SSE TA
+			$("#btnSendHashKey").click(function(){
+				var iskey;
+				if($('#pwd').is(":checked"))
+					iskey = false;
+				else
+					iskey = true;
+				console.log("Input is a key?:",iskey);
+				
+				console.log("Send key to SSE TA")
+				$('#uploadkeyg').empty();
+				var input = $("#passphrase").val()
+				var key;
+				if(iskey==true)
+					key = input;
+				else
+					key = computeKey(input,true) // generate key to be shared with SSE TA
+				
+				var keyid = $("#keyid").val();
+				uploadKeyG(key,keyid); // Upload key to SSE TA
+				
+				$('#passphrase').val("");
+				$('#uploadkeyg').html("<div class='alert-primary alert'> Submitted </div>");
+			});
+			
+			// ADD PATIENT by submitting file
+			$("#btnSubmitFile").click(function(){
+				$('#notify').empty();
+				if ($('#jsonFile').get(0).files.length === 0) {
+				    console.log("No files selected.");
+				}
+				else{
+					var reader = new FileReader()
+					reader.onload = handleFileLoad;
+					reader.readAsText($('#jsonFile').get(0).files[0]);
+				}
+				$('#notify').html("<div class='alert-primary alert'> Submitted </div>");
+			});
 			
 			/// SEARCH FOR PATIENT by submitting json file
 			$('#btnSearchFile').click(function(){
@@ -461,6 +540,7 @@ $(document).ready(
 			});
 			
 			/// ENCRYPT BLOB by submitting blob file
+			/*
 			$('#btnUploadBlob').click(function(){
 				$('#resultUploadBlob').empty();
 				$('#resultUploadBlob').html("<div class='alert-primary alert'> Uploading </div>");
@@ -479,7 +559,7 @@ $(document).ready(
 					console.log("name:",filename,",type:",filetype);
 					reader.readAsArrayBuffer(file);
 				}
-			});
+			});*/
 			
 			$('#btnProgressUploadBlob').click(function(){
 				$('#resultUploadBlob').empty();
@@ -499,13 +579,13 @@ $(document).ready(
 					reader.readAsArrayBuffer(file);
 				}
 			});
-
+			/*
 			$('#btnDownload').click(function(){
 				console.log("Downloading")
 				fname = $("#filename1").val()
 				keyId = $("#keyid6").val()
 				handleBlobDecrypt(fname,keyId);
-			});	
+			});*/	
 			
 			$('#btnProgressDownloadBlob').click(function(){
 				console.log("Progressive Downloading")
@@ -515,6 +595,7 @@ $(document).ready(
 			});	
 			
 			/// ENCRYPT BLOB with METADATA by submitting blob file and metadata file
+			/*
 			$('#btnUploadBlobSSE').click(function(){
 				$('#uploadblobsse').empty();
 				$('#uploadblobsse').html("<div class='alert-primary alert'> Uploading </div>");
@@ -534,7 +615,7 @@ $(document).ready(
 					console.log("name:",filename,",type:",filetype);
 					reader.readAsArrayBuffer(file);
 				}
-			});
+			});*/
 			
 			$('#btnProgressUploadBlobSSE').click(function(){
 				$('#uploadblobsse').empty();
@@ -546,6 +627,7 @@ $(document).ready(
 				else{
 					var reader = new FileReader()
 					var jsonObj = {"size":"unknown"}
+					
 					reader.onload = handleProgressBlobSSEUpload(jsonObj);
 					var file = $('#blobSSEUpload').get(0).files[0];
 					var filename = file.name;
@@ -554,6 +636,37 @@ $(document).ready(
 					 $("#filetype").val(filetype);
 					console.log("name:",filename,",type:",filetype);
 					reader.readAsArrayBuffer(file);
+				}
+			});
+			
+			$('#bntUploadSSEkeys').click(function(){
+				var encK = $('#passphrase8').val();
+				var verK = $('#passphrase8b').val();
+				var token=$('#token1').val();
+				
+				if (encK=="" || verK=="" || token=="" ) {
+					console.log("Please enter the keys and/or the token");
+				}
+				else{
+					console.log("Uploading keys");
+					var keyid=uploadSSEkeys(verK,encK,token);
+					$("#keyid8").val(keyid);
+					$("#uploadssekeys").val("submitted");
+				}
+			});
+			$('#bntDownloadSSEkeys').click(function(){
+				var keyid=$('#keyid9').val();
+				var username=$('#username').val();
+				var token=$('#token2').val();
+				
+				if (keyid=="" || token=="" || username=="") {
+					console.log("Please enter the key id and/or token and/or username");
+				}
+				else{
+					var ret=getSSEkeys(keyid,username,token);
+					var keys=JSON.parse(ret);
+					 $("#passphrase9").val(keys['encKey']);
+					 $("#passphrase9b").val(keys['verKey']);
 				}
 			});
 		});

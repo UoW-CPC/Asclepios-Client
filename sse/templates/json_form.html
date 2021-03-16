@@ -1,19 +1,9 @@
 {% extends 'base.html' %} {% load crispy_forms_tags %}
 
-<!-- <form id='json-form' enctype="application/json" method="post"> -->
-<!--     {% csrf_token %} -->
-<!--     Name:<br> -->
-<!--      <input type="text" name="firstName"> -->
-<!--     <input name='patient[name]'> -->
-<!--     <br>Email:<br> -->
-<!--      <input type="text" name="lastName"> -->
-<!--      <input name='patient[email]'> -->
-<!--     <button type="submit">Submit</button> -->
-<!-- </form> -->
-<!--   <p><a href="{% url 'home' %}">Return to home</a></p> -->
 
 {% block main %}
 
+<!--  
 <div class="form-check form-check-inline">
 	<input class="form-check-input" type="radio" name="inputFormat"
 		id="jsonInput" value="json_input" checked> 
@@ -23,18 +13,31 @@
 	<input class="form-check-input" type="radio" name="inputFormat"
 		id="formInput" value="form_input"> 
 	<label class="form-check-label" for="formInput">Input by form</label>
-</div>
-</br>
+</div> 
+</br> -->
 
 <label for="upload-keyg"><b>SEND HASHED KEY</b></label>
 <form id='upload-keyg' class='mb-2' method="post" action="">
 	<div class='mb-2'>
 		<div class="form-group row">
-			<label for="passphrase" class="col-sm-10 col-form-label">Passphrase (it will be hashed prior to sending to Trusted Authority)</label>
+			<label for="passphrase" class="col-sm-10 col-form-label">Verification passphrase (string) or key (hex string)</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="passphrase"
-					placeholder="Please enter passphrase" name='passphrase'>
+					placeholder="Please enter passphrase or key" name='passphrase'>
 			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="pwd" value="pwd" checked> 
+			<label class="form-check-label" for="pwd">It is a password</label>
+			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="key" value="key"> 
+			<label class="form-check-label" for="key">It is a key</label>	
+			</div>
+			
 			<label for="keyid" class="col-sm-10 col-form-label">Key ID</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="keyid"
@@ -58,14 +61,34 @@
 			<label for="fileid1" class="col-sm-10 col-form-label">Unique file id</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="fileid1"
-					placeholder="Please enter file id or it will be generated"
+					placeholder="Please enter file id"
 					name='file_id'>
 			</div>
-			<label for="passphrase1" class="col-sm-10 col-form-label">Passphrase</label>
+			
+			<label for="passphrase1" class="col-sm-10 col-form-label">Encryption passphrase (string) or key (hex string)</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="passphrase1"
-					placeholder="Please enter passphrase" name='passphrase1'>
+					placeholder="Please enter passphrase or key" name='passphrase1'>
 			</div>
+			
+			<label for="passphrase1b" class="col-sm-10 col-form-label">Verification passphrase (string) or key (hex string)</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase1b"
+					placeholder="Please enter passphrase or key" name='passphrase1b'>
+			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="pwd1" value="pwd1" checked> 
+			<label class="form-check-label" for="pwd1">It is a password</label>
+			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="key1" value="key1"> 
+			<label class="form-check-label" for="key1">It is a key</label>	
+			</div>
+			
 			<label for="keyid1" class="col-sm-10 col-form-label">Unique key id</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="keyid1"
@@ -77,7 +100,7 @@
 	<button type="button" class="btn btn-primary" id="btnSubmitFile">Submit</button>
 </form>
 
-
+<!-- 
 <form id='json-form' enctype="application/json" class='mb-2' method="post" action="" hidden>
 	{% csrf_token %}
 	<div class="form-group row">
@@ -89,7 +112,7 @@
 					<input type="text" class="form-control" id="field1"
 						placeholder="Please enter your name" name='patient[name]'>
 				</div>
-				<!--  <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small> aria-describedby="emailHelp" -->
+				<small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small> aria-describedby="emailHelp"
 			</div>
 			<div class="form-group row">
 				<label for="field2" class="col-sm-2 col-form-label">Email</label>
@@ -274,7 +297,7 @@
 <form id='search-form' enctype="application/json" class='mb-2'
 	method="post" action="" hidden>
 	{% csrf_token %}
-	<!--  
+	 
 	<div class="form-check form-check-inline">
 		<input class="form-check-input" type="radio" name="searchBy"
 			id="searchPtName" value="patient[name]" checked> <label
@@ -310,7 +333,7 @@
 			id="searchPracPhone" value="practitioner[name]"> <label
 			class="form-check-label" for="searchPracPhone">By practitioner phone</label>
 	</div>
-	-->
+
 	<label><b>Search by</b></label>
 	<select id="searchBy">
 	  <option value="patient[name]" id="select1">Patient name</option>
@@ -334,17 +357,37 @@
 	</div>
 	<button type="button" class="btn btn-primary" id="btnSearch">Search</button>
 </form>
-
+-->
+ 
 <label for="search-file"><b>SEARCH</b></label>
 <form id='search-file' class='mb-2' method="post" action="">
 	<div class='mb-2'>
 		<input type="file" class="form-control" id="jsonSearchFile" placeholder="Please enter URL of json file" name='jsonSearchFile'>
 		<div class="form-group row">
-			<label for="passphrase2" class="col-sm-10 col-form-label">Passphrase</label>
+			<label for="passphrase2" class="col-sm-10 col-form-label">Encryption passphrase (string) or key (hex string)</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="passphrase2"
-					placeholder="Please enter passphrase" name='passphrase2'>
+					placeholder="Please enter passphrase or key" name='passphrase2'>
 			</div>
+			
+			<label for="passphrase2b" class="col-sm-10 col-form-label">Verification passphrase (string) or key (hex string)</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase2b"
+					placeholder="Please enter passphrase or key" name='passphrase2b'>
+			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="pwd2" value="pwd2" checked> 
+			<label class="form-check-label" for="pwd2">It is a password</label>
+			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="key2" value="key2"> 
+			<label class="form-check-label" for="key2">It is a key</label>	
+			</div>
+			
 			<label for="keyid2" class="col-sm-10 col-form-label">KeyId</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="keyid2"
@@ -368,11 +411,29 @@
 			<input type="text" class="form-control" id="fileid2"
 				placeholder="Please enter file id" name='file_id'>
 			</div>
-			<label for="passphrase3" class="col-sm-10 col-form-label">Passphrase</label>
+			<label for="passphrase3" class="col-sm-10 col-form-label">Encryption passphrase (string) or key (hex string)</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="passphrase3"
-					placeholder="Please enter passphrase" name='passphrase3'>
+					placeholder="Please enter passphrase or key" name='passphrase3'>
 			</div>
+			<label for="passphrase3b" class="col-sm-10 col-form-label">Verification passphrase (string) or key (hex string)</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase3b"
+					placeholder="Please enter passphrase or key" name='passphrase3b'>
+			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="pwd3" value="pwd3" checked> 
+			<label class="form-check-label" for="pwd3">It is a password</label>
+			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="key3" value="key3"> 
+			<label class="form-check-label" for="key3">It is a key</label>	
+			</div>
+			
 			<label for="keyid3" class="col-sm-10 col-form-label">Key Id</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="keyid3"
@@ -396,11 +457,29 @@
 				<input type="text" class="form-control" id="fileid3"
 					placeholder="Please enter file id" name='file_id'>
 			</div>
-			<label for="passphrase4" class="col-sm-10 col-form-label">Passphrase</label>
+			<label for="passphrase4" class="col-sm-10 col-form-label">Encryption passphrase (string) or key (hex string)</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="passphrase4"
-					placeholder="Please enter passphrase" name='passphrase4'>
+					placeholder="Please enter passphrase or key" name='passphrase4'>
 			</div>
+			<label for="passphrase4b" class="col-sm-10 col-form-label">Verification passphrase (string) or key (hex string)</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase4b"
+					placeholder="Please enter passphrase or key" name='passphrase4b'>
+			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="pwd4" value="pwd4" checked> 
+			<label class="form-check-label" for="pwd4">It is a password</label>
+			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="key4" value="key4"> 
+			<label class="form-check-label" for="key4">It is a key</label>	
+			</div>
+			
 			<label for="keyid4" class="col-sm-10 col-form-label">Key Id</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="keyid4"
@@ -420,11 +499,24 @@
 		<div class="form-group row">
 			<input type="file" class="form-control" id="blobUpload" placeholder="Please enter URL of blob data" name='blobUpload'>
 			<img id='output'>
-			<label for="passphrase5" class="col-sm-10 col-form-label">Passphrase</label>
+			<label for="passphrase5" class="col-sm-10 col-form-label">Encryption passphrase (string) or key (hex string)</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="passphrase5"
-					placeholder="Please enter passphrase" name='passphrase5'>
+					placeholder="Please enter passphrase or key" name='passphrase5'>
 			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="pwd5" value="pwd5" checked> 
+			<label class="form-check-label" for="pwd5">It is a password</label>
+			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="key5" value="key5"> 
+			<label class="form-check-label" for="key5">It is a key</label>	
+			</div>
+		
 			<label for="keyid5" class="col-sm-10 col-form-label">Key Id</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="keyid5"
@@ -432,7 +524,7 @@
 			</div>
 		</div>
 	</div>
-	<button type="button" class="btn btn-primary" id="btnUploadBlob">Encrypt and Upload</button>
+	<!-- <button type="button" class="btn btn-primary" id="btnUploadBlob">Encrypt and Upload</button> -->
 	<button type="button" class="btn btn-primary" id="btnProgressUploadBlob">Progressive encrypt</button>
 </form>
 
@@ -451,11 +543,24 @@
 				<input type="text" class="form-control" id="filename1"
 					placeholder="Please enter filename" name='filename1'>
 			</div>
-			<label for="passphrase6" class="col-sm-10 col-form-label">Passphrase</label>
+			<label for="passphrase6" class="col-sm-10 col-form-label">Encryption passphrase (string) or key (hex string)</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="passphrase6"
-					placeholder="Please enter passphrase" name='passphrase6'>
+					placeholder="Please enter passphrase or key" name='passphrase6'>
 			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="pwd6" value="pwd6" checked> 
+			<label class="form-check-label" for="pwd6">It is a password</label>
+			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="key6" value="key6"> 
+			<label class="form-check-label" for="key6">It is a key</label>	
+			</div>
+			
 			<label for="keyid6" class="col-sm-10 col-form-label">Key Id</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="keyid6"
@@ -463,8 +568,7 @@
 			</div>
 		</div>
 	</div>
-	<!--  <button type="button" class="btn btn-primary" id="btnUpload">Encrypt and Upload</button>-->
-	<button type="button" class="btn btn-primary" id="btnDownload">Download and Decrypt</button>
+	<!--  <button type="button" class="btn btn-primary" id="btnDownload">Download and Decrypt</button>-->
 	<button type="button" class="btn btn-primary" id="btnProgressDownloadBlob">Progressive decrypt</button>
 </form>
 
@@ -474,13 +578,30 @@
 		<div class="form-group row">
 			<label for="blobSSEUpload">Choose a blob file</label>
 			<input type="file" class="form-control" id="blobSSEUpload" placeholder="Please enter URL of blob data" name='blobSSEUpload'>
-<!-- 			<label for="metadataSSEUpload">Choose its metadata file</label> -->
-<!-- 			<input type="file" class="form-control" id="metadataSSEUpload" placeholder="Please enter URL of metadata" name='metadataSSEUpload'> -->
-			<label for="passphrase7" class="col-sm-10 col-form-label">Passphrase</label>
+			<label for="passphrase7" class="col-sm-10 col-form-label">Encryption passphrase (string) or key (hex string)</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="passphrase7"
-					placeholder="Please enter passphrase" name='passphrase7'>
+					placeholder="Please enter passphrase or key" name='passphrase7'>
 			</div>
+			
+			<label for="passphrase7b" class="col-sm-10 col-form-label">Verification passphrase (string) or key (hex string)</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase7b"
+					placeholder="Please enter passphrase or key" name='passphrase7b'>
+			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="pwd7" value="pwd7" checked> 
+			<label class="form-check-label" for="pwd7">It is a password</label>
+			</div>
+			
+			<div class="form-check form-check-inline">
+			<input class="form-check-input" type="radio" name="inputFormat"
+			id="key7" value="key7"> 
+			<label class="form-check-label" for="key7">It is a key</label>	
+			</div>
+			
 			<label for="keyid7" class="col-sm-10 col-form-label">Key Id</label>
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="keyid7"
@@ -488,10 +609,80 @@
 			</div>
 		</div>
 	</div>
-	<button type="button" class="btn btn-primary" id="btnUploadBlobSSE">Encrypt and Upload</button>
+	<!--<button type="button" class="btn btn-primary" id="btnUploadBlobSSE">Encrypt and Upload</button>  -->
 	<button type="button" class="btn btn-primary" id="btnProgressUploadBlobSSE">Progressive Encrypt and Upload</button>
 </form>
 
 <div id='uploadblobsse'></div>
 <div id='uploadblobssetime'></div>
+
+<label for="upload-sse-keys"><b>ENCRYPT/ UPLOAD SSE KEYS TO KEYTRAY</b></label>
+<form id='upload-sse-keys' class='mb-2' method="post" action="">
+	<div class='mb-2'>
+		<div class="form-group row">
+			<label for="passphrase8" class="col-sm-10 col-form-label">Encryption key (hex string)</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase8"
+					placeholder="Please enter a key (hex string)" name='passphrase8'>
+			</div>
+			
+			<label for="passphrase8b" class="col-sm-10 col-form-label">Verification key (hex string)</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase8b"
+					placeholder="Please enter a key (hex string)" name='passphrase8b'>
+			</div>
+			
+			<label for="token1" class="col-sm-10 col-form-label">Access token</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="token1"
+					placeholder="Please provide the access token" name='token1'>
+			</div>
+			
+			<label for="keyid8" class="col-sm-10 col-form-label">Generated key Id</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="keyid8"
+					name='keyid8' disabled>
+			</div>
+		</div>
+	</div>
+	<button type="button" class="btn btn-primary" id="bntUploadSSEkeys">Send</button>
+</form>
+
+<div id='uploadssekeys'></div>
+
+<label for="download-sse-keys"><b>DOWNLOAD/DECRYPT SSE KEYS FROM KEYTRAY</b></label>
+<form id='download-sse-keys' class='mb-2' method="post" action="">
+	<div class='mb-2'>
+		<div class="form-group row">
+			<label for="keyid9" class="col-sm-10 col-form-label">Key Id</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="keyid9"
+					placeholder="Please enter the key identification" name='keyid9'>
+			</div>
+			<label for="token2" class="col-sm-10 col-form-label">Access token</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="token2"
+					placeholder="Please provide the access token" name='token2'>
+			</div>
+			<label for="username" class="col-sm-10 col-form-label">User name</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="username"
+					placeholder="Please provide the username" name='username'>
+			</div>
+			
+			<label for="passphrase9" class="col-sm-10 col-form-label">Retrieved encryption key (hex string)</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase9"
+					name='passphrase9' disabled>
+			</div>
+			
+			<label for="passphrase9b" class="col-sm-10 col-form-label">Retrieved verification key (hex string)</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="passphrase9b"
+					name='passphrase9b' disabled>
+			</div>
+		</div>
+	</div>
+	<button type="button" class="btn btn-primary" id="bntDownloadSSEkeys">Download</button>
+</form>
 {% endblock %}
