@@ -45,7 +45,7 @@ var sseConfig={
         'mode_ta' : 'ccm', // {string} Encryption mode. Example: ccm
         'adata_ta':'', // {string, ''} This is not supported to be configurable yet
         'adata_len_ta' : 0, //{number, 0} This is not supported to be configurable yet
-        'sgx_enable': sgx_enable_value, // {boolean} True if SGX is enabled at SSE TA, false otherwise
+        'sgx_enable': sgx_enable_value // {boolean} True if SGX is enabled at SSE TA, false otherwise
         'base_url_cp_abe' : 'cp_abe_url', //{url} URL of CP-ABE server
         'debug' : debug_value // {boolean} true if debug, false otherwise
 }
@@ -659,6 +659,7 @@ function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false){
 
 /**
  * Search by a json object containing the searched keyword
+ * This function is obsolete, and replaced by a new search() function which can support complex query
  * 
  * @param {json} data The json object containing the searched keyword. For instance: {"keyword": searched_keyword}
  * @param {string} sharedKey Key (hex string) or passphrase (arbitrary string) for key generation. 
@@ -672,6 +673,7 @@ function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false){
  * @return {list} data The list of decrypted data
  * Example: { count: 1, objects: [ { firstname: 'David' } ] }
  */
+/*
 function search(data, KeyG, Kenc,keyid,iskey=false){
 	if(data=={} || KeyG=="" || Kenc=="" || keyid==""){
 		console.log("Lack of parameter of search function")
@@ -686,7 +688,7 @@ function search(data, KeyG, Kenc,keyid,iskey=false){
 	console.log("keyword: ",keyword);
 	var results = findKeyword(keyword,KeyG,Kenc,keyid,iskey);
 	return results;
-}
+}*/
 
 /**
  * Compute the list of KeyW values
@@ -1752,51 +1754,50 @@ function getSSEkeys(keyid,username,token){
  * @param {string} exp Infix expression. Example: '1 + 2'
  * @returns {list} List of numbers and operators of the postfix expression. Example: [1,"+",2]
  */
-function infixToPostfix(exp){
-	var infix = tokenize(exp);
+function infixToPostfix(infix){
     const presedences = ["+", "*"];
 
-	var opsStack = [],
-    	postfix = [];
+    var opsStack = [],
+    postfix = [];
 
     for(let token of infix){
-    	// Step 1
-    	if("number" === typeof token){
-        	postfix.push(token); continue;
+        // Step 1
+        if("number" === typeof token){
+             postfix.push(token); continue;
         }
         let topOfStack = opsStack[opsStack.length - 1];
         // Step 2
         if(!opsStack.length || topOfStack == "("){
-        	opsStack.push(token); continue;
+             opsStack.push(token); continue;
         }
         // Step 3
         if(token == "("){
-	        opsStack.push(token); continue;
+             opsStack.push(token); continue;
         }
         // Step 4
         if(token == ")"){
-        	while(opsStack.length){
-            	let op = opsStack.pop();
-                if(op == "(")	break;
-                postfix.push(op);
-            }
-            continue;
+             while(opsStack.length){
+                 let op = opsStack.pop();
+                 if(op == "(")   break;
+                 postfix.push(op);
+             }
+             continue;
         }
         // Step 5
-		let prevPresedence = presedences.indexOf(topOfStack),
-        	currPresedence = presedences.indexOf(token);
+        let prevPresedence = presedences.indexOf(topOfStack),
+        currPresedence = presedences.indexOf(token);
         while(currPresedence < prevPresedence){
-            let op = opsStack.pop();
-            postfix.push(op);
-            prevPresedence = presedences.indexOf(opsStack[opsStack.length - 1]);
+             let op = opsStack.pop();
+             postfix.push(op);
+             prevPresedence = presedences.indexOf(opsStack[opsStack.length - 1]);
         }
         opsStack.push(token);
-	}
-    // Step 6
+    }
+        // Step 6
     while(opsStack.length){
-        let op = opsStack.pop();
-        if(op == "(")	break;
-        postfix.push(op);
+         let op = opsStack.pop();
+         if(op == "(")   break;
+         postfix.push(op);
     }
 
     return postfix;
@@ -1810,12 +1811,223 @@ function infixToPostfix(exp){
  * @returns {list} List of numbers and operators. Example: [1,"+",2]
  */
 function tokenize(exp){
-	return exp
-    	.replace(/\s/g, "")
+        return exp
+        .replace(/\s/g, "")
         .split("")
         .map((token, i) => /^\d$/.test(token) ? +token : token);
 }
 
+/**
+ * Search by a json object containing the searched keywords by a complex condition
+ * The complex condition is built upon AND (*), OR (+)
+ *
+ * @param {json} data The json object containing the searched keywords and expression.
+ * For instance:
+{
+      "keyword" : ["name|david","job|doctor","age|28"],
+      "condition" : "(1+3)*2"
+} to search by the condition: (name==david OR age==28) AND (job==doctor) 
+ * @param {string} KeyG Key (hex string) or passphrase (arbitrary string) for key generation.
+ * If it is a passphrase, a key will be generated from the passphrase
+ * The key is shared with SSE TA for verification
+ * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" as a key (number of hex characters = keysize/4), or "123" as a passphrase
+ * @param {string} Kenc Key (hex string) or passphrase (arbitrary string) for key generation.
+ * The key will be used for encryption
+ * @param {string} keyid Unique key identification. This identification identifies the pair of (sharedKey,Kenc)
+ * @param {boolean} iskey False if KeyG, Kenc are passphrases, true if they are passphrases
+ * @return {list} data The list of decrypted data
+ * Example: { count: 1, objects: [ { firstname: 'David' } ] }
+ */
+function search(data, KeyG, Kenc,keyid,iskey=false){
+	if(data=={} || KeyG=="" || Kenc=="" || keyid==""){
+		console.log("Lack of parameter of search function")
+        return {};
+    }
+    console.log("json object:",data);
+    console.log("keys:",KeyG,",",Kenc);
+    var criteria = data['keyword'];
+    var exp = data['condition'];
+    if(criteria==undefined){
+        console.log("Invalid input file: lack of search keyword(s)")
+        return {};
+    }
+    else if (exp==undefined || exp ==""){
+        if(criteria.length==1){ // search for single keyword
+            console.log("Search for single keyword")
+            return findKeyword(criteria[0],KeyG,Kenc,keyid,iskey);
+        } else if(typeof criteria=='string') { // search for single keyword
+            console.log("Search for single keyword")
+            return findKeyword(criteria,KeyG,Kenc,keyid,iskey);
+        }
+        else {// error syntax (there are many critera without condition description
+              console.log("Invalid input file: lack of search condition");
+              return {};
+        }
+    } else {
+    	console.log("complex search with keys:",KeyG,",",Kenc);
+        var infix = tokenize(exp); // convert an infix string to array of numbers and operators
+        var postfix = infixToPostfix(infix);
+        console.log("Infix expression:",infix);
+        console.log("Postfix expression:",postfix);
+        var ret = computePostfix(criteria,postfix,KeyG,Kenc,keyid,iskey);
+        console.log("result:",ret);
+        return ret;
+    }
+}
+
+/**
+ * Compute postfix expression
+ * Based on: https://www.thepolyglotdeveloper.com/2015/04/evaluate-a-reverse-polish-notation-equation-with-javascript/
+ *
+ * @param {list} criteria The search keywords
+ * @param {list} postfix List of numbers and operators of the postfix expression
+ * @param {string} KeyG Key (hex string) or passphrase (arbitrary string) for key generation.
+ * If it is a passphrase, a key will be generated from the passphrase
+ * The key is shared with SSE TA for verification
+ * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" as a key (number of hex characters = keysize/4), or "123" as a passphrase
+ * @param {string} Kenc Key (hex string) or passphrase (arbitrary string) for key generation.
+ * The key will be used for encryption
+ * @param {string} keyid Unique key identification. This identification identifies the pair of (sharedKey,Kenc)
+ * @param {boolean} iskey False if KeyG, Kenc are passphrases, true if they are passphrases
+ * @returns {json} resultStack.pop() The list of decrypted data
+ * Example: { count: 1, objects: [ { firstname: 'David' } ] }
+ */
+function computePostfix(criteria,postfix,KeyG,Kenc,keyid,iskey=false){
+	var resultStack = [];
+    for(var i = 0; i < postfix.length; i++) {
+        if(typeof postfix[i] === 'number') {
+             if(postfix[i]>criteria.length){
+                 console.log("Condition is invalid")
+                 return {}
+             } else {
+                 resultStack.push(criteria[postfix[i]-1]);
+             }
+        } else {
+            var a = resultStack.pop();
+            var b = resultStack.pop();
+            console.log("a:",a,"b:",b);
+            var ret;
+            if(postfix[i] === "+") {
+                ret = search_or(a,b,KeyG,Kenc,keyid,iskey)
+                console.log("res:",ret)
+                resultStack.push(ret);
+            } else if(postfix[i] === "*") {
+                ret = search_and(a,b,KeyG,Kenc,keyid,iskey)
+                console.log("res:",ret)
+                resultStack.push(ret);
+            }
+        }
+    }
+    
+    if(resultStack.length > 1) {
+         console.log("Condition is invalid")
+         return {};
+    } else {
+         return resultStack.pop();
+    }
+ }
+
+/**
+* Search with AND condition
+*
+* @param {string or Json} keyword1 The 1st keyword (string), or a list of decrypted data (json)
+* @param {string or Json} keyword2 The 2nd keyword (string), or a list of decrypted data (json)
+* @returns {json} results The list of decrypted data
+* Example: { count: 1, objects: [ { firstname: 'David' } ] }
+*/
+function search_and(keyword1,keyword2,KeyG,Kenc,keyid,iskey=false){
+	console.log("keyword 1:",keyword1,"-keyword2:",keyword2);
+	var ret1, ret2;
+	if(typeof keyword1=='string')
+		ret1 = findKeyword(keyword1,KeyG,Kenc,keyid,iskey);
+	else // if keyword1 is a json object
+		ret1 = keyword1;
+	
+	if(typeof keyword2=='string')
+		ret2 = findKeyword(keyword2,KeyG,Kenc,keyid,iskey);
+	else
+		ret2 = keyword2;
+	
+    console.log("operand 1:",ret1);
+    console.log("operand 2:",ret2);
+    var results = {"count":0,"objects":[]};
+    
+    var w;
+    if(typeof keyword1=='string'){
+        console.log("loop through ret2")
+        w= keyword1.split('|');
+        for(var i=0;i<ret2.count;i++){
+        	console.log("i:",i)
+        	console.log("considering item:",ret2.objects[i])
+            if(ret2.objects[i].hasOwnProperty(w[0]) && ret2.objects[i][w[0]]==w[1]) {
+            	 console.log("temporary result:",results)
+            	 
+            	 console.log("exist?",results.objects.some(item => item === ret2.objects[i]))
+            	 if (results.objects.some(item => item === ret2.objects[i])==false) { //if not existing in results
+            		 console.log('add item:',ret2.objects[i])
+            	 	 results.count = results.count+1;
+                     results.objects.push(ret2.objects[i]);
+                 }
+            }
+        }
+    } else if(typeof keyword2=='string'){
+        console.log("loop through ret1")
+        w= keyword2.split('|');
+        for(i=0;i<ret1.count;i++){
+        	console.log("i:",i)
+        	console.log("considering item:",ret1.objects[i])
+            if(ret1.objects[i].hasOwnProperty(w[0]) && ret1.objects[i][w[0]]==w[1]){
+            	console.log("temporary result:",results)
+            	if (results.objects.some(item => item === ret1.objects[i])==false) { //if not existing in results
+            		console.log('add item:',ret1.objects[i])
+            		results.count = results.count+1;
+                    results.objects.push(ret1.objects[i]);
+                }
+            }
+        }
+    }    
+    console.log("result of search with AND condition:",results);
+    return results;
+}
+
+/**
+ * Search with OR condition
+ *
+ * @param {string or Json} keyword1 The 1st keyword (string), or a list of decrypted data (json)
+ * @param {string or Json} keyword2 The 2nd keyword (string), or a list of decrypted data (json)
+ * @returns {json} results The list of decrypted data
+ * Example: { count: 1, objects: [ { firstname: 'David' } ] }
+ */
+function search_or(keyword1,keyword2,KeyG,Kenc,keyid,iskey=false){
+	console.log("keyword 1:",keyword1,"-keyword2:",keyword2);
+	if(typeof keyword1=='string')
+		ret1 = findKeyword(keyword1,KeyG,Kenc,keyid,iskey);
+	else // if keyword1 is a json object
+		ret1 = keyword1;
+	
+	if(typeof keyword2=='string')
+		ret2 = findKeyword(keyword2,KeyG,Kenc,keyid,iskey);
+	else
+		ret2 = keyword2;
+	
+    console.log("operand 1:",ret1);
+    console.log("operand 2:",ret2);
+    var results = {"count":0,"objects":[]};
+    for(var i=0;i<ret1.count;i++){
+       results.objects.push(ret1.objects[i]);       
+    }
+    results.count = ret1.count;
+    
+    for(var i=0;i<ret2.count;i++){
+    	if (!results.objects.some(item => item === ret2.objects[i])) {
+        	 results.count = results.count + 1;
+        	 results.objects.push(ret2.objects[i]);
+        }
+    }
+    console.log("result of search with OR condition:",results);
+    return results;
+
+}
 /////////////////////// COMPLEX-QUERY SEARCH FUNCTION - End ///////////////////////
 
 ////////(to be developed) Progressive Encryption/Decryption for medium blob data - Start////////
