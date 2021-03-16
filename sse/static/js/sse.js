@@ -45,7 +45,7 @@ var sseConfig={
         'mode_ta' : 'ccm', // {string} Encryption mode. Example: ccm
         'adata_ta':'', // {string, ''} This is not supported to be configurable yet
         'adata_len_ta' : 0, //{number, 0} This is not supported to be configurable yet
-        'sgx_enable': sgx_enable_value // {boolean} True if SGX is enabled at SSE TA, false otherwise
+        'sgx_enable': sgx_enable_value, // {boolean} True if SGX is enabled at SSE TA, false otherwise
         'base_url_cp_abe' : 'cp_abe_url', //{url} URL of CP-ABE server
         'debug' : debug_value // {boolean} true if debug, false otherwise
 }
