@@ -1282,7 +1282,7 @@ function uploadKeyG(keyg,keyid){
  * @param {string} keyId The unique key identification
  * @return {promise} A promise to upload ciphertext chunks to MinIO server
  */
-function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId, iskey=false){
+function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId, iskey=false, progressCallback){
 	console.log("Progress Encrypt Blob")
 	console.log("blob content:",blobData)
 	return function(resolve) {
@@ -1346,6 +1346,7 @@ function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId, iskey=false){
 		        	outputname= fname + "_part" + idx + keyId;
 		        	console.log("blob cipher:",cipherpart);
 		        	uploadMinio(cipherpart,outputname);
+				progressCallback(slice[0]/imageData.length);
 		        }
 		    }
 		    if(is_final==false){ // if the encryptor is not finalized yet
@@ -1494,7 +1495,7 @@ function uploadMinio(blob,fname,callback=undefined){
  * @param {callback} callback Callback function
  * @return {} The encrypted blob data is sent to MinIO, and its encrypted metadata is sent to SSE Server
  */
-function encryptProgressUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,keyId, iskey=false, callback=undefined){
+function encryptProgressUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,keyId, iskey=false, progressCallback, callback=undefined){
 	if(KeyG == Kenc){
 		console.log("The two provided passphrases/ keys should be different to avoid SSE TA to learn the encryption key!")
 		return false;
@@ -1502,8 +1503,9 @@ function encryptProgressUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, K
 	//append filename to metadata
 	jsonObj.filename = fname;
 	console.log("metadata after appending filename:{}",jsonObj);
-	encryptProgressUploadBlob(blob,fname,Kenc,keyId,iskey);
+	encryptProgressUploadBlob(blob,fname,Kenc,keyId,iskey, progressCallback);
 	uploadData(jsonObj,file_id,KeyG,Kenc,keyId,iskey);
+	progressCallback(1);
 }
 
 /**
@@ -1517,11 +1519,11 @@ function encryptProgressUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, K
  * @param {callback} callback Callback function
  * @return {promise} promise A promise to upload the ciphertext chunks to MinIO server
  */
-function encryptProgressUploadBlob(blob,fname,Kenc,keyId,iskey=false,callback=undefined){
+function encryptProgressUploadBlob(blob,fname,Kenc,keyId,iskey=false,progressCallback,callback=undefined){
     var ftype = blob.type;
     console.log("blob type:",ftype);
 
-    var promise = new Promise(encryptProgressBlob(blob,fname,ftype,Kenc,keyId,iskey));
+    var promise = new Promise(encryptProgressBlob(blob,fname,ftype,Kenc,keyId,iskey,progressCallback));
 
     // Wait for promise to be resolved, or log error.
     promise.then(function(cipherBlob) {
