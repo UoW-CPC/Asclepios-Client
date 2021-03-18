@@ -45,11 +45,10 @@ var sseConfig={
         'mode_ta' : 'ccm', // {string} Encryption mode. Example: ccm
         'adata_ta':'', // {string, ''} This is not supported to be configurable yet
         'adata_len_ta' : 0, //{number, 0} This is not supported to be configurable yet
-        'sgx_enable': sgx_enable_value // {boolean} True if SGX is enabled at SSE TA, false otherwise
+        'sgx_enable': sgx_enable_value, // {boolean} True if SGX is enabled at SSE TA, false otherwise
         'base_url_cp_abe' : 'cp_abe_url', //{url} URL of CP-ABE server
         'debug' : debug_value // {boolean} true if debug, false otherwise
 }
-
 /////////////////////// SSE CONFIGURATION - End ///////////////////////
 
 /////////////////////// REQUESTS - Start ///////////////////////
@@ -266,6 +265,23 @@ function getMultiFileOrSearchNo(requestType,Lw,keyid){
 	console.log('list of w:',listW)
 	return [Lno, LnoUri,listW];
 }
+
+
+/**
+ * Compare 2 Json objects
+ * reference: https://stackoverflow.com/questions/26049303/how-to-compare-two-json-have-the-same-properties-without-order
+ *
+ * @param {json} obj1 Object 1
+ * @param {json} obj2 Object 2
+ * @return {boolean} true if the two objects are identical, false otherwise
+ */
+var isEqualsJson = (obj1,obj2)=>{
+    keys1 = Object.keys(obj1);
+    keys2 = Object.keys(obj2);
+
+    //return true when the two json has same length and all the properties has same value key by key
+    return keys1.length === keys2.length && Object.keys(obj1).every(key=>obj1[key]==obj2[key]);
+}
 /////////////////////// BASIC FUNCTIONS - End ///////////////////////
 
 /////////////////////// SSE FUNCTIONS - Start ///////////////////////
@@ -432,7 +448,8 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 }
 
 /**
- * Decrypt the retrieved ciphertext at SSE Client. The ciphertext is a part of the response from SSE Server after SSE client sends a search request by a keyword.
+ * Extract and decrypt the ciphertext in the response from SSE Server after SSE client sends a search request by a keyword (if isfe=false)
+ * or Extract file ids and key ids in the response (if isfe=true)
  * 
  * @param {json} response The response from SSE Server which contains the ciphertext
  * @param {string} Kenc Key (hex string) or passphrase (arbitrary string) for key generation. 
@@ -443,10 +460,12 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
  * @param {string} searchNoUri The search number URI of the searched keyword
  * @param {string} keyword The searched keyword
  * @param {string} keyid The unique key identification
+ * @param {boolean} isfe false if requesting the decrypted data content, true if requesting only file id (json id) and key id (which are then used by functional encryption)
  * @return {json} JSON.parse(data) The decrypted data in json format. It contains count (number of data objects), and objects (list of data objects)
- * Example: { count: 1, objects: [ { firstname: 'David', lastname: 'White' } ] }
+ * Example: { count: 1, objects: [ { firstname: 'David', lastname: 'White' } ] } (if isfe = false)
+ * or { count: 1, objects: [ {jsonId: "8", keyId: "1"} ] } (if isfe = true)
  */
-function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid){
+function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid,isfe=false){
 	console.log("response of search:",response)
 	var data;
 	var msg = "";
@@ -470,20 +489,24 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid){
 			var objs_data = response.Cfw[j]
 			var length = objs_data.length;
 
-			data = data + '{'
-			for (var i = 0; i < length; i++) {
-				var ct = objs_data[i].data
-				console.log("encrypted data:",ct)
-				var ct_reformat =ct.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
-				var text = decrypt(Kenc,ct_reformat)
-
-				var pair = text.split("|")
-				console.log("decrypted data:",text)
-				data =  data + '"' + pair[0] + '":"' + pair[1] + '",'
+			if(isfe==false) { // return data content
+				data = data + '{'
+				for (var i = 0; i < length; i++) { // for every data field
+					var ct = objs_data[i].data // extract encrypted data
+					console.log("encrypted data:",ct)
+					var ct_reformat =ct.replace(new RegExp('\'', 'g'), '\"'); //replace ' with "
+					var text = decrypt(Kenc,ct_reformat)
+	
+					var pair = text.split("|")
+					console.log("decrypted data:",text)
+					data =  data + '"' + pair[0] + '":"' + pair[1] + '",'
+				}
+				//remove the last comma
+				data = data.slice(0, -1);
+				data = data + '},'
+			} else { //return jsonId and keyId
+				data = data + '{"jsonId":"' + objs_data.jsonId + '","keyId":"' + objs_data.keyId + '"},'
 			}
-			//remove the last comma
-			data = data.slice(0, -1);
-			data = data + '},'
 		}
 		
 		//remove the last comma
@@ -564,10 +587,12 @@ function decryptData(cipherList, Kenc){
  * The key will be used for data encryption
  * @param {string} keyid Unique key identification. This identification identifies the pair of (sharedKey,Kenc)
  * @param {boolean} iskey False if sharedKey, Kenc are passphrases, true if they are passphrases
+ * @param {boolean} isfe false if requesting the  data content, true if requesting only file id (json id) and key id (which are then used by functional encryption)
  * @return {list} data The list of decrypted data
- * Example: { count: 1, objects: [ { firstname: 'David' } ] }
+ * Example: { count: 1, objects: [ { firstname: 'David' } ] }(if isfe = false)
+ * or { count: 1, objects: [ {jsonId: "8", keyId: "1"} ] } (if isfe = true)
  */
-function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false){
+function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false,isfe=false){
 	console.log("Search keyword function");
 	console.log("shared key:",sharedKey,"- iskey:",iskey);
 	
@@ -639,7 +664,7 @@ function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false){
 		arrayAddr.push(newAddr);
 	} //end for
 	
-	var data = '{ "KeyW" : ' + KeyW + ',"fileno" : ' + fileNo + ',"Lu" :[' + arrayAddr + '],"keyId":"' + keyid + '"}';
+	var data = '{ "KeyW" : ' + KeyW + ',"fileno" : ' + fileNo + ',"Lu" :[' + arrayAddr + '],"keyId":"' + keyid + '","isfe":' + isfe + '}';
 	console.log("Data sent to CSP:", data);
 	
 	hashChars = sseConfig.hash_length/4; //number of chars of hash output: 64
@@ -651,7 +676,8 @@ function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false){
 	
 	console.log("Results from post request after returned:",result.responseJSON);
 	
-	data = retrieveData(result.responseJSON,key,searchNo,searchNoUri,keyword,keyid);
+	data = retrieveData(result.responseJSON,key,searchNo,searchNoUri,keyword,keyid,isfe);
+	
 	console.log("Results from retrieveData:",data);
 	
 	return data;
@@ -1834,11 +1860,13 @@ function tokenize(exp){
  * @param {string} Kenc Key (hex string) or passphrase (arbitrary string) for key generation.
  * The key will be used for encryption
  * @param {string} keyid Unique key identification. This identification identifies the pair of (sharedKey,Kenc)
- * @param {boolean} iskey False if KeyG, Kenc are passphrases, true if they are passphrases
+ * @param {boolean} iskey false if KeyG, Kenc are passphrases, true if they are passphrases
+ * @param {boolean} isfe false if requesting the decrypted data content, true if requesting only file id (json id) and key id (which are then used by functional encryption)
  * @return {list} data The list of decrypted data
- * Example: { count: 1, objects: [ { firstname: 'David' } ] }
+ * Example: { count: 1, objects: [ { firstname: 'David' } ] } (if isfe = false)
+ * or { count: 1, objects: [ {jsonId: "8", keyId: "1"} ] } (if isfe = true)
  */
-function search(data, KeyG, Kenc,keyid,iskey=false){
+function search(data, KeyG, Kenc,keyid,iskey=false,isfe=false){
 	if(data=={} || KeyG=="" || Kenc=="" || keyid==""){
 		console.log("Lack of parameter of search function")
         return {};
@@ -1854,10 +1882,10 @@ function search(data, KeyG, Kenc,keyid,iskey=false){
     else if (exp==undefined || exp ==""){
         if(criteria.length==1){ // search for single keyword
             console.log("Search for single keyword")
-            return findKeyword(criteria[0],KeyG,Kenc,keyid,iskey);
+            return findKeyword(criteria[0],KeyG,Kenc,keyid,iskey,isfe);
         } else if(typeof criteria=='string') { // search for single keyword
             console.log("Search for single keyword")
-            return findKeyword(criteria,KeyG,Kenc,keyid,iskey);
+            return findKeyword(criteria,KeyG,Kenc,keyid,iskey,isfe);
         }
         else {// error syntax (there are many critera without condition description
               console.log("Invalid input file: lack of search condition");
@@ -1869,7 +1897,7 @@ function search(data, KeyG, Kenc,keyid,iskey=false){
         var postfix = infixToPostfix(infix);
         console.log("Infix expression:",infix);
         console.log("Postfix expression:",postfix);
-        var ret = computePostfix(criteria,postfix,KeyG,Kenc,keyid,iskey);
+        var ret = computePostfix(criteria,postfix,KeyG,Kenc,keyid,iskey,isfe);
         console.log("result:",ret);
         return ret;
     }
@@ -1889,10 +1917,12 @@ function search(data, KeyG, Kenc,keyid,iskey=false){
  * The key will be used for encryption
  * @param {string} keyid Unique key identification. This identification identifies the pair of (sharedKey,Kenc)
  * @param {boolean} iskey False if KeyG, Kenc are passphrases, true if they are passphrases
+ * @param {boolean} isfe false if requesting the data content, true if requesting only file id (json id) and key id (which are then used by functional encryption)
  * @returns {json} resultStack.pop() The list of decrypted data
- * Example: { count: 1, objects: [ { firstname: 'David' } ] }
+ * Example: { count: 1, objects: [ { firstname: 'David' } ] } (if isfe = false)
+ * or { count: 1, objects: [ {jsonId: "8", keyId: "1"} ] } (if isfe = true)
  */
-function computePostfix(criteria,postfix,KeyG,Kenc,keyid,iskey=false){
+function computePostfix(criteria,postfix,KeyG,Kenc,keyid,iskey=false,isfe=false){
 	var resultStack = [];
     for(var i = 0; i < postfix.length; i++) {
         if(typeof postfix[i] === 'number') {
@@ -1908,11 +1938,11 @@ function computePostfix(criteria,postfix,KeyG,Kenc,keyid,iskey=false){
             console.log("a:",a,"b:",b);
             var ret;
             if(postfix[i] === "+") {
-                ret = search_or(a,b,KeyG,Kenc,keyid,iskey)
+                ret = search_or(a,b,KeyG,Kenc,keyid,iskey,isfe)
                 console.log("res:",ret)
                 resultStack.push(ret);
             } else if(postfix[i] === "*") {
-                ret = search_and(a,b,KeyG,Kenc,keyid,iskey)
+                ret = search_and(a,b,KeyG,Kenc,keyid,iskey,isfe)
                 console.log("res:",ret)
                 resultStack.push(ret);
             }
@@ -1932,60 +1962,38 @@ function computePostfix(criteria,postfix,KeyG,Kenc,keyid,iskey=false){
 *
 * @param {string or Json} keyword1 The 1st keyword (string), or a list of decrypted data (json)
 * @param {string or Json} keyword2 The 2nd keyword (string), or a list of decrypted data (json)
+* @param {boolean} isfe false if requesting the decrypted data content, true if requesting only file id (json id) and key id (which are then used by functional encryption)
 * @returns {json} results The list of decrypted data
-* Example: { count: 1, objects: [ { firstname: 'David' } ] }
+* Example: { count: 1, objects: [ { firstname: 'David' } ] } (if isfe = false)
+ * or { count: 1, objects: [ {jsonId: "8", keyId: "1"} ] } (if isfe = true)
 */
-function search_and(keyword1,keyword2,KeyG,Kenc,keyid,iskey=false){
-	console.log("keyword 1:",keyword1,"-keyword2:",keyword2);
+function search_and(keyword1,keyword2,KeyG,Kenc,keyid,iskey=false,isfe=false){
+	console.log("search with AND condition, keyword 1:",keyword1,"-keyword2:",keyword2);
 	var ret1, ret2;
 	if(typeof keyword1=='string')
-		ret1 = findKeyword(keyword1,KeyG,Kenc,keyid,iskey);
+		ret1 = findKeyword(keyword1,KeyG,Kenc,keyid,iskey,isfe);
 	else // if keyword1 is a json object
 		ret1 = keyword1;
 	
 	if(typeof keyword2=='string')
-		ret2 = findKeyword(keyword2,KeyG,Kenc,keyid,iskey);
+		ret2 = findKeyword(keyword2,KeyG,Kenc,keyid,iskey,isfe);
 	else
 		ret2 = keyword2;
 	
     console.log("operand 1:",ret1);
     console.log("operand 2:",ret2);
     var results = {"count":0,"objects":[]};
-    
-    var w;
-    if(typeof keyword1=='string'){
-        console.log("loop through ret2")
-        w= keyword1.split('|');
-        for(var i=0;i<ret2.count;i++){
-        	console.log("i:",i)
-        	console.log("considering item:",ret2.objects[i])
-            if(ret2.objects[i].hasOwnProperty(w[0]) && ret2.objects[i][w[0]]==w[1]) {
-            	 console.log("temporary result:",results)
-            	 
-            	 console.log("exist?",results.objects.some(item => item === ret2.objects[i]))
-            	 if (results.objects.some(item => item === ret2.objects[i])==false) { //if not existing in results
-            		 console.log('add item:',ret2.objects[i])
-            	 	 results.count = results.count+1;
-                     results.objects.push(ret2.objects[i]);
-                 }
-            }
-        }
-    } else if(typeof keyword2=='string'){
-        console.log("loop through ret1")
-        w= keyword2.split('|');
-        for(i=0;i<ret1.count;i++){
-        	console.log("i:",i)
-        	console.log("considering item:",ret1.objects[i])
-            if(ret1.objects[i].hasOwnProperty(w[0]) && ret1.objects[i][w[0]]==w[1]){
-            	console.log("temporary result:",results)
-            	if (results.objects.some(item => item === ret1.objects[i])==false) { //if not existing in results
-            		console.log('add item:',ret1.objects[i])
-            		results.count = results.count+1;
-                    results.objects.push(ret1.objects[i]);
-                }
-            }
-        }
-    }    
+    for(var i=0;i<ret1.count;i++){
+    	for(var j=0;j<ret2.count;j++){
+    		if(isEqualsJson(ret1.objects[i],ret2.objects[j])){ // if the item exist in both list ret1, ret2
+    			 if (results.objects.some(item => isEqualsJson(item,ret1.objects[i]))===false) { //if not existing in results
+    		        	console.log('add item:',ret1.objects[i])
+    		        	results.count = results.count+1;
+    		            results.objects.push(ret1.objects[i]);
+    		     }
+      		}
+    	}
+    }
     console.log("result of search with AND condition:",results);
     return results;
 }
@@ -1995,18 +2003,24 @@ function search_and(keyword1,keyword2,KeyG,Kenc,keyid,iskey=false){
  *
  * @param {string or Json} keyword1 The 1st keyword (string), or a list of decrypted data (json)
  * @param {string or Json} keyword2 The 2nd keyword (string), or a list of decrypted data (json)
+ * @param {boolean} isfe false if requesting the decrypted data content, true if requesting only file id (json id) and key id (which are then used by functional encryption)
  * @returns {json} results The list of decrypted data
- * Example: { count: 1, objects: [ { firstname: 'David' } ] }
+ * Example: { count: 1, objects: [ { firstname: 'David' } ] } (if isfe = false)
+ * or { count: 1, objects: [ {jsonId: "8", keyId: "1"} ] } (if isfe = true)
  */
-function search_or(keyword1,keyword2,KeyG,Kenc,keyid,iskey=false){
-	console.log("keyword 1:",keyword1,"-keyword2:",keyword2);
-	if(typeof keyword1=='string')
-		ret1 = findKeyword(keyword1,KeyG,Kenc,keyid,iskey);
-	else // if keyword1 is a json object
+function search_or(keyword1,keyword2,KeyG,Kenc,keyid,iskey=false,isfe=false){
+	console.log("search with OR condition, keyword 1:",keyword1,"-keyword2:",keyword2);
+	if(typeof keyword1=='string'){
+		console.log("keyword1 is a string")
+		ret1 = findKeyword(keyword1,KeyG,Kenc,keyid,iskey,isfe);
+	}
+	else// if keyword1 is a json object
 		ret1 = keyword1;
 	
-	if(typeof keyword2=='string')
-		ret2 = findKeyword(keyword2,KeyG,Kenc,keyid,iskey);
+	if(typeof keyword2=='string') {
+		console.log("keyword2 is a string")
+		ret2 = findKeyword(keyword2,KeyG,Kenc,keyid,iskey,isfe);
+	}
 	else
 		ret2 = keyword2;
 	
@@ -2017,9 +2031,9 @@ function search_or(keyword1,keyword2,KeyG,Kenc,keyid,iskey=false){
        results.objects.push(ret1.objects[i]);       
     }
     results.count = ret1.count;
-    
+ 	
     for(var i=0;i<ret2.count;i++){
-    	if (!results.objects.some(item => item === ret2.objects[i])) {
+    	if (ret1.objects.some(item => isEqualsJson(item,ret2.objects[i]))===false) { // if an item in ret2 does not exist in ret1
         	 results.count = results.count + 1;
         	 results.objects.push(ret2.objects[i]);
         }

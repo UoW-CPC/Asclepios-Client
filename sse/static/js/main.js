@@ -73,7 +73,14 @@ function handleSearchFileLoad(event){
 		iskey = true;
 	console.log("Is it a key? ",iskey)
 	
-	var results=search(jsonObj,KeyG,Kenc,keyid,iskey);
+	var fe;
+	if($('#fe').is(":checked"))
+		isfe = true;
+	else
+		isfe = false;
+	console.log("Is the search for functional encryption (FE)? ",isfe)
+	
+	var results=search(jsonObj,KeyG,Kenc,keyid,iskey,isfe);
 	
 	if(results==null){
 		message = "Invalid input file"
