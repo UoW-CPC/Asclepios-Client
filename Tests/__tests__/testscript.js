@@ -63,6 +63,15 @@ const criteria9 = { "keyword": ["job|scientist","gender|female"],
 		"condition": "1*2"}; // female scientist
 const nfound9 = 0;
 
+const criteria10 = { "keyword" : "name|Stuart" } // single criterion
+const nfound10 = 0;
+
+const criteria11 = { "keyword" : ["name|Stuart"] } // single criterion
+const nfound11 = 0;
+
+const criteria10 = { "keyword" : ["name|Stuart"], "condition":"" } // single criterion
+const nfound12 = 0;
+
 const update1 = {"firstname":["Mary","Peter"]};
 const update2 = {"firstname":["David","Peter"]};
 const update3 = {"firstname":["David","Peter"],"lastname":["Black","Yellow"]};
@@ -126,7 +135,7 @@ const search_json = require(search_file)
 const search_json1 = require(search_file1)
 const update_json = require(update_file)
 
-/*
+
 describe("upload shared key to TA",() => {
 	//input is a password. The key will be generated from the password.
 	test("upload shared key to TA should return true", () => {
@@ -352,17 +361,28 @@ describe("upload and search with complex query", () => {
 		expect(result["count"]).toEqual(nfound9);
 	});
 	
-	test("complex search with OR and AND for uploaded data should return found results", () => {
-		var result = search(criteria4,KeyG1,Kenc1,keyid1,iskey);
+	test("complex search with OR and AND for uploaded data should return found results (only return file ids and keyid)", () => {
+		var result = search(criteria4,KeyG1,Kenc1,keyid1,iskey,true);
 		expect(result["count"]).toEqual(nfound4);
 		
-		result = search(criteria7,KeyG1,Kenc1,keyid1,iskey);
+		result = search(criteria7,KeyG1,Kenc1,keyid1,iskey,true);
 		expect(result["count"]).toEqual(nfound7);
 		
-		result = search(criteria8,KeyG1,Kenc1,keyid1,iskey);
+		result = search(criteria8,KeyG1,Kenc1,keyid1,iskey,true);
 		expect(result["count"]).toEqual(nfound8);
 	});
-});*/
+	
+	test("search by single keyword should return found results", () => {
+		var result = search(criteria10,KeyG1,Kenc1,keyid1,iskey);
+		expect(result["count"]).toEqual(nfound10);
+		
+		result = search(criteria11,KeyG1,Kenc1,keyid1,iskey);
+		expect(result["count"]).toEqual(nfound11);
+		
+		result = search(criteria12,KeyG1,Kenc1,keyid1,iskey);
+		expect(result["count"]).toEqual(nfound12);
+	});
+});
 
 //describe("test large file",() => {
 //	test("it should upload large json object successfully", done => {
