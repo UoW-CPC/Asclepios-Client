@@ -54,7 +54,7 @@ const criteria6 = { "keyword": ["gender|male","age|30"],
 		"condition": "1*2"}; // male, age 30
 const nfound6 = 2;
 const criteria7 = { "keyword": ["gender|female","job|doctor","job|nurse"],
-		"condition": "2+(1*3)"}; // doctor, or female nurse
+		"condition": "2 + 1*3"}; // doctor, or female nurse
 const nfound7 = 3;
 const criteria8 = { "keyword": ["job|doctor","age|26","age|28"],
 		"condition": "1*(2+3)"}; // doctor at age 26 or 28
@@ -64,13 +64,10 @@ const criteria9 = { "keyword": ["job|scientist","gender|female"],
 const nfound9 = 0;
 
 const criteria10 = { "keyword" : "name|Stuart" } // single criterion
-const nfound10 = 0;
+const nfound10 = 1;
 
 const criteria11 = { "keyword" : ["name|Stuart"] } // single criterion
-const nfound11 = 0;
-
-const criteria10 = { "keyword" : ["name|Stuart"], "condition":"" } // single criterion
-const nfound12 = 0;
+const nfound11 = 1;
 
 const update1 = {"firstname":["Mary","Peter"]};
 const update2 = {"firstname":["David","Peter"]};
@@ -378,9 +375,6 @@ describe("upload and search with complex query", () => {
 		
 		result = search(criteria11,KeyG1,Kenc1,keyid1,iskey);
 		expect(result["count"]).toEqual(nfound11);
-		
-		result = search(criteria12,KeyG1,Kenc1,keyid1,iskey);
-		expect(result["count"]).toEqual(nfound12);
 	});
 });
 
