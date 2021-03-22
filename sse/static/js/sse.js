@@ -505,7 +505,7 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid,isfe=f
 				data = data.slice(0, -1);
 				data = data + '},'
 			} else { //return jsonId and keyId
-				data = data + '{"jsonId":"' + objs_data.jsonId + '","keyId":"' + objs_data.keyId + '"},'
+				data = data + '"' + objs_data + '",';
 			}
 		}
 		
