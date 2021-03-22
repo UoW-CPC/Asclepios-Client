@@ -378,56 +378,56 @@ describe("upload and search with complex query", () => {
 	});
 });
 
-//describe("test large file",() => {
-//	test("it should upload large json object successfully", done => {
-//		function callback(data) {
-//			try {
-//				expect(data).toBe(true);
-//				done();
-//			} catch (error) {
-//				console.log("errors")
-//				done(error);
-//			}
-//		};
-//
-//		uploadData(input_json,file_id,KeyG,Kenc,callback);
-//		    
-//	});
-//	
-//	test("search for uploaded data should return found results", () => {
-//		var result = search(search_json,KeyG,Kenc);
-//		expect(result["count"]).toEqual(1);
-//	});
-//	test("update existed values should return true", done => {
-//		function callback(data) {
-//			try {
-//				expect(data).toBe(true);
-//				done();
-//			} catch (error) {
-//				console.log("errors")
-//				done(error);
-//			}
-//		};
-//		updateData(update_json,file_id,KeyG,Kenc,callback);
-//	});
-//	test("search new value should return 1 found result", () => {
-//		var result = search(search_json1,KeyG,Kenc);
-//		expect(result["count"]).toEqual(1);
-//	});
-//	test("delete one existed value should return true", done => {
-//		function callback(data) {
-//			try {
-//				expect(data).toBe(true);
-//				done();
-//			} catch (error) {
-//				console.log("errors")
-//				done(error);
-//			}
-//		};
-//		deleteData(file_id,KeyG,Kenc,callback);
-//	});
-//
-//});
+describe("test large file",() => {
+	test("it should upload large json object successfully", done => {
+		function callback(data) {
+			try {
+				expect(data).toBe(true);
+				done();
+			} catch (error) {
+				console.log("errors")
+				done(error);
+			}
+		};
+
+		uploadData(input_json,file_id,KeyG1,Kenc1,keyid1,iskey,callback);
+		    
+	});
+	
+	test("search for uploaded data should return found results", () => {
+		var result = search(search_json,KeyG1,Kenc1,keyid1,iskey);
+		expect(result["count"]).toEqual(1);
+	});
+	test("update existed values should return true", done => {
+		function callback(data) {
+			try {
+				expect(data).toBe(true);
+				done();
+			} catch (error) {
+				console.log("errors")
+				done(error);
+			}
+		};
+		updateData(update_json,file_id,KeyG1,Kenc1,keyid1,iskey,callback);
+	});
+	test("search new value should return 1 found result", () => {
+		var result = search(search_json1,KeyG1,Kenc1,keyid1,iskey);
+		expect(result["count"]).toEqual(1);
+	});
+	test("delete one existed value should return true", done => {
+		function callback(data) {
+			try {
+				expect(data).toBe(true);
+				done();
+			} catch (error) {
+				console.log("errors")
+				done(error);
+			}
+		};
+		deleteData(file_id,KeyG1,Kenc1,keyid1,iskey,callback);
+	});
+
+});
 
 //describe("upload blob", () => {
 //	test("upload large file returns true", async () => {
