@@ -47,7 +47,8 @@ var sseConfig={
         'adata_len_ta' : 0, //{number, 0} This is not supported to be configurable yet
         'sgx_enable': sgx_enable_value, // {boolean} True if SGX is enabled at SSE TA, false otherwise
         'base_url_cp_abe' : 'cp_abe_url', //{url} URL of CP-ABE server
-        'debug' : debug_value // {boolean} true if debug, false otherwise
+        'debug' : debug_value, // {boolean} true if debug, false otherwise
+        'auth' : true // {boolean} true if SSE Server and SSE TA require authentication, false otherwise
 }
 /////////////////////// SSE CONFIGURATION - End ///////////////////////
 
@@ -58,18 +59,19 @@ var sseConfig={
  * @param {string} api_url The URL
  * @return {json} data Returned data
  */
-function getRequest(api_url) {
+function getRequest(api_url,headers={}) {
 	var ret=null;
 
 	$.ajax({
 		url: api_url,
 		type: 'GET',
 		async: false, // disable asynchronous, to wait for the response from the server
+		headers: headers,
 		success: function(data) {
 			ret = data;
 		},
 		error: function(erro){
-			console.error("Get Request Error");
+			console.error("Get Request Error",erro);
 		}
 	})
 	return ret;
@@ -100,7 +102,7 @@ function postRequest(api_url, jsonObj, callback=undefined, async_feat=true, head
 			}
 		},
 		error: function(erro){
-			console.error("Post Request Error");
+			console.error("Post Request Error",erro);
 		}
 	});
 	console.log("response of post request:",result);
@@ -115,20 +117,21 @@ function postRequest(api_url, jsonObj, callback=undefined, async_feat=true, head
  * @param {callback} callback The function to be executed when calling back. This is used for automatic testing with Jest.
  * @param {boolean} async_feat True if asynchronous, False if synchronous
  */
-function putRequest(api_url, jsonObj, callback, async_feat=true) {
+function putRequest(api_url, jsonObj, callback, async_feat=true,headers={}) {
 	$.ajax({
 		url: api_url,
 		type: 'PUT',
 		contentType: 'application/json',
 		data: jsonObj,
 		async: async_feat,
+		headers: headers,
 		success: function(data) {
 			if(callback!=undefined){
 				callback(data);
 			}
 		},
 		error: function(erro){
-			console.error("Put Request Error");
+			console.error("Put Request Error",erro);
 		}
 	})
 }
@@ -141,7 +144,7 @@ function putRequest(api_url, jsonObj, callback, async_feat=true) {
  * @param {callback} callback The function to be executed when calling back. This is used for automatic testing with Jest.
  * @param {boolean} async_feat True if asynchronous, False if synchronous
  */
-function patchRequest(api_url, jsonObj, callback, async_feat=true) {
+function patchRequest(api_url, jsonObj, callback, async_feat=true, headers={}) {
 	console.log("Run patch request")
 	$.ajax({
 		url: api_url,
@@ -149,6 +152,7 @@ function patchRequest(api_url, jsonObj, callback, async_feat=true) {
 		contentType: 'application/json',
 		data: jsonObj,
 		async: async_feat,
+		headers: headers,
 		success: function(data) {
 			//console.log("success patch request")
 			if(callback!=undefined){
@@ -303,7 +307,7 @@ var isEqualsJson = (obj1,obj2)=>{
  * @param {callback} callback Callback function. This is used for automatic test with Jest
  * @return {boolean} false/true False if error, True if successful
  */
-function uploadData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback=undefined){
+function uploadData(data, file_id, sharedKey, Kenc, keyid, iskey=false, token="", callback=undefined){
 	if(data=={} || file_id=="" || sharedKey=="" || Kenc=="" || keyid==""){
 		console.log("Lack of parameter of uploadData function")
 		return false;
@@ -313,8 +317,15 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 		console.log("The two provided passphrases/ keys should be different to avoid SSE TA to learn the encryption key!")
 		return false;
 	}
+	
+	var header = {}
+	if(sseConfig.auth){
+		header = { Authorization: "Bearer " + token };
+		console.log("header:",header);
+	}
+	
 	// verify if file_id existed
-	var ret = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?limit=1&jsonId="+file_id+"&keyId="+keyid);
+	var ret = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?limit=1&jsonId="+file_id+"&keyId="+keyid,header);
 	if (ret.meta['total_count']>0){
 		console.log("Existed file id")
 		return false;
@@ -358,7 +369,7 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 	// Request meta data fileNo and searchNo from TA, and increase fileNo for uploaded keywords
 	// If a keyword is new, create fileNo in TA; if a keyword is existed, update fileNo in TA
 	console.log("Send post request to TA from object:",data); // for testing
-	var ta_response=postRequest(sseConfig.base_url_ta + "/api/v1/upload/", data_ta, undefined, false);
+	var ta_response=postRequest(sseConfig.base_url_ta + "/api/v1/upload/", data_ta, undefined, false, header);
 	
 	var json_response = ta_response.responseJSON;
 	var Lfileno = ta_response.responseJSON["Lfileno"];
@@ -437,10 +448,10 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 	
 	console.log("Send patch request from object:",data); //for testing
 	// Send ciphertext to CSP 
-	patchRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/", Lcipher,callback,async_feat=false);
+	patchRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/", Lcipher,callback,async_feat=false, header);
 	
 	// Send the dictionary to CSP
-	patchRequest(sseConfig.base_url_sse_server + "/api/v1/map/", Laddress,callback,async_feat=false);
+	patchRequest(sseConfig.base_url_sse_server + "/api/v1/map/", Laddress,callback,async_feat=false, header);
 	
 	console.log("complete upload");
 	
@@ -1260,7 +1271,7 @@ function isHexKey(key,size) {
  * @param {string} keyid The unique key identification
  * @return {boolean} true if uploading the key to SSE TA, false otherwise
  */
-function uploadKeyG(keyg,keyid){
+function uploadKeyG(keyg,keyid,token=""){
 	if (isHexKey(keyg,sseConfig.ks_ta/4)==false){
 		console.log("The input key is not valid. Please check if it is a hex string with the correct size.")
 		return false;
@@ -1268,16 +1279,22 @@ function uploadKeyG(keyg,keyid){
 	
 	console.log("uploading key:",keyg)
 	
+	var header = {}
+	if(sseConfig.auth){
+		header = { Authorization: "Bearer " + token };
+		console.log("header:",header);
+	}
+	
 	if(sseConfig.sgx_enable==false) { // if SSE TA is not sgx-enabled
 		var jsonData = '{ "key" : "' + keyg + '","keyId":"' + keyid + '"}';
 		console.log("uploaded KeyG:",keyg)
-		postRequest(sseConfig.base_url_ta + "/api/v1/key/", jsonData, undefined, async_feat = false);
+		postRequest(sseConfig.base_url_ta + "/api/v1/key/", jsonData, undefined, async_feat = false, header);
 	} else { //if SSE TA is sgx-enabled
 		if(sseConfig.ks_ta!=128){
 			console.log("SSE TA with sgx enabled can only support 128 bit keys. Please correct the value of sseConfig.ks_ta");
 			return false;
 		}
-		var ret = getRequest(sseConfig.base_url_ta + "/api/v1/pubkey/pk/"); //get public key from SSE TA
+		var ret = getRequest(sseConfig.base_url_ta + "/api/v1/pubkey/pk/", header); //get public key from SSE TA
 		var pk=ret['pubkey'].replace(/(\r\n|\n|\r)/gm, ""); //remove all line breaks inside PEM format of the key
 		console.log("public key from TA SGX:",pk);
 		
@@ -1288,7 +1305,7 @@ function uploadKeyG(keyg,keyid){
 		
 		var jsonData = '{ "pubkey" : "' + ct + '","keyId":"' + keyid + '"}';
 		console.log("uploaded data:",jsonData)
-		postRequest(sseConfig.base_url_ta + "/api/v1/pubkey/", jsonData, undefined, async_feat = false);
+		postRequest(sseConfig.base_url_ta + "/api/v1/pubkey/", jsonData, undefined, async_feat = false, header);
 	}
 	return true;
 }

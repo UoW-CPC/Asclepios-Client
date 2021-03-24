@@ -18,6 +18,9 @@ function handleFileLoad(event){
 	  var file_id = $("#fileid1").val()
 	  var keyid = $("#keyid1").val()
 	  
+	  var token = $("#token3").val()
+	  console.log("token:",token)
+	  
 	  if(file_id==""){
 		  file_id=hash(Math.random().toString(36).substring(7)); // generate unique file_id. This should be changed in production
 	  }
@@ -34,7 +37,7 @@ function handleFileLoad(event){
     	  iskey = true;
       console.log("Is it a key? ",iskey)
       
-	  var ret = uploadData(jsonObj,file_id,KeyG,Kenc,keyid,iskey); // Upload data to CSP
+	  var ret = uploadData(jsonObj,file_id,KeyG,Kenc,keyid,iskey,token); // Upload data to CSP
 	  
       var end_date = new Date();
       var end_time = end_date.getTime();
@@ -487,7 +490,9 @@ $(document).ready(
 					key = computeKey(input,true) // generate key to be shared with SSE TA
 				
 				var keyid = $("#keyid").val();
-				uploadKeyG(key,keyid); // Upload key to SSE TA
+				var token = $("#token").val();
+				uploadKeyG(key,keyid,token); // Upload key to SSE TA
+				
 				
 				$('#passphrase').val("");
 				$('#uploadkeyg').html("<div class='alert-primary alert'> Submitted </div>");
