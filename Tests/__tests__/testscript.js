@@ -74,6 +74,9 @@ const update2 = {"firstname":["David","Peter"]};
 const update3 = {"firstname":["David","Peter"],"lastname":["Black","Yellow"]};
 const update4 = {"firstname":["David","Peter"],"lastname":["White","Yellow"]};
 
+const isfe = false;
+const token = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJSYmxwdXNjRmZmNXVQWmlMcnlEMTgyVjVMR29ZVXcxczhoMEtMcEhDTndNIn0.eyJleHAiOjE2MTY3MTM0MjEsImlhdCI6MTYxNjcwOTgyMSwianRpIjoiYTYzZjNjMmUtY2RmMi00YzE0LWEzZGUtN2QzMzQ0MDMwZjY0IiwiaXNzIjoiaHR0cDovLzUxLjE0NS4xMC4zNTo4MTgxL2F1dGgvcmVhbG1zL3NuZXQiLCJhdWQiOiJhY2NvdW50Iiwic3ViIjoiM2YwYjM5Y2ItMGExYi00NDI4LWIzNmYtYjhjMDk4MTI2ZGJkIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiY2FsbHMtZ2F0ZXdheSIsInNlc3Npb25fc3RhdGUiOiI2NTQzZTYzMS1hODRhLTRkMGItYjJiZS02ZjEwYzc0ODdjYTciLCJhY3IiOiIxIiwiYWxsb3dlZC1vcmlnaW5zIjpbImh0dHA6Ly81MS4xNDUuMTAuMzUiXSwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbIm9mZmxpbmVfYWNjZXNzIiwibWVtYmVyIiwiYWRtaW4iLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoicHJvZmlsZSBlbWFpbCIsIm1lZGljYWwtcm9sZXMiOiJ4eHgsYW1idWxhbmNlLWNyZXciLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImFtYnVsYW5jZS1jcmV3LWlkIjoiYW1idWxhbmNlLWNyZXctaWQtMTIzNCIsIkRPQiI6IjE5ODAtMDQtMDUiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ1c2VyMSJ9.O-XhMIb6PvZt-8NbAofbEqBNvnnlbt_01znyYsi50OYsc_h0FyAs7QdUtc9VVoVWbaVxq5FxaydaNbSPeCcVIoXQjaojjYOzBFRh39doL8ZfsEN2DRBXEeLzBy6AFZkItBY7C_fnUXwvLitIGhtBe49CSAyi44U0Gmy2oLXS3u5_hDgwFHHjph8ddxFJejkvNenNdTCS59yoGSSj_Lr4AoLlyq60pIQnLB4TQPoK_aV2cppvt8f0qeTLZBz060x9bbnrmgBWCnRudrC_V3ztiJ7DHpChmBjyf0hfgLassg7Snjdz0UG4WSM15veSgx6gliwdH4lDdcbsw-REHkJ48A"
+
 /*
 const fpath_docx = "data/file.docx"
 const fname_docx = "file.docx"
@@ -137,12 +140,12 @@ describe("upload shared key to TA",() => {
 	//input is a password. The key will be generated from the password.
 	test("upload shared key to TA should return true", () => {
 		var key = computeKey(KeyG1,true);
-		var result = uploadKeyG(key,keyid1);
+		var result = uploadKeyG(key,keyid1,token);
 		expect(result).toEqual(true);
 	});
 	// input is a key
 	test("upload shared key to TA should return true", () => {
-		var result = uploadKeyG(key_KeyG2,keyid2);
+		var result = uploadKeyG(key_KeyG2,keyid2,token);
 		expect(result).toEqual(true);
 	});
 });
@@ -150,7 +153,7 @@ describe("upload shared key to TA",() => {
 
 describe("upload and search", () => {
 	test("search for non-existed data should return not found", () => {
-		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(0);	
 	});
 	// upload data with password
@@ -164,24 +167,24 @@ describe("upload and search", () => {
 				done(error);
 			}
 		};
-		uploadData(input1,file_id1,KeyG1,Kenc1,keyid1,iskey,callback);
+		uploadData(input1,file_id1,KeyG1,Kenc1,keyid1,iskey,token,callback);
 	});
 	
 	// search data with password
 	test("2nd search for uploaded data should return found results", () => {
-		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound1);
 	});
   
 	// search data with key
 	test("2nd search for uploaded data should return found results", () => {
-		var result = search(criteria1,key_KeyG1,key_Kenc1,keyid1,true);
+		var result = search(criteria1,key_KeyG1,key_Kenc1,keyid1,true,isfe,token);
 		expect(result["count"]).toEqual(nfound1);
 	});
 	
 	test("it should not upload json object with existed file id (uRl) with the same keyid, but should with different keyid", () => {;
-		expect(uploadData(input1,file_id1,KeyG1,Kenc1,keyid1,iskey)).toEqual(false);
-		expect(uploadData(input1,file_id1,KeyG2,Kenc2,keyid2,iskey)).toEqual(true);
+		expect(uploadData(input1,file_id1,KeyG1,Kenc1,keyid1,iskey,token)).toEqual(false);
+		expect(uploadData(input1,file_id1,KeyG2,Kenc2,keyid2,iskey,token)).toEqual(true);
 	});
 
 	// upload data with key
@@ -195,12 +198,12 @@ describe("upload and search", () => {
 				done(error);
 			}
 		};
-		uploadData(input2,file_id2,key_KeyG1,key_Kenc1,keyid1,true,callback);    
+		uploadData(input2,file_id2,key_KeyG1,key_Kenc1,keyid1,true,token,callback);    
 	});	
 	test("search for uploaded data with keyid1 should return at least 2 found results, and with keyid2 should return 1 result", ()  => {
-		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound2);
-		var result = search(criteria1,KeyG2,Kenc2,keyid2,iskey);
+		var result = search(criteria1,KeyG2,Kenc2,keyid2,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound1);
 	});
 
@@ -209,7 +212,7 @@ describe("upload and search", () => {
 
 describe("update and search", () => {
 	test("update one non-existed value should return false", () => {
-		var result = updateData(update1,file_id1,KeyG1,Kenc1,keyid1,iskey);
+		var result = updateData(update1,file_id1,KeyG1,Kenc1,keyid1,iskey,token);
 		expect(result).toEqual(false);
 	});
 	test("update one existed value should return true", done => {
@@ -222,19 +225,19 @@ describe("update and search", () => {
 				done(error);
 			}
 		};
-		updateData(update2,file_id1,KeyG1,Kenc1,keyid1,iskey,callback);
+		updateData(update2,file_id1,KeyG1,Kenc1,keyid1,iskey,token,callback);
 	});
 	test("search updated value should return 1 found result", () => {
-		var result = search(criteria2,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria2,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound1);
 	});
 	
 	test("search previous value should return 1 found result", () => {
-		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound1);
 	});
 	test("update a pair of values, one among which does not exist, should return false", ()  => {
-		var result = updateData(update3,file_id2,KeyG1,Kenc1,keyid1,iskey);
+		var result = updateData(update3,file_id2,KeyG1,Kenc1,keyid1,iskey,token);
 		expect(result).toEqual(false);
 	});
 	
@@ -249,25 +252,25 @@ describe("update and search", () => {
 				done(error);
 			}
 		};
-		updateData(update4,file_id2,key_KeyG1,key_Kenc1,keyid1,true,callback);
+		updateData(update4,file_id2,key_KeyG1,key_Kenc1,keyid1,true,token,callback);
 	});
 	test("search updated value should return 2 found result", () => {
-		var result = search(criteria2,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria2,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound2);
 	});
 	test("search updated new value should return 1 found result", () => {
-		var result = search(criteria3,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria3,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound1);
 	});
 	test("search previous value should return not found", () => {
-		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(0);
 	});
 });
 
 describe("delete and search", () => {
 	test("delete one non-existed file_id should return false", () => {
-		var result = deleteData(file_id3,KeyG1,Kenc1,keyid1,iskey);
+		var result = deleteData(file_id3,KeyG1,Kenc1,keyid1,iskey,token);
 		expect(result).toEqual(false);
 	});
 	
@@ -282,10 +285,10 @@ describe("delete and search", () => {
 				done(error);
 			}
 		};
-		deleteData(file_id1,KeyG1,Kenc1,keyid1,iskey,callback);
+		deleteData(file_id1,KeyG1,Kenc1,keyid1,iskey,token,callback);
 	});
 	test("search value should return 1 found result", () => {
-		var result = search(criteria2,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria2,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound1);
 	});
 	
@@ -300,14 +303,14 @@ describe("delete and search", () => {
 				done(error);
 			}
 		};
-		deleteData(file_id2,key_KeyG1,key_Kenc1,keyid1,true,callback);
+		deleteData(file_id2,key_KeyG1,key_Kenc1,keyid1,true,token,callback);
 	});
 	test("search value should return 0 found result", () => {
-		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria1,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound3);
 	});
 	test("search value with keyid2 should still return 1 found result", () => {
-		var result = search(criteria1,KeyG2,Kenc2,keyid2,iskey);
+		var result = search(criteria1,KeyG2,Kenc2,keyid2,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound1);
 	});
 });
@@ -325,59 +328,60 @@ describe("upload and search with complex query", () => {
 			}
 		};
 		
-		uploadData(input4,file_id4,KeyG1,Kenc1,keyid1,iskey,callback);
-		uploadData(input5,file_id5,KeyG1,Kenc1,keyid1,iskey,callback);
-		uploadData(input6,file_id6,KeyG1,Kenc1,keyid1,iskey,callback);
-		uploadData(input7,file_id7,KeyG1,Kenc1,keyid1,iskey,callback);
-		uploadData(input8,file_id8,KeyG1,Kenc1,keyid1,iskey,callback);
+		uploadData(input4,file_id4,KeyG1,Kenc1,keyid1,iskey,token,callback);
+		uploadData(input5,file_id5,KeyG1,Kenc1,keyid1,iskey,token,callback);
+		uploadData(input6,file_id6,KeyG1,Kenc1,keyid1,iskey,token,callback);
+		uploadData(input7,file_id7,KeyG1,Kenc1,keyid1,iskey,token,callback);
+		uploadData(input8,file_id8,KeyG1,Kenc1,keyid1,iskey,token,callback);
 		
-		var result = search(criteria5,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria5,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		console.log("found results:",result);
 		expect(result["count"]).toEqual(nfound5);
 		
-		var result = search(criteria5,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria5,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound5);
 		
-		var result = search(criteria5,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria5,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound5);
 		
-		var result = search(criteria5,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria5,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound5);
 	});
 	// search data with password
 	test("complex search with OR for uploaded data should return found results", () => {
-		var result = search(criteria5,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria5,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound5);
 	});
 	
 	test("complex search with AND for uploaded data should return found results", () => {
-		var result = search(criteria6,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria6,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound6);
 		
-		result = search(criteria9,KeyG1,Kenc1,keyid1,iskey);
+		result = search(criteria9,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound9);
 	});
 	
 	test("complex search with OR and AND for uploaded data should return found results (only return file ids and keyid)", () => {
-		var result = search(criteria4,KeyG1,Kenc1,keyid1,iskey,true);
+		var result = search(criteria4,KeyG1,Kenc1,keyid1,iskey,true,token);
 		expect(result["count"]).toEqual(nfound4);
 		
-		result = search(criteria7,KeyG1,Kenc1,keyid1,iskey,true);
+		result = search(criteria7,KeyG1,Kenc1,keyid1,iskey,true,token);
 		expect(result["count"]).toEqual(nfound7);
 		
-		result = search(criteria8,KeyG1,Kenc1,keyid1,iskey,true);
+		result = search(criteria8,KeyG1,Kenc1,keyid1,iskey,true,token);
 		expect(result["count"]).toEqual(nfound8);
 	});
 	
 	test("search by single keyword should return found results", () => {
-		var result = search(criteria10,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(criteria10,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound10);
 		
-		result = search(criteria11,KeyG1,Kenc1,keyid1,iskey);
+		result = search(criteria11,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(nfound11);
 	});
 });
 
+/*
 describe("test large file",() => {
 	test("it should upload large json object successfully", done => {
 		function callback(data) {
@@ -390,12 +394,12 @@ describe("test large file",() => {
 			}
 		};
 
-		uploadData(input_json,file_id,KeyG1,Kenc1,keyid1,iskey,callback);
+		uploadData(input_json,file_id,KeyG1,Kenc1,keyid1,iskey,token,callback);
 		    
 	});
 	
 	test("search for uploaded data should return found results", () => {
-		var result = search(search_json,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(search_json,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(1);
 	});
 	test("update existed values should return true", done => {
@@ -408,10 +412,10 @@ describe("test large file",() => {
 				done(error);
 			}
 		};
-		updateData(update_json,file_id,KeyG1,Kenc1,keyid1,iskey,callback);
+		updateData(update_json,file_id,KeyG1,Kenc1,keyid1,iskey,token,callback);
 	});
 	test("search new value should return 1 found result", () => {
-		var result = search(search_json1,KeyG1,Kenc1,keyid1,iskey);
+		var result = search(search_json1,KeyG1,Kenc1,keyid1,iskey,isfe,token);
 		expect(result["count"]).toEqual(1);
 	});
 	test("delete one existed value should return true", done => {
@@ -424,10 +428,10 @@ describe("test large file",() => {
 				done(error);
 			}
 		};
-		deleteData(file_id,KeyG1,Kenc1,keyid1,iskey,callback);
+		deleteData(file_id,KeyG1,Kenc1,keyid1,iskey,token,callback);
 	});
 
-});
+});*/
 
 //describe("upload blob", () => {
 //	test("upload large file returns true", async () => {

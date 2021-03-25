@@ -48,7 +48,7 @@ var sseConfig={
         'sgx_enable': sgx_enable_value, // {boolean} True if SGX is enabled at SSE TA, false otherwise
         'base_url_cp_abe' : 'cp_abe_url', //{url} URL of CP-ABE server
         'debug' : debug_value, // {boolean} true if debug, false otherwise
-        'auth' : true // {boolean} true if SSE Server and SSE TA require authentication, false otherwise
+        'auth' : auth_value // {boolean} true if SSE Server and SSE TA require authentication, false otherwise
 }
 /////////////////////// SSE CONFIGURATION - End ///////////////////////
 
@@ -161,7 +161,7 @@ function patchRequest(api_url, jsonObj, callback, async_feat=true, headers={}) {
 			}
 		},
 		error: function(erro){
-			console.error("Patch Request Error");
+			console.error("Patch Request Error",erro);
 		}
 	})
 }
@@ -211,6 +211,8 @@ function encrypt(key, input, ista=false){
 			return {}
 		}
 		options = {mode:sseConfig.mode,iter:sseConfig.iter_ta,ks:sseConfig.ks_ta,ts:sseConfig.ts_ta,v:1,cipher:"aes",adata:sseConfig.adata_ta,salt:sseConfig.salt_ta,iv:sseConfig.iv_ta}; 
+	
+	console.log("key:",key,"input:",input,"options:",options)
 	var res = sjcl.encrypt(key, input, options);
 	return res; // return a ciphertext object
 }
@@ -243,11 +245,11 @@ function decrypt(key, cipherObj){
  * @param {string} keyid The key identification
  * @return {list} [Lno,LnoUri,listW] The list of search/file numbers, the list of URI of search/file numbers, the list of keywords which file number/search number exist
  */
-function getMultiFileOrSearchNo(requestType,Lw,keyid){	
+function getMultiFileOrSearchNo(requestType,Lw,keyid,header={}){	
 	var data_ta = JSON.stringify({"requestType": requestType,"Lw":Lw,"keyId":keyid});
-	console.log("Invoke longrequest")
+	console.log("Invoke longrequest with header:",header)
 	console.log(data_ta)
-	var ret = postRequest(sseConfig.base_url_ta + "/api/v1/longrequest/",data_ta,callback=undefined,async_feat=false);
+	var ret = postRequest(sseConfig.base_url_ta + "/api/v1/longrequest/",data_ta,callback=undefined,async_feat=false,header);
 
 	var obj = ret.responseJSON;
 	console.log(obj);
@@ -368,8 +370,9 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, iskey=false, token=""
 	
 	// Request meta data fileNo and searchNo from TA, and increase fileNo for uploaded keywords
 	// If a keyword is new, create fileNo in TA; if a keyword is existed, update fileNo in TA
-	console.log("Send post request to TA from object:",data); // for testing
+	console.log("Send post request to TA from object:",data);
 	var ta_response=postRequest(sseConfig.base_url_ta + "/api/v1/upload/", data_ta, undefined, false, header);
+	
 	
 	var json_response = ta_response.responseJSON;
 	var Lfileno = ta_response.responseJSON["Lfileno"];
@@ -476,7 +479,7 @@ function uploadData(data, file_id, sharedKey, Kenc, keyid, iskey=false, token=""
  * Example: { count: 1, objects: [ { firstname: 'David', lastname: 'White' } ] } (if isfe = false)
  * or { count: 1, objects: [ {jsonId: "8", keyId: "1"} ] } (if isfe = true)
  */
-function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid,isfe=false){
+function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid,isfe=false,header={}){
 	console.log("response of search:",response)
 	var data;
 	var msg = "";
@@ -532,11 +535,11 @@ function retrieveData(response, Kenc, searchNo, searchNoUri,keyword,keyid,isfe=f
 		if(searchNo==1){ // If the keyword is new, create searchNo in TA
 			var jsonData = '{ "w" : "' + hash(keyword) + '","searchno" : ' + searchNo + ',"keyId":"' + keyid + '"}';
 			console.log('Create new entry in searchNo: ',jsonData);
-			postRequest(sseConfig.base_url_ta + "/api/v1/searchno/", jsonData, undefined, async_feat = false);	//async_feat=true to searve jest automatic testing				
+			postRequest(sseConfig.base_url_ta + "/api/v1/searchno/", jsonData, undefined, async_feat = false, header);	//async_feat=true to searve jest automatic testing				
 		}
 		else{ // If the keyword is existed, update searchNo in TA
 			console.log('Update the entry in searchno');
-			putRequest(searchNoUri,'{ "searchno" : ' + searchNo + '}', undefined, async_feat = false); //async_feat=true to searve jest automatic testing	
+			putRequest(searchNoUri,'{ "searchno" : ' + searchNo + '}', undefined, async_feat = false, header); //async_feat=true to searve jest automatic testing	
 		}	
 	}
 	return JSON.parse(data);
@@ -603,9 +606,9 @@ function decryptData(cipherList, Kenc){
  * Example: { count: 1, objects: [ { firstname: 'David' } ] }(if isfe = false)
  * or { count: 1, objects: [ {jsonId: "8", keyId: "1"} ] } (if isfe = true)
  */
-function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false,isfe=false){
+function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false,isfe=false,header={}){
 	console.log("Search keyword function");
-	console.log("shared key:",sharedKey,"- iskey:",iskey);
+	console.log("shared key:",sharedKey,"- iskey:",iskey,"-header:",header);
 	
 	var KeyG,key;
 	if(iskey == false) { // sharedKey is a passphrase. A key is generated from the passphrase
@@ -621,7 +624,7 @@ function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false,isfe=false){
 	var fileNo, fileNoUri;
 	
 	// Get file number
-	[LfileNo, LfileNoUri,listW] = getMultiFileOrSearchNo("fileno",[hash(keyword)],keyid); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+	[LfileNo, LfileNoUri,listW] = getMultiFileOrSearchNo("fileno",[hash(keyword)],keyid,header); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
 	console.log("Lfileno:",LfileNo)
 	if(LfileNo.length>0){
 		fileNo = LfileNo[0]
@@ -636,7 +639,7 @@ function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false,isfe=false){
 	
 	// Get search number
 	var searchNo, searchNoUri;
-	[LsearchNo, LsearchNoUri,tempListWord] = getMultiFileOrSearchNo("searchno",[hash(keyword)],keyid); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
+	[LsearchNo, LsearchNoUri,tempListWord] = getMultiFileOrSearchNo("searchno",[hash(keyword)],keyid,header); //"listW" can be different from Lw. It does not contain new keywords (if existed) in Lw
 	console.log("List of search number:",LsearchNo)
 	if(LsearchNo.length>0){
 		searchNo = LsearchNo[0]
@@ -683,49 +686,16 @@ function findKeyword(keyword, sharedKey, Kenc,keyid,iskey=false,isfe=false){
 	console.log("Sent search request:",sseConfig.base_url_sse_server + "/api/v1/search/")
 	result = postRequest(sseConfig.base_url_sse_server + "/api/v1/search/", data,function(response){
 		return true;
-	},async_feat=false);// Send request to CSP
+	},async_feat=false,header);// Send request to CSP
 	
 	console.log("Results from post request after returned:",result.responseJSON);
 	
-	data = retrieveData(result.responseJSON,key,searchNo,searchNoUri,keyword,keyid,isfe);
+	data = retrieveData(result.responseJSON,key,searchNo,searchNoUri,keyword,keyid,isfe,header);
 	
 	console.log("Results from retrieveData:",data);
 	
 	return data;
 }
-
-/**
- * Search by a json object containing the searched keyword
- * This function is obsolete, and replaced by a new search() function which can support complex query
- * 
- * @param {json} data The json object containing the searched keyword. For instance: {"keyword": searched_keyword}
- * @param {string} sharedKey Key (hex string) or passphrase (arbitrary string) for key generation. 
- * If it is a passphrase, a key will be generated from the passphrase
- * The key is shared with SSE TA for verification 
- * Example: "358610db4b113a5763111164e391b5ab2696577f44407f92dfb55581b76b34ce" as a key (number of hex characters = keysize/4), or "123" as a passphrase
- * @param {string} Kenc Key (hex string) or passphrase (arbitrary string) for key generation. 
- * The key will be used for encryption
- * @param {string} keyid Unique key identification. This identification identifies the pair of (sharedKey,Kenc)
- * @param {boolean} iskey False if KeyG, Kenc are passphrases, true if they are passphrases
- * @return {list} data The list of decrypted data
- * Example: { count: 1, objects: [ { firstname: 'David' } ] }
- */
-/*
-function search(data, KeyG, Kenc,keyid,iskey=false){
-	if(data=={} || KeyG=="" || Kenc=="" || keyid==""){
-		console.log("Lack of parameter of search function")
-		return {};
-	}
-	console.log("json object:",data);
-	var keyword = data['keyword'];
-	if(keyword==undefined){
-		console.log("Invalid input file")
-		return null;
-	}
-	console.log("keyword: ",keyword);
-	var results = findKeyword(keyword,KeyG,Kenc,keyid,iskey);
-	return results;
-}*/
 
 /**
  * Compute the list of KeyW values
@@ -937,7 +907,7 @@ function createFullList(Lhash,Lexisted_hash,Lfound){
  * @param {callback} callback Callback function
  * @return {boolean} True if updated successfully, False if otherwise
  */
-function updateData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback=undefined){
+function updateData(data, file_id, sharedKey, Kenc, keyid, iskey=false, token="", callback=undefined){
 	if(data=={} || file_id=="" || sharedKey=="" || Kenc=="" || keyid==""){
 		console.log("Lack of parameter of updateData function")
 		return false;
@@ -966,6 +936,12 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 		key = sjcl.codec.hex.toBits(Kenc);
 	}
 	
+	var header = {}
+	if(sseConfig.auth){
+		header = { Authorization: "Bearer " + token };
+		console.log("header:",header);
+	}
+	
 	for(i=0; i<length;i++){
 		current_value = keys[i] + '|' + values[i][0];
 		new_value = keys[i] + '|' + values[i][1];
@@ -986,7 +962,7 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 	Lcurrent_fileNo = [];
 	Lcurrent_fileNoUri = [];
 	current_listW = [];
-	[Lcurrent_fileNo, Lcurrent_fileNoUri,current_listW] = getMultiFileOrSearchNo("fileno",Lcurrent_hash,keyid);
+	[Lcurrent_fileNo, Lcurrent_fileNoUri,current_listW] = getMultiFileOrSearchNo("fileno",Lcurrent_hash,keyid,header);
 	
 	if(Lcurrent_fileNo.length<length){ //at least 1 keyword is not found in No.Files
 		console.log("At least one of update field does not exist in database")
@@ -1000,7 +976,7 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 	Lall_searchNoUri = [];
 	all_tempListWord = [];
 	Lall_hash = Lcurrent_hash.concat(Lnew_hash); //combine Lcurrent_hash and Lnew_hash
-	[Lall_found_searchNo,Lall_searchNoUri,all_tempListWord]=getMultiFileOrSearchNo("searchno",Lall_hash,keyid);
+	[Lall_found_searchNo,Lall_searchNoUri,all_tempListWord]=getMultiFileOrSearchNo("searchno",Lall_hash,keyid,header);
 	console.log("Lall_found_searchNo:",Lall_found_searchNo);
 	console.log("all_tempListWord:",all_tempListWord);
 	console.log("Lcurrent_hash:",Lcurrent_hash);
@@ -1023,7 +999,7 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 	Lnew_fileNo = [];
 	Lnew_fileNoUri = [];
 	new_listW = [];
-	[Lnew_found_fileNo, Lnew_fileNoUri,new_listW] = getMultiFileOrSearchNo("fileno",Lnew_hash,keyid); 
+	[Lnew_found_fileNo, Lnew_fileNoUri,new_listW] = getMultiFileOrSearchNo("fileno",Lnew_hash,keyid,header); 
 
 	// Build full list of No.File of every keyword
 	Lnew_fileNo = createFullList(Lnew_hash,new_listW,Lnew_found_fileNo)
@@ -1047,7 +1023,7 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 	console.log("Sent update request:",sseConfig.base_url_sse_server + "/api/v1/update/")
 	result = postRequest(sseConfig.base_url_sse_server + "/api/v1/update/", data,function(response){
 		return true;
-	},async_feat=false);// Send request to CSP
+	},async_feat=false,header);// Send request to CSP
 
 	console.log("Response of update:",result.status)
 
@@ -1081,7 +1057,7 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
 			data = '{' + objects + '}'
 
 		console.log("data sent to update fileno:", data)
-		patchRequest(sseConfig.base_url_ta + "/api/v1/fileno/", data, callback);
+		patchRequest(sseConfig.base_url_ta + "/api/v1/fileno/", data, callback, header);
 	}
 	return true;
 }
@@ -1102,13 +1078,20 @@ function updateData(data, file_id, sharedKey, Kenc, keyid, iskey=false, callback
  * @param {callback} callback Callback function
  * @return {boolean} True if deleted successfully, False if otherwise
  */
-function deleteData(file_id, sharedKey, Kenc, keyid, iskey=false, callback=undefined){
+function deleteData(file_id, sharedKey, Kenc, keyid, iskey=false, token="", callback=undefined){
 	if(file_id=="" || sharedKey=="" || Kenc=="" || keyid==""){
 		console.log("Lack of parameter of deleteData function")
 		return false;
 	}
+	
+	var header = {}
+	if(sseConfig.auth){
+		header = { Authorization: "Bearer " + token };
+		console.log("header:",header);
+	}
+	
 	// Send GET request to CSP to retrieve ciphertext of data belonging to file_id
-	var obj = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?limit=0&jsonId=" + file_id + "&keyId=" + keyid); //limit=0 allows to get all items
+	var obj = getRequest(sseConfig.base_url_sse_server + "/api/v1/ciphertext/?limit=0&jsonId=" + file_id + "&keyId=" + keyid,header); //limit=0 allows to get all items
 	console.log("response:",obj);
 	var length = obj.meta.total_count;
 	if(length==0){
@@ -1137,7 +1120,7 @@ function deleteData(file_id, sharedKey, Kenc, keyid, iskey=false, callback=undef
 		var Lcipher=[];
 		
 		// retrieve data from Map table by file_id
-		var objMap = getRequest(sseConfig.base_url_sse_server + "/api/v1/map/?limit=0&value=" + file_id + "&keyId=" + keyid);
+		var objMap = getRequest(sseConfig.base_url_sse_server + "/api/v1/map/?limit=0&value=" + file_id + "&keyId=" + keyid,header);
 		console.log("objects in map table:",objMap);
 		for(i=0; i< length; i++){
 			w = pt[i];
@@ -1148,7 +1131,7 @@ function deleteData(file_id, sharedKey, Kenc, keyid, iskey=false, callback=undef
 		console.log("list of hashed keywords:",Lw);
 		
 		// Retrieve list of file number
-		[LfileNo, LfileNoUri,listW] = getMultiFileOrSearchNo("fileno",Lw,keyid);
+		[LfileNo, LfileNoUri,listW] = getMultiFileOrSearchNo("fileno",Lw,keyid,header);
 		console.log("keyword string input:",Lw);
 		console.log("List of file numbers: ", LfileNo);
 		console.log("List of Url:", LfileNoUri);
@@ -1163,7 +1146,7 @@ function deleteData(file_id, sharedKey, Kenc, keyid, iskey=false, callback=undef
 		console.log("full list of file no of keywords:",listFileNo);
 		// Retrieve search number
 		
-		[LsearchNo, LsearchNoUri,tempListWord] = getMultiFileOrSearchNo("searchno",Lw,keyid); //"tempListWord" can be empty if all keywords has been never searched
+		[LsearchNo, LsearchNoUri,tempListWord] = getMultiFileOrSearchNo("searchno",Lw,keyid,header); //"tempListWord" can be empty if all keywords has been never searched
 
 		console.log("Search numbers: ", LsearchNo);
 		console.log("Urls: ", LsearchNoUri);
@@ -1190,7 +1173,7 @@ function deleteData(file_id, sharedKey, Kenc, keyid, iskey=false, callback=undef
 		console.log("Sent delete request:",sseConfig.base_url_sse_server + "/api/v1/delete/")
 		result = postRequest(sseConfig.base_url_sse_server + "/api/v1/delete/", data,function(response){
 			return true;
-		},async_feat=false);// Send request to CSP
+		},async_feat=false,header);// Send request to CSP
 		
 		// Send PATCH request to TA to update/delete entries in fileno table
 		var current_del,current_objects,current_deleted_objects;
@@ -1209,7 +1192,7 @@ function deleteData(file_id, sharedKey, Kenc, keyid, iskey=false, callback=undef
 			data = '{' + objects + '}'
 
 		console.log("data sent to update fileno:", data)
-		patchRequest(sseConfig.base_url_ta + "/api/v1/fileno/", data, callback);
+		patchRequest(sseConfig.base_url_ta + "/api/v1/fileno/", data, callback, header);
 
 	}
 	return true;
@@ -1883,7 +1866,7 @@ function tokenize(exp){
  * Example: { count: 1, objects: [ { firstname: 'David' } ] } (if isfe = false)
  * or { count: 1, objects: [ {jsonId: "8", keyId: "1"} ] } (if isfe = true)
  */
-function search(data, KeyG, Kenc,keyid,iskey=false,isfe=false){
+function search(data, KeyG, Kenc,keyid,iskey=false,isfe=false,token=""){
 	if(data=={} || KeyG=="" || Kenc=="" || keyid==""){
 		console.log("Lack of parameter of search function")
         return {};
@@ -1892,6 +1875,14 @@ function search(data, KeyG, Kenc,keyid,iskey=false,isfe=false){
     console.log("keys:",KeyG,",",Kenc);
     var criteria = data['keyword'];
     var exp = data['condition'];
+    
+	var header = {}
+	if(sseConfig.auth){
+		console.log("token:",token);
+		header = { Authorization: "Bearer " + token };
+		console.log("header:",header);
+	}
+	
     if(criteria==undefined){
         console.log("Invalid input file: lack of search keyword(s)")
         return {};
@@ -1899,10 +1890,10 @@ function search(data, KeyG, Kenc,keyid,iskey=false,isfe=false){
     else if (exp==undefined || exp ==""){
         if(criteria.length==1){ // search for single keyword
             console.log("Search for single keyword")
-            return findKeyword(criteria[0],KeyG,Kenc,keyid,iskey,isfe);
+            return findKeyword(criteria[0],KeyG,Kenc,keyid,iskey,isfe,header);
         } else if(typeof criteria=='string') { // search for single keyword
             console.log("Search for single keyword")
-            return findKeyword(criteria,KeyG,Kenc,keyid,iskey,isfe);
+            return findKeyword(criteria,KeyG,Kenc,keyid,iskey,isfe,header);
         }
         else {// error syntax (there are many critera without condition description
               console.log("Invalid input file: lack of search condition");
@@ -1914,7 +1905,7 @@ function search(data, KeyG, Kenc,keyid,iskey=false,isfe=false){
         var postfix = infixToPostfix(infix);
         console.log("Infix expression:",infix);
         console.log("Postfix expression:",postfix);
-        var ret = computePostfix(criteria,postfix,KeyG,Kenc,keyid,iskey,isfe);
+        var ret = computePostfix(criteria,postfix,KeyG,Kenc,keyid,iskey,isfe,header);
         console.log("result:",ret);
         return ret;
     }
@@ -1939,7 +1930,7 @@ function search(data, KeyG, Kenc,keyid,iskey=false,isfe=false){
  * Example: { count: 1, objects: [ { firstname: 'David' } ] } (if isfe = false)
  * or { count: 1, objects: [ {jsonId: "8", keyId: "1"} ] } (if isfe = true)
  */
-function computePostfix(criteria,postfix,KeyG,Kenc,keyid,iskey=false,isfe=false){
+function computePostfix(criteria,postfix,KeyG,Kenc,keyid,iskey=false,isfe=false,header={}){
 	var resultStack = [];
     for(var i = 0; i < postfix.length; i++) {
         if(typeof postfix[i] === 'number') {
@@ -1955,11 +1946,11 @@ function computePostfix(criteria,postfix,KeyG,Kenc,keyid,iskey=false,isfe=false)
             console.log("a:",a,"b:",b);
             var ret;
             if(postfix[i] === "+") {
-                ret = search_or(a,b,KeyG,Kenc,keyid,iskey,isfe)
+                ret = search_or(a,b,KeyG,Kenc,keyid,iskey,isfe,header)
                 console.log("res:",ret)
                 resultStack.push(ret);
             } else if(postfix[i] === "*") {
-                ret = search_and(a,b,KeyG,Kenc,keyid,iskey,isfe)
+                ret = search_and(a,b,KeyG,Kenc,keyid,iskey,isfe,header)
                 console.log("res:",ret)
                 resultStack.push(ret);
             }
@@ -1984,16 +1975,16 @@ function computePostfix(criteria,postfix,KeyG,Kenc,keyid,iskey=false,isfe=false)
 * Example: { count: 1, objects: [ { firstname: 'David' } ] } (if isfe = false)
  * or { count: 1, objects: [ {jsonId: "8", keyId: "1"} ] } (if isfe = true)
 */
-function search_and(keyword1,keyword2,KeyG,Kenc,keyid,iskey=false,isfe=false){
+function search_and(keyword1,keyword2,KeyG,Kenc,keyid,iskey=false,isfe=false,header={}){
 	console.log("search with AND condition, keyword 1:",keyword1,"-keyword2:",keyword2);
 	var ret1, ret2;
 	if(typeof keyword1=='string')
-		ret1 = findKeyword(keyword1,KeyG,Kenc,keyid,iskey,isfe);
+		ret1 = findKeyword(keyword1,KeyG,Kenc,keyid,iskey,isfe,header);
 	else // if keyword1 is a json object
 		ret1 = keyword1;
 	
 	if(typeof keyword2=='string')
-		ret2 = findKeyword(keyword2,KeyG,Kenc,keyid,iskey,isfe);
+		ret2 = findKeyword(keyword2,KeyG,Kenc,keyid,iskey,isfe,header);
 	else
 		ret2 = keyword2;
 	
@@ -2025,18 +2016,18 @@ function search_and(keyword1,keyword2,KeyG,Kenc,keyid,iskey=false,isfe=false){
  * Example: { count: 1, objects: [ { firstname: 'David' } ] } (if isfe = false)
  * or { count: 1, objects: [ {jsonId: "8", keyId: "1"} ] } (if isfe = true)
  */
-function search_or(keyword1,keyword2,KeyG,Kenc,keyid,iskey=false,isfe=false){
+function search_or(keyword1,keyword2,KeyG,Kenc,keyid,iskey=false,isfe=false,header={}){
 	console.log("search with OR condition, keyword 1:",keyword1,"-keyword2:",keyword2);
 	if(typeof keyword1=='string'){
 		console.log("keyword1 is a string")
-		ret1 = findKeyword(keyword1,KeyG,Kenc,keyid,iskey,isfe);
+		ret1 = findKeyword(keyword1,KeyG,Kenc,keyid,iskey,isfe,header);
 	}
 	else// if keyword1 is a json object
 		ret1 = keyword1;
 	
 	if(typeof keyword2=='string') {
 		console.log("keyword2 is a string")
-		ret2 = findKeyword(keyword2,KeyG,Kenc,keyid,iskey,isfe);
+		ret2 = findKeyword(keyword2,KeyG,Kenc,keyid,iskey,isfe,header);
 	}
 	else
 		ret2 = keyword2;
@@ -2060,331 +2051,3 @@ function search_or(keyword1,keyword2,KeyG,Kenc,keyid,iskey=false,isfe=false){
 
 }
 /////////////////////// COMPLEX-QUERY SEARCH FUNCTION - End ///////////////////////
-
-////////(to be developed) Progressive Encryption/Decryption for medium blob data - Start////////
-/**
- * Download chunks of ciphertext from MinIO server, decrypt them and save as 1 plaintext file
- * This function can support medium files (~100MB)
- * 
- * @param {string} fname File name
- * @param {string} Kenc Key or passphrase for key generation. The key is used for encrypting data. //needed test
- * @param {string} keyId Unique key identification
- * @param {callback} callback Callback function
- * @return {} Download multiple of plaintext chunk files, and a script file (concat_script.txt) to merge them into one plaintext file
- */
-/*
-function downloadProgressDecryptMediumBlob(fname,Kenc,keyId,callback=undefined){
-    console.log("Download blob")
-    try {
-    	var metafile = fname + "_meta" + keyId;
-    	var presigned_url = getPresignUrl(metafile);  
-    	var fragments = [];
-    	var n = 0;
-    	var threshold=30;
-        $.ajax({
-        	url: presigned_url,
-            type: 'GET',
-            async: false,
-            success: function(blob, status) { 
-            	//create a list which contains names of ciphertext chunks
-                console.log("meta data:",blob);
-                n = blob;
-                if(n>threshold){
-	                var i;
-	                for (i = 1; i <= blob; i++) {
-	                	fragments.push(fname + "_part"+i + keyId);
-	                }
-	                console.log("file names:",fragments);
-	                
-	                //create a concatenation script for users to merge multiple chunks of plaintext into a complete plaintext
-	                var script_data="cat $(for((i=1;i<="+blob+";i++)); do echo -n \""+fname +"${i} \"; done) > "+fname;
-	                console.log("script:",script_data);
-	               	var outputname= fname + "_script" + keyId;
-	                var blob = new Blob([script_data]);
-	                saveBlob(blob,"concat_script");
-                }
-       		},
-            error: function(erro){
-                 console.log("Download from Minio Error");
-                 console.log(erro);
-             }
-         })	            
-        var iv = sjcl.hash.sha1.hash(sseConfig.iv).slice(0,4); // IV should be an array of 4 words. Get 4 words to create iv
-		var key = sjcl.hash.sha256.hash(Kenc); //key is an array of 4,6 or 8 words
-
-        var aes = new sjcl.cipher.aes(key);
-        var dec = sjcl.mode.ocb2progressive.createDecryptor(aes, iv);
-        
-        var imageArr = []
-        for (var i=0; i<fragments.length; i++) {
-            presigned_url = getPresignUrl(fragments[i]);          
-            $.ajax({
-            	url: presigned_url,
-                type: 'GET',
-                async: false,
-                success: function(blob, status) {
-                    var ftype = blob.type;
-                   	var imageJson = JSON.parse("[" +blob+"]");//string->json
-           			console.log("ciphertext in json - imageJson:",imageJson);
-            			
-           			var dresult = sjcl.codec.bytes.fromBits(dec.process(imageJson));            			
-         		    if(i==fragments.length-1){
-   	     		    	dresult = dresult.concat(dec.finalize());
-   	     		    }
-    	     		    
-           			var imageByte = new Uint8Array(dresult); // create byte array from base64 string
-     				console.log("plaintext in bytes - imageByte:",imageByte);
-     				if(n>threshold){
-	     				var imageDecryptBlob = new Blob([imageByte], { type: ftype });
-	     				var j = i+1;
-	     				saveBlob(imageDecryptBlob,fname+j);
-                	} else {
-     					imageArr.push(imageByte);
-     				}
-           		},
-                error: function(erro){
-                     console.log("Download from Minio Error");
-                     console.log(erro);
-                 }
-                })	
-        }
-        if(n<=threshold){
-        	var imageDecryptBlob = new Blob(imageArra, { type: ftype });
-        	saveBlob(imageDecryptBlob,fname);
-        }
-    } catch (e) {
-        console.log("Error:" + e);
-    }    
-}*/
-////////Progressive Encryption/Decryption for medium blob data - End////////
-
-////////Encryption/Decryption (non-progressively) for small blob data - Start////////
-/**
- * Download file from Minio, decrypt and save it to local host (blob file <=10MB)
- * It can support only small data (<=10MB)
- * 
- * @param {string} fname File name
- * @param {string} KeyG Key or passphrase for key generation. The key is used to encrypt data // needed test
- * @param {string} Kenc Key or passphrase for key generation. The key is shared with SSE TA for verification // needed test
- * @param {callback} callback Callback function
- * @return {} Decrypted data is save as a file
- */
-/*
-function downloadDecryptBlob(fname,Kenc,keyId,callback=undefined){
-	console.log("Download blob")
-	var presigned_url = getPresignUrl(fname+keyId) // request for a presigned url 
-	$.ajax({
-		  url: presigned_url, // the presigned URL
-		  type: 'GET',
-	      xhrFields:{
-	            responseType: 'blob' //download as blob data
-	      },
-		  success: function(data, status) {
-			  console.log("Decrypt and save blob")
-			  decryptSaveBlob(data,fname,Kenc,callback) //decrypt data
-		  },
-		  error: function(erro){
-			  console.error("Download from Minio Error");
-			  console.error(erro);
-		  }
-	})
-}*/
-
-/**
- * Encrypt blob data of small size (<=10MB)
- * 
- * @param {blob} blobData The blob data
- * @param {string} ftype File type
- * @param {string} Kenc Key or passphrase for key generation. The key will be used for encryption //needed test
- * @return {promise} A promise to create blob of encrypted data
- */
-/*
-function encryptBlob(blobData,ftype, Kenc){
-	return function(resolve) {
-		var reader = new FileReader()
-
-		reader.onload = function(e){
-			var imageData = new Uint8Array(e.target.result);
-			console.log("Blob content:",imageData);    	    
-			var imageString = sjcl.codec.base64.fromBits(imageData); // convert byte array to base64 string
-			console.log("image plaintext in string:",imageString);
-
-			var imagecipher = encrypt(Kenc,imageString); //encrypt
-
-			var objJsonStr = JSON.stringify(imagecipher); // json -> string
-			console.log("cipher image in string:",objJsonStr);
-			var objJsonB64 = btoa(objJsonStr); // string -> base64
-			console.log("cipher image in base64:",objJsonB64);
-			var temp=sjcl.codec.base64.toBits(objJsonB64); // base64 -> bits
-			console.log("number of bits:",temp.length);
-			console.log("bit array:",sjcl.codec.base64.toBits(objJsonB64));
-			
-			var cipherByte = new Uint8Array(fromBitArrayCodec(sjcl.codec.base64.toBits(objJsonB64)));
-			console.log("cipher image in byte:",cipherByte);
-			console.log("number of bytes:",cipherByte.length);
-			var cipherBlob = new Blob([cipherByte], { type: ftype });
-			resolve(cipherBlob);
-
-		};
-		reader.readAsArrayBuffer(blobData);	
-	}
- }*/
-
-/**
- * Encrypt blob data (<=10MB) and upload to MinIO along with its searchable encrypted metadata (json format)
- * It can only support small data (<=10MB)
- * 
- * @param {blob} blob Blob data
- * @param {string} fname File name
- * @param {json} jsonObj Metatdata in the format of json object. The uploaded blob data will be searchable by any keyword in its metadata
- * @param {string} file_id The unique key identification
- * @param {string} KeyG Key or passphrase for key generation. The key is used to encrypt data // needed test
- * @param {string} Kenc Key or passphrase for key generation. The key is shared with SSE TA for verification // needed test
- * @param {callback} callback Callback function
- * @return {} The encrypted blob data is sent to MinIO, and its encrypted metadata is sent to SSE Server
- */
-// test to remove callback function
-/*
-function encryptUploadSearchableBlob(blob,fname,jsonObj,file_id, KeyG, Kenc,keyId,callback=undefined){
-	//append filename to metadata
-	jsonObj.filename = fname;
-	console.log("metadata after appending filename:{}",jsonObj);
-	encryptUploadBlob(blob,fname,Kenc,keyId);
-	uploadData(jsonObj,file_id,KeyG,Kenc,keyId);
-}*/
-
-/**
- * Encrypt blob data and upload to MinIO
- * It can support only small data (<=10MB)
- * 
- * @param {blob} blob Blob data
- * @param {string} fname File name
- * @param {string} KeyG Key or passphrase for key generation. The key is used to encrypt data // needed test
- * @param {string} Kenc Key or passphrase for key generation. The key is shared with SSE TA for verification // needed test
- * @param {callback} callback Callback function
- * @return {promise} promise A promise to upload encrypted blob data
- */
-/*
-function encryptUploadBlob(blob,fname,Kenc,keyId,callback=undefined){
-    var ftype = blob.type;
-    var outputname = fname + keyId;
-    var promise = new Promise(encryptBlob(blob,ftype,Kenc));
-
-    // Wait for promise to be resolved, or log error.
-    promise.then(function(cipherBlob) {
-    	console.log("Completed encrypting blob. Now send data to server.")
-    	console.log(cipherBlob);
-    	uploadMinio(cipherBlob,outputname,callback);
-    	//return true;//for jest
-    }).catch(function(err) {
-    	console.log('Error: ',err);
-    });
-    return promise;
-}*/
-
-/**
- * Decrypt a ciphertext downloaded from MinIO server, and save as file.
- * This function can support only small files (<=10MB)
- * 
- * @param {blob} blob Blob 
- * @param {string} fname File name
- * @param {string} Kenc Key or passphrase for key generation. The key is used for encrypting data. //needed test
- * @param {callback} callback Callback function
- * @return {promise} Promise to save decrypted data as a file
- */
-/*
-function decryptSaveBlob(blob,fname,Kenc,callback=undefined){
-	 var outputname = fname;//fname.split(".")[0];// + "_decrypted";
-	 console.log("Filename to be saved: " +  outputname);
-	 var ftype = blob.type; //identify filetype from blob
-	 
-	 var promise = new Promise(decryptBlob(blob,ftype,Kenc));
-	 
-	 promise.then((plainBlob) => {
-		 console.log("Save file to disk");
-		 saveBlob(plainBlob,outputname);
-		 if(callback!=undefined){
-			callback(true); // for jest
-		}
-	 })
-	 return promise;
-}*/
-
-/**
- * Decrypt a ciphertext downloaed from MinIO server
- * This function can support only small files (<10MB)
- * 
- * @param {blob} blobCipher Ciphertext downloaded from MinIO server
- * @param {string} ftype File type 
- * @param {string} Kenc Key or passphrase for key generation. The key is used for encrypting data. //needed test
- * @return {promise} Promise to create the decrypted blob
- */
-/*
-function decryptBlob(blobCipher,ftype,Kenc){
-	return function(resolve) {
-		var reader = new FileReader();
-		console.log("Decrypt blob")
-		reader.onload = function(e){
-			var imagecipher = new Uint8Array(e.target.result);
-			console.log("input array:",imagecipher);
-	
-			var bitarray = toBitArrayCodec(imagecipher);
-			//var bitarray = sjcl.codec.bytes.toBit(imagecipher);//needed test
-			console.log("bit array:",bitarray);
-	
-			var imageBase = sjcl.codec.base64.fromBits(bitarray); // byte array->base64
-			console.log("image ciphertext in base64:",imageBase);
-			var imageString = atob(imageBase); //base64 -> string
-			console.log("image ciphertext in string:",imageString);
-			var imageJson = JSON.parse(imageString);//string->json
-			console.log("ciphertext in json:",imageJson);
-	
-			var imagept = decrypt(Kenc,imageJson);
-			console.log("decrypt image in string:",imagept);
-	
-			var imageByte = new Uint8Array(sjcl.codec.base64.toBits(imagept)); // create byte array from base64 string
-			console.log("plaintext in bytes:",imageByte);
-	
-			var imageDecryptBlob = new Blob([imageByte], { type: ftype });
-			resolve(imageDecryptBlob);
-		};	
-		reader.readAsArrayBuffer(blobCipher);
-	}
-}*/
-
-/**
- * Generate a key from a passphrase with Pbkdf2 function, 
- * then encrypt the key with RSA PKCSv1.5 using the public key retrieved from the TA, 
- * and upload it to SSE TA
- *
- * @param {string} pwdphrase The passphrase to generate a key.
- * @param {string} keyid The unique key identification
- */
-/*
-async function uploadKeyGsgx(pwdphrase,keyid){
-	if(pwdphrase=="" || keyid==""){
-		console.log("Lack of passphrase or keyid");
-		return false;
-	}
-	//console.log("passphrase to compute keyg:",pwdphrase);
-	var keyg = computeKeyG_Pbkdf2(pwdphrase,sseConfig.salt_sgx,sseConfig.iter_sgx,sseConfig.ks_sgx); //generate key from a passphrase
-
-	console.log("keyg:",keyg);
-	console.log("URL TA:",sseConfig.base_url_ta)
-	
-	var ret = getRequest(sseConfig.base_url_ta + "/api/v1/pubkey/pk/"); //get public key from SSE TA
-	var pk=ret['pubkey'].replace(/(\r\n|\n|\r)/gm, ""); //remove all line breaks inside PEM format of the key
-	console.log("public key from TA SGX:",pk);
-	
-	var encryptor = new JSEncrypt();
-	encryptor.setPublicKey(pk);
-	var ct = encryptor.encrypt(keyg); // encrypt with RSA PKCSv1.5
-	console.log("ciphertext:",ct);
-	
-	var jsonData = '{ "pubkey" : "' + ct + '","keyId":"' + keyid + '"}';
-	console.log("uploaded data:",jsonData)
-	postRequest(sseConfig.base_url_ta + "/api/v1/pubkey/", jsonData, undefined, async_feat = false);
-	
-	return true;
-}*/
-////////Encryption/Decryption (non-progressively) for small blob data - End////////

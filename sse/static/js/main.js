@@ -18,7 +18,7 @@ function handleFileLoad(event){
 	  var file_id = $("#fileid1").val()
 	  var keyid = $("#keyid1").val()
 	  
-	  var token = $("#token3").val()
+	  var token = $("#token1").val()
 	  console.log("token:",token)
 	  
 	  if(file_id==""){
@@ -83,7 +83,10 @@ function handleSearchFileLoad(event){
 		isfe = false;
 	console.log("Is the search for functional encryption (FE)? ",isfe)
 	
-	var results=search(jsonObj,KeyG,Kenc,keyid,iskey,isfe);
+	var token = $("#token2").val()
+    console.log("token:",token)
+	  
+	var results=search(jsonObj,KeyG,Kenc,keyid,iskey,isfe,token);
 	
 	if(results==null){
 		message = "Invalid input file"
@@ -137,7 +140,10 @@ function handleUpdateFileLoad(event){
 			iskey = true;
 		console.log("Is it a key? ",iskey)
 		
-    	var result=updateData(jsonObj,file_id,KeyG,Kenc,keyid,iskey);
+		var token = $("#token3").val()
+		console.log("token:",token)
+    
+    	var result=updateData(jsonObj,file_id,KeyG,Kenc,keyid,iskey,token);
     	console.log("Update result:",result)
     	if(result==true){
     		message = "Updated"
@@ -180,7 +186,10 @@ function handleDeleteFile(){
 			iskey = true
 		console.log("Is it a key? ",iskey)
 		
-    	var result=deleteData(file_id,KeyG,Kenc,keyid,iskey);
+		var token = $("#token4").val()
+		console.log("token:",token)
+		
+    	var result=deleteData(file_id,KeyG,Kenc,keyid,iskey,token);
     	console.log("Delete result:",result)
     	if(result==true){
     		message = "Deleted"
@@ -654,7 +663,7 @@ $(document).ready(
 			$('#bntUploadSSEkeys').click(function(){
 				var encK = $('#passphrase8').val();
 				var verK = $('#passphrase8b').val();
-				var token=$('#token1').val();
+				var token=$('#token8').val();
 				
 				if (encK=="" || verK=="" || token=="" ) {
 					console.log("Please enter the keys and/or the token");
@@ -669,7 +678,7 @@ $(document).ready(
 			$('#bntDownloadSSEkeys').click(function(){
 				var keyid=$('#keyid9').val();
 				var username=$('#username').val();
-				var token=$('#token2').val();
+				var token=$('#token9').val();
 				
 				if (keyid=="" || token=="" || username=="") {
 					console.log("Please enter the key id and/or token and/or username");
