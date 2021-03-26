@@ -22,7 +22,6 @@ WORKDIR $CONTAINER_HOME
 ADD . $CONTAINER_HOME
 
 COPY entrypoint.sh /entrypoint.sh
-#COPY deploy.env /deploy.env
 
 # Install any needed packages specified in requirements.txt
 RUN pip install -r requirements.txt
