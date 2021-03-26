@@ -49,7 +49,7 @@ var sseConfig={
         'base_url_cp_abe' : 'cp_abe_url', //{url} URL of CP-ABE server
         'debug' : debug_value, // {boolean} true if debug, false otherwise
         'auth' : auth_value, // {boolean} true if SSE Server and SSE TA require authentication, false otherwise
-        'small_size' : small_value // {number} If file size (number of bytes) is less than or equal this value, the file is considered as small file
+        'small_file_size' : small_file // {number} If file size (number of bytes) is less than or equal this value, the file is considered as small file
 }
 
 /////////////////////// SSE CONFIGURATION - End ///////////////////////
@@ -1339,9 +1339,9 @@ function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId, iskey=false, tok
 			}
 				
 			var idx, cipherpart, outputname;
-			// if file size < sseConfig.small_size, use normal encryption instead of progressive encryption
+			// if file size < sseConfig.small_file_size, use normal encryption instead of progressive encryption
 		    // (progressive encryption does not seem to work with very small file)
-		    if (imageData.length<=sseConfig.small_size){
+		    if (imageData.length<=sseConfig.small_file_size){
 		    	var imageString = sjcl.codec.base64.fromBits(imageData); // convert byte array to base64 string
 				var imagecipher = encrypt(key,imageString); //encrypt
 				console.log("ciphertext in case file size < sseConfig.small:",imagecipher,",type:",typeof imagecipher) 
@@ -1634,7 +1634,7 @@ function downloadProgressDecryptBlob(fname,Kenc,keyId,iskey=false,token="",callb
             	//create a list which contains names of ciphertext chunks
             	meta = blob.split(",");
                 console.log("number of chunks:",meta[0],", file size (number of bytes):",meta[1]);
-                if(meta[1]>sseConfig.small_size){
+                if(meta[1]>sseConfig.small_file_size){
 	                var i;
 	                for (i = 1; i <= meta[0]; i++) {
 	                	fragments.push(fname + "_part"+i + keyId);
@@ -1664,7 +1664,7 @@ function downloadProgressDecryptBlob(fname,Kenc,keyId,iskey=false,token="",callb
 			key = sjcl.codec.hex.toBits(Kenc); // Kenc is a key
 		}
 		
-		if(meta[1]<=sseConfig.small_size){ //if the file is small
+		if(meta[1]<=sseConfig.small_file_size){ //if the file is small
 			presigned_url = getPresignUrl(fname + "_part1" + keyId,header);
 			$.ajax({
             	url: presigned_url,
