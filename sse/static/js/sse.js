@@ -49,7 +49,7 @@ var sseConfig={
         'base_url_cp_abe' : 'cp_abe_url', //{url} URL of CP-ABE server
         'debug' : debug_value, // {boolean} true if debug, false otherwise
         'auth' : auth_value, // {boolean} true if SSE Server and SSE TA require authentication, false otherwise
-        'small_file_size' : small_file // {number} If file size (number of bytes) is less than or equal this value, the file is considered as small file
+        'small_file_size' : small_file_value // {number} If file size (number of bytes) is less than or equal this value, the file is considered as small file
 }
 
 /////////////////////// SSE CONFIGURATION - End ///////////////////////
@@ -1341,7 +1341,7 @@ function encryptProgressBlob(blobData,fname,ftype, Kenc, keyId, iskey=false, tok
 			var idx, cipherpart, outputname;
 			// if file size < sseConfig.small_file_size, use normal encryption instead of progressive encryption
 		    // (progressive encryption does not seem to work with very small file)
-		    if (imageData.length<=sseConfig.small_file_size){
+		    if (imageData.length <= sseConfig.small_file_size ){
 		    	var imageString = sjcl.codec.base64.fromBits(imageData); // convert byte array to base64 string
 				var imagecipher = encrypt(key,imageString); //encrypt
 				console.log("ciphertext in case file size < sseConfig.small:",imagecipher,",type:",typeof imagecipher) 
