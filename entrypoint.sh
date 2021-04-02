@@ -38,7 +38,7 @@ sed -i -e "s|sgx_enable_value|$SGX_ENABLE|" sse/static/js/sse.js
 sed -i -e "s|cp_abe_url|$CP_ABE_URL|" sse/static/js/sse.js
 sed -i -e "s|debug_value|$DEBUG|" sse/static/js/sse.js
 sed -i -e "s|auth_value|$AUTH|" sse/static/js/sse.js
-sed -i -e "s|small_file|$SMALL_FILE|" sse/static/js/sse.js
+sed -i -e "s|small_file_size|$SMALL_FILE|" sse/static/js/sse.js
 
 exec gunicorn SSEclient.wsgi:application \
     --name sse \
