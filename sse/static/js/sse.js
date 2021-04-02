@@ -1177,6 +1177,8 @@ function deleteData(file_id, sharedKey, Kenc, keyid, iskey=false, token="", call
 			return true;
 		},async_feat=false,header);// Send request to CSP
 		
+		console.log("Delete response:",result);
+		
 		// Send PATCH request to TA to update/delete entries in fileno table
 		var current_del,current_objects,current_deleted_objects;
 		[current_del,current_objects,current_deleted_objects]=updateFileNo(Lw,LfileNoUri,LfileNo,-1,keyid);
