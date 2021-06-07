@@ -43,6 +43,12 @@
 				<input type="text" class="form-control" id="keyid"
 					placeholder="Please enter key Id" name='keyid'>
 			</div>
+			
+			<label for="token" class="col-sm-10 col-form-label">Access token</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="token"
+					placeholder="Access token" name='token'>
+			</div>
 		</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnSendHashKey">Send</button>
@@ -94,6 +100,12 @@
 				<input type="text" class="form-control" id="keyid1"
 					placeholder="Please enter the unique key id"
 					name='keyid'>
+			</div>
+			
+			<label for="token1" class="col-sm-10 col-form-label">Access token</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="token1"
+					placeholder="Access token" name='token1'>
 			</div>
 		</div>
 	</div>
@@ -363,6 +375,13 @@
 <form id='search-file' class='mb-2' method="post" action="">
 	<div class='mb-2'>
 		<input type="file" class="form-control" id="jsonSearchFile" placeholder="Please enter URL of json file" name='jsonSearchFile'>
+			
+		<div class="form-check form-check-inline">
+			<input class="form-check-input" type="checkbox" name="inputFormat"
+			id="fe" value="fe"> 
+			<label class="form-check-label" for="fe">Return only file ids (for Functional Encryption)</label>	
+		</div>
+	
 		<div class="form-group row">
 			<label for="passphrase2" class="col-sm-10 col-form-label">Encryption passphrase (string) or key (hex string)</label>
 			<div class="col-sm-12">
@@ -393,6 +412,13 @@
 				<input type="text" class="form-control" id="keyid2"
 					placeholder="Please enter keyId" name='keyid2'>
 			</div>
+			
+			<label for="token2" class="col-sm-10 col-form-label">Access token</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="token2"
+					placeholder="Access token" name='token2'>
+			</div>
+			
 		</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnSearchFile">Search</button>
@@ -438,6 +464,12 @@
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="keyid3"
 					placeholder="Please enter key Id" name='keyid3'>
+			</div>
+			
+			<label for="token3" class="col-sm-10 col-form-label">Access token</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="token3"
+					placeholder="Access token" name='token3'>
 			</div>
 		</div>
 	</div>
@@ -485,6 +517,12 @@
 				<input type="text" class="form-control" id="keyid4"
 					placeholder="Please enter key Id" name='keyid4'>
 			</div>
+			
+			<label for="token4" class="col-sm-10 col-form-label">Access token</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="token4"
+					placeholder="Access token" name='token4'>
+			</div>
 		</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="btnDeleteFile">Delete</button>
@@ -521,6 +559,12 @@
 			<div class="col-sm-12">
 				<input type="text" class="form-control" id="keyid5"
 					placeholder="Please enter key Id" name='keyid5'>
+			</div>
+			
+			<label for="token5" class="col-sm-10 col-form-label">Access token</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="token5"
+					placeholder="Access token" name='token5'>
 			</div>
 		</div>
 	</div>
@@ -566,6 +610,12 @@
 				<input type="text" class="form-control" id="keyid6"
 					placeholder="Please enter key Id" name='keyid6'>
 			</div>
+			
+			<label for="token6" class="col-sm-10 col-form-label">Access token</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="token6"
+					placeholder="Access token" name='token6'>
+			</div>
 		</div>
 	</div>
 	<!--  <button type="button" class="btn btn-primary" id="btnDownload">Download and Decrypt</button>-->
@@ -607,6 +657,12 @@
 				<input type="text" class="form-control" id="keyid7"
 					placeholder="Please enter key Id" name='keyid7'>
 			</div>
+			
+			<label for="token7" class="col-sm-10 col-form-label">Access token</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="token7"
+					placeholder="Access token" name='token7'>
+			</div>
 		</div>
 	</div>
 	<!--<button type="button" class="btn btn-primary" id="btnUploadBlobSSE">Encrypt and Upload</button>  -->
@@ -643,6 +699,12 @@
 				<input type="text" class="form-control" id="keyid8"
 					name='keyid8' disabled>
 			</div>
+			
+			<label for="token8" class="col-sm-10 col-form-label">Access token</label>
+			<div class="col-sm-12">
+				<input type="text" class="form-control" id="token8"
+					placeholder="Access token" name='token8'>
+			</div>
 		</div>
 	</div>
 	<button type="button" class="btn btn-primary" id="bntUploadSSEkeys">Send</button>
@@ -659,10 +721,10 @@
 				<input type="text" class="form-control" id="keyid9"
 					placeholder="Please enter the key identification" name='keyid9'>
 			</div>
-			<label for="token2" class="col-sm-10 col-form-label">Access token</label>
+			<label for="token9" class="col-sm-10 col-form-label">Access token</label>
 			<div class="col-sm-12">
-				<input type="text" class="form-control" id="token2"
-					placeholder="Please provide the access token" name='token2'>
+				<input type="text" class="form-control" id="token9"
+					placeholder="Please provide the access token" name='token9'>
 			</div>
 			<label for="username" class="col-sm-10 col-form-label">User name</label>
 			<div class="col-sm-12">
